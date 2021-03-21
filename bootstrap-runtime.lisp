@@ -1,6 +1,4 @@
-;; first install quicklisp
-(eval-when (:load-toplevel :compile-toplevel)
-  (ql:quickload :cl-project))
+(ql:quickload :cl-project)
 
 (cl-project:make-project #p"runtime"
                          :author "Henry and Ed"
