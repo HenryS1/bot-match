@@ -4,4 +4,6 @@
 (in-package :forever-bot)
 
 (defun run ()
-  (sleep 10))
+  (sleep 20))
+
+(run)
