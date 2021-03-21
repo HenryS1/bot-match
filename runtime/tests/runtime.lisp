@@ -38,3 +38,11 @@
       (sleep 0.01)
       (ok (equal (bot-status bot) :running))
       (interrupt-bot bot))))
+
+(deftest interrupt-bot 
+  (testing "should interrupt execution of a bot"
+    (let ((bot (run-bot "sbcl" (list "--script" *slow-bot*))))
+      (sleep 0.01)
+      (interrupt-bot bot)
+      (sleep 0.01)
+      (ok (equal (bot-status bot) :exited)))))
