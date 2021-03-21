@@ -10,6 +10,7 @@
 (defparameter *test-directory* 
   (format nil "~a" (merge-pathnames (directory-namestring #.*compile-file-truename*) "dummy-bot.lisp")))
 
-(deftest run-bot
+(deftest run-bot-output
   (testing "should capture bot output from the commandline"
-    (ok (= (run-bot "sbcl" (list "--script" *test-directory*)) "bot-output"))))
+    (ok (string= (run-bot "sbcl" (list "--script" *test-directory*)) 
+                 (format nil "~a~%" "bot output")))))
