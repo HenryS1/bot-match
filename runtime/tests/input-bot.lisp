@@ -7,7 +7,10 @@
   (let ((result (with-output-to-string (s)
                    (loop for line = (read-line t nil nil)
                       while (and line (> (length line) 0))
-                      do (write-string line s)))))
-     (format t result)))
+                      do (write-line line s)))))
+     (format t "~a" result)
+     (format t "~%")
+     (finish-output)
+     (sleep 2)))
 
 (run)

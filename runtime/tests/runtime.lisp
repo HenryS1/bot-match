@@ -16,6 +16,8 @@
 
 (defparameter *input-bot* (bot-path "input-bot.lisp"))
 
+(defparameter *turn-bot* (bot-path "turn-bot.lisp"))
+
 (defun run-test-bot (path)
   (run-bot "sbcl" (list "--script" path)))
 
@@ -23,7 +25,7 @@
   (testing "should capture bot output from the commandline"
     (let ((bot (run-test-bot *quick-bot*)))
       (sleep 0.05)
-      (ok (string= (bot-output bot) "bot output")))))
+      (ok (equal (bot-output bot) '("bot output"))))))
 
 (deftest start-bot
   (testing "should start the bot process"
@@ -63,4 +65,23 @@
     (let ((bot (run-test-bot *input-bot*)))
       (send-input-to-bot bot "hello bot")
       (sleep 0.01)
-      (ok (string= (bot-output bot) "hello bot")))))
+      (ok (equal (bot-output bot) '("hello bot")))
+      (interrupt-bot bot))))
+
+(deftest end-bot-turn
+  (testing "should stop a bot and read its output"
+    (let ((bot (run-test-bot *turn-bot*)))
+      (send-input-to-bot bot "input")
+      (sleep 0.01)
+      (end-bot-turn bot)
+      (sleep 0.01)
+      (ok (equal (bot-status bot) :stopped))
+      (interrupt-bot bot))))
+
+(deftest bot-turn
+  (testing "should send input, read output and stop bot"
+    (let ((bot (run-test-bot *turn-bot*)))
+      (sleep 0.01)
+      (ok (equal (bot-turn bot "input" 0.02) '("input")))
+      (ok (equal (bot-status bot) :stopped))
+      (interrupt-bot bot))))

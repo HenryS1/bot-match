@@ -7,15 +7,16 @@
            :bot-status
            :kill-bot
            :interrupt-bot
-           :send-input-to-bot))
+           :send-input-to-bot
+           :end-bot-turn
+           :bot-turn))
 
 (in-package :runtime)
 
 (defun to-string (bot-stream)
-  (loop for c = (read-char bot-stream nil nil)
-        while c
-        collect c into result
-        finally (return (map 'string #'identity result))))
+  (loop for line = (read-line bot-stream nil nil)
+     while (and line (> (length line) 0))
+     collect line))
 
 (defun run-bot (command args)
   (sb-ext:run-program command args :wait nil :input :stream :output :stream :search t))
@@ -62,3 +63,16 @@
   (write-line str (sb-ext:process-input bot))
   (write-line "" (sb-ext:process-input bot))
   (finish-output (sb-ext:process-input bot)))
+
+(defun end-bot-turn (bot &optional (wait-time 0.1))
+  (stop-bot bot)
+  (sleep wait-time)
+  (when (equal (bot-status bot) :running)
+    (kill-bot bot)))
+
+(defun bot-turn (bot turn-input time-limit)
+  (send-input-to-bot bot turn-input)
+  (sleep time-limit)
+  (let ((result (bot-output bot)))
+    (end-bot-turn bot)
+    result))
