@@ -28,6 +28,10 @@
 (defun to-string (bot-stream)
   (map 'string #'identity (input-buffer bot-stream)))
 
+(defclass bot-process ()
+  ((stream :accessor :stream :initarg :stream :initform (make-instance 'bot-stream))
+   (process :accessor :process :initarg :process :initform (error "Bot process expected during initialization."))))
+
 (defun run-bot (command args)
   (let ((s (make-instance 'bot-stream)))
     (run command args :output s)
