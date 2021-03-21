@@ -4,6 +4,6 @@
 (in-package :dummy-bot)
 
 (defun run ()
-  (format t "bot output~%"))
+  (format t "bot output"))
 
 (run)

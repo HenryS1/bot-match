@@ -1,6 +1,13 @@
 (defpackage runtime
   (:use :cl :sb-gray :uiop :cl-arrows)
-  (:export :run-bot :bot-output :stop-bot :continue-bot :bot-status :kill-bot :interrupt-bot))
+  (:export :run-bot
+           :bot-output
+           :stop-bot
+           :continue-bot
+           :bot-status
+           :kill-bot
+           :interrupt-bot
+           :send-input-to-bot))
 
 (in-package :runtime)
 
@@ -11,11 +18,11 @@
         finally (return (map 'string #'identity result))))
 
 (defun run-bot (command args)
-  (sb-ext:run-program command args :wait nil :output :stream :search t))
+  (sb-ext:run-program command args :wait nil :input :stream :output :stream :search t))
 
 (defun bot-output (bot)
   (-> (sb-ext:process-output bot)
-      (to-string))) 
+      (to-string)))
 
 ;; Interrupt process
 (defconstant SIGINT 2)
@@ -49,3 +56,9 @@
 (defun bot-status (bot)
   (sb-ext:process-status bot))
 
+
+;; end of input is signalled by an empty line
+(defun send-input-to-bot (bot str)
+  (write-line str (sb-ext:process-input bot))
+  (write-line "" (sb-ext:process-input bot))
+  (finish-output (sb-ext:process-input bot)))
