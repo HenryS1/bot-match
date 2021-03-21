@@ -3,8 +3,7 @@
   :author "Henry and Ed"
   :license "MIT"
   :depends-on ("cl-arrows"
-               "anaphora"
-               "external-program")
+               "anaphora")
   :components ((:module "src"
                 :components
                 ((:file "runtime"))))
