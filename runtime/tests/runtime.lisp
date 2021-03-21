@@ -13,12 +13,18 @@
 (defparameter *slow-bot*
   (format nil "~a" (merge-pathnames (directory-namestring #.*compile-file-truename*) "slow-bot.lisp")))
 
-(deftest run-bot-output
+(deftest bot-output
   (testing "should capture bot output from the commandline"
     (let ((bot (run-bot "sbcl" (list "--script" *quick-bot*))))
-      (sleep 0.2)
+      (sleep 0.05)
       (ok (string= (bot-output bot)
                    (format nil "~a~%" "bot output"))))))
+
+(deftest start-bot
+  (testing "should start the bot process"
+    (let ((bot (run-bot "sbcl" (list "--script" *slow-bot*))))
+      (ok (equal (bot-status bot) :running))
+      (interrupt-bot bot))))
 
 (deftest suspend-bot
   (testing "should suspend a bot"
