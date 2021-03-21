@@ -22,14 +22,18 @@
 ;; Kill process
 (defconstant SIGKILL 9)
 ;; Resume process
-(defconstant SIGCONT 18)
+#+linux (defconstant SIGCONT 18)
+#-linux (defconstant SIGCONT 19)
+
 ;; Hard pause process
-(defconstant SIGSTOP 19)
+#+linux (defconstant SIGSTOP 19)
+#-linux (defconstant SIGSTOP 17)
+
 ;; Gentle pause process
-(defconstant SIGTSTP 20)
+#+linux (defconstant SIGTSTP 20)
+#-linux (defconstant SIGTSTP 18)
 
 ;; SBCL process statuses are :running :stopped :exited :signaled
-
 (defun stop-bot (bot)
   (sb-ext:process-kill bot SIGSTOP))
 
