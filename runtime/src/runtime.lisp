@@ -1,5 +1,5 @@
 (defpackage runtime
-  (:use :cl :sb-gray :uiop :cl-arrows)
+  (:use :cl :uiop :cl-arrows)
   (:export :run-bot
            :bot-output
            :stop-bot
@@ -58,7 +58,7 @@
   (sb-ext:process-status bot))
 
 
-;; end of input is signalled by an empty line
+;; End of input is signalled by an empty line
 (defun send-input-to-bot (bot str)
   (write-line str (sb-ext:process-input bot))
   (write-line "" (sb-ext:process-input bot))
@@ -73,6 +73,5 @@
 (defun bot-turn (bot turn-input time-limit)
   (send-input-to-bot bot turn-input)
   (sleep time-limit)
-  (let ((result (bot-output bot)))
-    (end-bot-turn bot)
-    result))
+  (end-bot-turn bot)
+  (bot-output bot))
