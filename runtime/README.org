@@ -2,6 +2,20 @@
 
 ** Usage
 
+This provides a library for running bots in a match against one
+another. Each bot in the game has a process spawned for it. When it is
+not a bot's turn the bot process is paused by sending SIGSTOP to the
+process. When it is that bot's turn the process is resumed using
+SIGCONT. 
+
+When the bot process is spawned a stream is created for managing input
+to the bot. When the bot reads from STDIN it gets data that has been
+provided to the input stream.
+
+A stream is also created for managing bot output. When the bot writes
+to STDOUT the data is transferred the this stream's buffer and can be
+read by the game runtime.
+
 ** Installation
 
 ** Author
