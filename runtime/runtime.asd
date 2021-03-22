@@ -2,7 +2,7 @@
   :version "0.1.0"
   :author "Henry and Ed"
   :license "MIT"
-  :depends-on ("cl-arrows"
+  :depends-on ("arrow-macros"
                "anaphora")
   :components ((:module "src"
                 :components

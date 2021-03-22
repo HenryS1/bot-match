@@ -1,5 +1,5 @@
 (defpackage runtime
-  (:use :cl :uiop :cl-arrows)
+  (:use :cl :uiop :arrow-macros)
   (:export :run-bot
            :bot-output
            :stop-bot
