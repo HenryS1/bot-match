@@ -1,0 +1,16 @@
+("quicklisp" .
+ (:class qlot/source/dist:source-dist
+  :initargs (:distribution "http://beta.quicklisp.org/dist/quicklisp.txt" :%version :latest)
+  :version "2021-02-28"))
+("arrow-macros" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2020-03-25")
+  :version "ql-2020-03-25"))
+("anaphora" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2020-03-25")
+  :version "ql-2020-03-25"))
+("herodotus" .
+ (:class qlot/source/git:source-git
+  :initargs (:remote-url "https://github.com/HenryS1/herodotus.git" :tag "v1.0.0")
+  :version "git-f580fbac47cdb23128e0531ebec6a1e1ae80ac5b"))
