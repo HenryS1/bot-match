@@ -19,7 +19,7 @@
 (defparameter *turn-bot* (bot-path "turn-bot.lisp"))
 
 (defun run-test-bot (path)
-  (run-bot "sbcl" (list "--script" path)))
+  (make-instance 'concrete-bot :bot-process (run-bot "sbcl" (list "--script" path))))
 
 (deftest bot-output
   (testing "should capture bot output from the commandline"

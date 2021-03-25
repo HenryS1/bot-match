@@ -3,7 +3,8 @@
   :author "Henry and Ed"
   :license "MIT"
   :depends-on ("arrow-macros"
-               "anaphora")
+               "anaphora"
+               "herodotus")
   :components ((:module "src"
                 :components
                 ((:file "runtime"))))

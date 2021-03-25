@@ -9,9 +9,18 @@
            :interrupt-bot
            :send-input-to-bot
            :end-bot-turn
+           :concrete-bot
            :bot-turn))
 
 (in-package :runtime)
+
+(defclass bot () ())
+
+(defclass concrete-bot (bot)
+  ((bot-process :accessor bot-process :initarg :bot-process)))
+
+(defgeneric bot-status (bot))
+(defgeneric bot-turn (bot input time-limit))
 
 (defun to-string (bot-stream)
   (loop for line = (read-line bot-stream nil nil)
@@ -21,8 +30,8 @@
 (defun run-bot (command args)
   (sb-ext:run-program command args :wait nil :input :stream :output :stream :search t))
 
-(defun bot-output (bot)
-  (-> (sb-ext:process-output bot)
+(defmethod bot-output ((bot concrete-bot))
+  (-> (sb-ext:process-output (bot-process bot))
       (to-string)))
 
 ;; Interrupt process
@@ -42,35 +51,35 @@
 #-linux (defconstant SIGTSTP 18)
 
 ;; SBCL process statuses are :running :stopped :exited :signaled
-(defun stop-bot (bot)
-  (sb-ext:process-kill bot SIGSTOP))
+(defmethod stop-bot ((bot concrete-bot))
+  (sb-ext:process-kill (bot-process bot) SIGSTOP))
 
-(defun continue-bot (bot)
-  (sb-ext:process-kill bot SIGCONT))
+(defmethod continue-bot ((bot concrete-bot))
+  (sb-ext:process-kill (bot-process bot) SIGCONT))
 
-(defun kill-bot (bot)
-  (sb-ext:process-kill bot SIGKILL))
+(defmethod kill-bot ((bot concrete-bot))
+  (sb-ext:process-kill (bot-process bot) SIGKILL))
 
-(defun interrupt-bot (bot)
-  (sb-ext:process-kill bot SIGINT))
+(defmethod interrupt-bot ((bot concrete-bot))
+  (sb-ext:process-kill (bot-process bot) SIGINT))
 
-(defun bot-status (bot)
-  (sb-ext:process-status bot))
-
+(defmethod bot-status ((bot concrete-bot))
+  (sb-ext:process-status (bot-process bot)))
 
 ;; End of input is signalled by an empty line
-(defun send-input-to-bot (bot str)
-  (write-line str (sb-ext:process-input bot))
-  (write-line "" (sb-ext:process-input bot))
-  (finish-output (sb-ext:process-input bot)))
+(defmethod send-input-to-bot ((bot concrete-bot) str)
+  (with-slots (bot-process) bot
+    (write-line str (sb-ext:process-input bot-process))
+    (write-line "" (sb-ext:process-input bot-process))
+    (finish-output (sb-ext:process-input bot-process))))
 
-(defun end-bot-turn (bot &optional (wait-time 0.1))
+(defmethod end-bot-turn ((bot concrete-bot) &optional (wait-time 0.1))
   (stop-bot bot)
   (sleep wait-time)
   (when (equal (bot-status bot) :running)
     (kill-bot bot)))
 
-(defun bot-turn (bot turn-input time-limit)
+(defmethod bot-turn ((bot concrete-bot) turn-input time-limit)
   (send-input-to-bot bot turn-input)
   (sleep time-limit)
   (end-bot-turn bot)
