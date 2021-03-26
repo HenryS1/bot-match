@@ -81,7 +81,8 @@
     (kill-bot bot)))
 
 (defmethod bot-turn ((bot concrete-bot) turn-input time-limit)
-  (send-input-to-bot bot turn-input)
-  (sleep time-limit)
-  (end-bot-turn bot)
-  (bot-output bot))
+  (when (not (equal (bot-status bot) :exited))
+    (send-input-to-bot bot turn-input)
+    (sleep time-limit)
+    (end-bot-turn bot)
+    (bot-output bot)))

@@ -18,6 +18,8 @@
 
 (defparameter *turn-bot* (bot-path "turn-bot.lisp"))
 
+(defparameter *exited-bot* (bot-path "exited-bot.lisp"))
+
 (defun run-test-bot (path)
   (make-instance 'concrete-bot :bot-process (run-bot "sbcl" (list "--script" path))))
 
@@ -84,4 +86,9 @@
       (sleep 0.01)
       (ok (equal (bot-turn bot "input" 0.02) '("input")))
       (ok (equal (bot-status bot) :stopped))
-      (interrupt-bot bot))))
+      (interrupt-bot bot)))
+  (testing "should not run a turn when the bot process is exited"
+    (let ((bot (run-test-bot *exited-bot*)))
+      (sleep 0.01)
+      (ok (not (bot-turn bot "input" 0.02))))))
+

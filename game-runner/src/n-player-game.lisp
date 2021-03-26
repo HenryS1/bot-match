@@ -2,6 +2,7 @@
   (:use :cl :runtime :herodotus :cl-ppcre :alexandria)
   (:export :game-state :bot-definition :n-player-game :is-finished?
            :bot-status :get-bot-input :update-game-state :update-game-turn
+           :tick :finish-game
            :terminate-bots :bot-scores :bots :turn-time-limit))
 
 (in-package :n-player-game)
@@ -24,13 +25,17 @@
 (defgeneric update-game-state (game-state bot-output))
 (defgeneric update-game-turn (game-state))
 
+(defmethod finish-game ((game-state game-state))
+  (progn (terminate-bots game-state)
+         (bot-scores game-state)))
+
+(defmethod tick ((game-state game-state))
+  (loop for current-game = game-state then (update-game-state current-game bot-output)
+     for bot in (bots game-state)
+     for bot-output = (bot-turn (get-bot-input game-state) bot (turn-time-limit game-state))
+     finally (return (update-game-turn game-state))))
+
 (defmethod n-player-game ((game-start game-state))
-  (loop for game = game-start then
-       (loop for current-game = game then (update-game-state current-game bot-output)
-           for bot in (bots game)
-           for bot-output = (when (not (equal (bot-status bot) :exited))
-                              (bot-turn (get-bot-input game) bot (turn-time-limit game)))
-           finally (return (update-game-turn game)))
+  (loop for game = game-start then (tick game)    
      while (not (is-finished? game))
-     finally (return (progn (terminate-bots game)
-                            (bot-scores game)))))
+     finally (return (finish-game game))))

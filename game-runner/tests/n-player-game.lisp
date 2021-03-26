@@ -47,23 +47,37 @@
 (defmethod is-finished? ((game test-game-state))
   (= (turns-remaining game) 0))
 
-(deftest finished-game
+(deftest finish-game
   (testing "should terminate bots"
     (let ((game (make-instance 'test-game-state :turns-remaining 0
                                :bots (list (make-instance 'test-bot)))))
-      (n-player-game game)
+      (finish-game game)
       (ok (every (lambda (bot) (stopped bot)) (bots game)))))
   (testing "should return the scores of each bot"
     (let ((game (make-instance 'test-game-state :turns-remaining 0
                                :bots (list (make-instance 'test-bot :score 13)
                                            (make-instance 'test-bot :score 21)))))
-      (ok (equal (n-player-game game) (list 13 21))))))
+      (ok (equal (finish-game game) (list 13 21))))))
 
-(deftest turns
+(deftest tick
   (testing "should update the state of the game with bot output"
     (let ((game (make-instance 'test-game-state :turns-remaining 1
                                :bots (list (make-instance 'test-bot :bot-output "output")))))
+      (tick game)
+      (ok (equal (bot-output game) (list "output")))))
+  (testing "should give each a turn"
+    (let ((game (make-instance 'test-game-state :turns-remaining 1
+                               :bot-input "bot-input"
+                               :bots (list (make-instance 'test-bot) (make-instance 'test-bot)))))
+      (tick game)
+      (ok (equal (mapcar #'bot-input (bots game)) (list "bot-input" "bot-input")))))
+  (testing "should update the current turn for the game"
+    (let ((game (make-instance 'test-game-state :turns-remaining 1)))
+      (tick game)
+      (ok (equal (turns-remaining game) 0)))))
+
+(deftest n-player-game
+  (testing "should run the game until finished"
+    (let ((game (make-instance 'test-game-state :turns-remaining 2)))
       (n-player-game game)
-      (ok (equal (bot-output game) (list "output"))))))
-
-
+      (ok (is-finished? game)))))
