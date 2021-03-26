@@ -10,6 +10,7 @@
            :send-input-to-bot
            :end-bot-turn
            :concrete-bot
+           :bot
            :bot-turn))
 
 (in-package :runtime)
