@@ -7,18 +7,20 @@
 
 ;; NOTE: To run this test file, execute `(asdf:test-system :runtime)' in your Lisp.
 
-(defun bot-path (filename)
+(defun test-file-path (filename)
   (format nil "~a" (merge-pathnames (directory-namestring #.*compile-file-truename*) filename)))
 
-(defparameter *quick-bot* (bot-path "quick-bot.lisp"))
+(defparameter *quick-bot* (test-file-path "quick-bot.lisp"))
 
-(defparameter *slow-bot* (bot-path "slow-bot.lisp"))
+(defparameter *slow-bot* (test-file-path "slow-bot.lisp"))
 
-(defparameter *input-bot* (bot-path "input-bot.lisp"))
+(defparameter *input-bot* (test-file-path "input-bot.lisp"))
 
-(defparameter *turn-bot* (bot-path "turn-bot.lisp"))
+(defparameter *turn-bot* (test-file-path "turn-bot.lisp"))
 
-(defparameter *exited-bot* (bot-path "exited-bot.lisp"))
+(defparameter *exited-bot* (test-file-path "exited-bot.lisp"))
+
+(defparameter *bot-definition* (test-file-path "bot-definition.json"))
 
 (defun run-test-bot (path)
   (make-instance 'concrete-bot :bot-process (run-bot "sbcl" (list "--script" path))))
@@ -94,3 +96,17 @@
       (sleep 0.02)
       (ok (not (bot-turn bot "input" 0.02))))))
 
+(deftest bot-definition 
+  (testing "should read a bot definition from a file"
+    (with-open-file (f *bot-definition*)
+      (let ((definition (bot-definition-json:from-json f)))
+        (ok (equal (runtime:name definition) "bot"))
+        (ok (equal (runtime:command definition) "sbcl --script ./turn-bot.lisp"))))))
+
+(deftest start-bot-from-definition 
+  (testing "should start a bot process using the provided command"
+    (with-open-file (f *bot-definition*)
+      (let* ((definition (bot-definition-json:from-json f))
+             (bot (start-bot-from-definition definition)))
+        (sleep 0.01)
+        (ok (equal (bot-turn bot "input" 0.2) '("input")))))))

@@ -5,6 +5,7 @@
   :depends-on ("arrow-macros"
                "anaphora"
                "herodotus"
+               "cl-ppcre"
                "trivial-timeout")
   :components ((:module "src"
                 :components

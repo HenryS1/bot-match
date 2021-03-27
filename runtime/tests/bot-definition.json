@@ -1,0 +1,4 @@
+{
+    "name": "bot",
+    "command": "sbcl --script ./turn-bot.lisp"
+}

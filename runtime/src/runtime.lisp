@@ -1,9 +1,13 @@
 (defpackage runtime
-  (:use :cl :uiop :arrow-macros :trivial-timeout)
+  (:use :cl :uiop :arrow-macros :trivial-timeout
+        :cl-ppcre
+        :herodotus)
   (:export :run-bot
            :bot-output
            :stop-bot
            :continue-bot
+           :name
+           :command
            :bot-status
            :kill-bot
            :interrupt-bot
@@ -11,6 +15,8 @@
            :end-bot-turn
            :concrete-bot
            :bot
+           :bot-definition
+           :start-bot-from-definition
            :bot-turn))
 
 (in-package :runtime)
@@ -19,6 +25,12 @@
 
 (defclass concrete-bot (bot)
   ((bot-process :accessor bot-process :initarg :bot-process)))
+
+(define-json-model bot-definition (command name))
+
+(defmethod start-bot-from-definition ((bot-definition bot-definition))
+  (let ((command-parts (split "\\s+" (command bot-definition))))
+    (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts)))))
 
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit))

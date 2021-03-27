@@ -7,12 +7,6 @@
 
 (in-package :n-player-game)
 
-(define-json-model bot-definition (command name))
-
-(defmethod start-bot ((bot-definition bot-definition))
-  (let ((command-parts (split "\\s+" (command bot-definition))))
-    (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts)))))
-
 (defclass game-state ()
   ((bots :accessor bots :initarg :bots :initform nil)
    (turn-time-limit :accessor turn-time-limit :initarg :turn-time-limit :initform 1)))
