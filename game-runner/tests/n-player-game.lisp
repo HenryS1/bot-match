@@ -16,7 +16,7 @@
 (defclass test-game-state (game-state)
   ((turns-remaining :accessor turns-remaining :initarg :turns-remaining)
    (bot-input :accessor bot-input :initarg :bot-input :initform nil)
-   (bot-output :accessor bot-output :initform nil)))
+   (bot-output :accessor bot-output :initform (make-hash-table :test 'equal))))
 
 (defmethod get-bot-input ((game test-game-state))
   (bot-input game))
@@ -33,8 +33,8 @@
          (setf (turn-time-limit bot) turn-time-limit)
          (bot-output bot)))
 
-(defmethod update-game-state ((game test-game-state) bot-output)
-  (progn (push bot-output (bot-output game))
+(defmethod update-game-state ((game test-game-state) bot-output bot-id)
+  (progn (push bot-output (gethash bot-id (bot-output game)))
          game))
 
 (defmethod update-game-turn ((game test-game-state))
@@ -50,25 +50,27 @@
 (deftest finish-game
   (testing "should terminate bots"
     (let ((game (make-instance 'test-game-state :turns-remaining 0
-                               :bots (list (make-instance 'test-bot)))))
+                               :bots (list (make-instance 'test-bot :bot-id "test")))))
       (finish-game game)
       (ok (every (lambda (bot) (stopped bot)) (bots game)))))
   (testing "should return the scores of each bot"
     (let ((game (make-instance 'test-game-state :turns-remaining 0
-                               :bots (list (make-instance 'test-bot :score 13)
-                                           (make-instance 'test-bot :score 21)))))
+                               :bots (list (make-instance 'test-bot :score 13 :bot-id "test-1")
+                                           (make-instance 'test-bot :score 21 :bot-id "test-2")))))
       (ok (equal (finish-game game) (list 13 21))))))
 
 (deftest tick
   (testing "should update the state of the game with bot output"
     (let ((game (make-instance 'test-game-state :turns-remaining 1
-                               :bots (list (make-instance 'test-bot :bot-output "output")))))
+                               :bots (list (make-instance 'test-bot :bot-output "output" 
+                                                          :bot-id "test")))))
       (tick game)
-      (ok (equal (bot-output game) (list "output")))))
-  (testing "should give each a turn"
+      (ok (equal (gethash "test" (bot-output game)) (list "output")))))
+  (testing "should give each bot a turn"
     (let ((game (make-instance 'test-game-state :turns-remaining 1
                                :bot-input "bot-input"
-                               :bots (list (make-instance 'test-bot) (make-instance 'test-bot)))))
+                               :bots (list (make-instance 'test-bot :bot-id "test-1")
+                                           (make-instance 'test-bot :bot-id "test-2")))))
       (tick game)
       (ok (equal (mapcar #'bot-input (bots game)) (list "bot-input" "bot-input")))))
   (testing "should update the current turn for the game"
@@ -81,3 +83,4 @@
     (let ((game (make-instance 'test-game-state :turns-remaining 2)))
       (n-player-game game)
       (ok (is-finished? game)))))
+

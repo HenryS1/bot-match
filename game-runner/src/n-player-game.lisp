@@ -12,11 +12,10 @@
    (turn-time-limit :accessor turn-time-limit :initarg :turn-time-limit :initform 1)))
 
 (defgeneric is-finished? (game-state))
-(defgeneric next-turn (game-state))
 (defgeneric terminate-bots (game-state))
 (defgeneric bot-scores (game-state))
 (defgeneric get-bot-input (game-state))
-(defgeneric update-game-state (game-state bot-output))
+(defgeneric update-game-state (game-state bot-output bot-id))
 (defgeneric update-game-turn (game-state))
 
 (defmethod finish-game ((game-state game-state))
@@ -24,10 +23,10 @@
          (bot-scores game-state)))
 
 (defmethod tick ((game-state game-state))
-  (loop for bot in (bots game-state)    
+  (loop for bot in (bots game-state)
      for bot-output = (bot-turn (get-bot-input game-state) bot (turn-time-limit game-state))
-     do (update-game-state game-state bot-output)
-     finally (return (update-game-turn game-state))))
+     do (update-game-state game-state bot-output (bot-id bot))
+     finally (update-game-turn game-state)))
 
 (defmethod n-player-game ((game-state game-state))
   (loop while (not (is-finished? game-state))

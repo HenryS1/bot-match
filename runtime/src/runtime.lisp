@@ -15,13 +15,14 @@
            :end-bot-turn
            :concrete-bot
            :bot
+           :bot-id
            :bot-definition
            :start-bot-from-definition
            :bot-turn))
 
 (in-package :runtime)
 
-(defclass bot () ())
+(defclass bot () ((bot-id :accessor bot-id :initarg :bot-id :initform (error "bot id must be provided"))))
 
 (defclass concrete-bot (bot)
   ((bot-process :accessor bot-process :initarg :bot-process)))
@@ -30,7 +31,8 @@
 
 (defmethod start-bot-from-definition ((bot-definition bot-definition))
   (let ((command-parts (split "\\s+" (command bot-definition))))
-    (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts)))))
+    (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts))
+                   :bot-id (name bot-definition))))
 
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit))
