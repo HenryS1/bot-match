@@ -106,7 +106,8 @@
 (deftest start-bot-from-definition 
   (testing "should start a bot process using the provided command"
     (with-open-file (f *bot-definition*)
-      (let* ((definition (bot-definition-json:from-json f))
+      (let* ((definition (make-instance 'bot-definition :command (format nil "sbcl --script ~a" (test-file-path "turn-bot.lisp"))
+                                        :name "test-bot"))
              (bot (start-bot-from-definition definition)))
         (sleep 0.01)
         (ok (equal (bot-turn bot "input" 0.2) '("input")))))))
