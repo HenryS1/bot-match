@@ -7,8 +7,10 @@
 
 ;; NOTE: To run this test file, execute `(asdf:test-system :runtime)' in your Lisp.
 
+(defparameter *test-base-path* (directory-namestring #.*compile-file-truename*))
+
 (defun test-file-path (filename)
-  (format nil "~a" (merge-pathnames (directory-namestring #.*compile-file-truename*) filename)))
+  (format nil "~a" (merge-pathnames *test-base-path* filename)))
 
 (defparameter *quick-bot* (test-file-path "quick-bot.lisp"))
 
@@ -101,13 +103,13 @@
     (with-open-file (f *bot-definition*)
       (let ((definition (bot-definition-json:from-json f)))
         (ok (equal (runtime:name definition) "bot"))
-        (ok (equal (runtime:command definition) "sbcl --script ./turn-bot.lisp"))))))
+        (ok (equal (runtime:command definition) "sbcl --script <bot-file>"))
+        (ok (equal (runtime:relative-filepath definition) "./turn-bot.lisp"))))))
 
 (deftest start-bot-from-definition 
   (testing "should start a bot process using the provided command"
     (with-open-file (f *bot-definition*)
-      (let* ((definition (make-instance 'bot-definition :command (format nil "sbcl --script ~a" (test-file-path "turn-bot.lisp"))
-                                        :name "test-bot"))
-             (bot (start-bot-from-definition definition)))
+      (let* ((definition (bot-definition-json:from-json f))
+             (bot (start-bot-from-definition definition *test-base-path*)))
         (sleep 0.01)
         (ok (equal (bot-turn bot "input" 0.2) '("input")))))))

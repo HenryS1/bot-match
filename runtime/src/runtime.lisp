@@ -4,6 +4,7 @@
         :herodotus)
   (:export :run-bot
            :bot-output
+           :relative-filepath
            :stop-bot
            :continue-bot
            :name
@@ -27,10 +28,12 @@
 (defclass concrete-bot (bot)
   ((bot-process :accessor bot-process :initarg :bot-process)))
 
-(define-json-model bot-definition (command name))
+(define-json-model bot-definition (name command relative-filepath) :kebab-case)
 
-(defmethod start-bot-from-definition ((bot-definition bot-definition))
-  (let ((command-parts (split "\\s+" (command bot-definition))))
+(defmethod start-bot-from-definition ((bot-definition bot-definition) base-path)
+  (let ((command-parts (split "\\s+" (regex-replace "<bot-file>" 
+                                                    (command bot-definition)
+                                                    (concatenate 'string base-path (relative-filepath bot-definition))))))
     (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts))
                    :bot-id (name bot-definition))))
 

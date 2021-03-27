@@ -1,4 +1,5 @@
 {
     "name": "bot",
-    "command": "sbcl --script ./turn-bot.lisp"
+    "relative-filepath": "./turn-bot.lisp",
+    "command": "sbcl --script <bot-file>"
 }
