@@ -84,11 +84,13 @@
   (testing "should send input, read output and stop bot"
     (let ((bot (run-test-bot *turn-bot*)))
       (sleep 0.01)
-      (ok (equal (bot-turn bot "input" 0.02) '("input")))
+      (ok (equal (bot-turn bot "input" 0.2) '("input")))
       (ok (equal (bot-status bot) :stopped))
       (interrupt-bot bot)))
   (testing "should not run a turn when the bot process is exited"
-    (let ((bot (run-test-bot *exited-bot*)))
-      (sleep 0.01)
+    (let ((bot (run-test-bot *turn-bot*)))
+      (sleep 0.02)
+      (interrupt-bot bot)
+      (sleep 0.02)
       (ok (not (bot-turn bot "input" 0.02))))))
 

@@ -30,12 +30,12 @@
          (bot-scores game-state)))
 
 (defmethod tick ((game-state game-state))
-  (loop for current-game = game-state then (update-game-state current-game bot-output)
-     for bot in (bots game-state)
+  (loop for bot in (bots game-state)    
      for bot-output = (bot-turn (get-bot-input game-state) bot (turn-time-limit game-state))
+     do (update-game-state game-state bot-output)
      finally (return (update-game-turn game-state))))
 
-(defmethod n-player-game ((game-start game-state))
-  (loop for game = game-start then (tick game)    
-     while (not (is-finished? game))
-     finally (return (finish-game game))))
+(defmethod n-player-game ((game-state game-state))
+  (loop while (not (is-finished? game-state))
+     do (tick game-state)
+     finally (return (finish-game game-state))))

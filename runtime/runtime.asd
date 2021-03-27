@@ -4,7 +4,8 @@
   :license "MIT"
   :depends-on ("arrow-macros"
                "anaphora"
-               "herodotus")
+               "herodotus"
+               "trivial-timeout")
   :components ((:module "src"
                 :components
                 ((:file "runtime"))))

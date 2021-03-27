@@ -1,1 +1,2 @@
-;; does nothing and finishes
+(format t "done~%")
+

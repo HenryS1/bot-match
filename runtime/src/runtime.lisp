@@ -1,5 +1,5 @@
 (defpackage runtime
-  (:use :cl :uiop :arrow-macros)
+  (:use :cl :uiop :arrow-macros :trivial-timeout)
   (:export :run-bot
            :bot-output
            :stop-bot
@@ -23,10 +23,17 @@
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit))
 
+(defparameter *read-output-timeout* 0.3)
+
 (defun to-string (bot-stream)
-  (loop for line = (read-line bot-stream nil nil)
-     while (and line (> (length line) 0))
-     collect line))
+  (handler-case 
+      (with-timeout (*read-output-timeout*)
+        (loop for line = (read-line bot-stream nil nil)
+           while (and line (> (length line) 0))
+           collect line))
+    (timeout-error (e)
+      (format t "timed out waiting for bot output~%")
+      nil)))
 
 (defun run-bot (command args)
   (sb-ext:run-program command args :wait nil :input :stream :output :stream :search t))
