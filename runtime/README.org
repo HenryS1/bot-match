@@ -20,11 +20,11 @@ read by the game runtime.
 
 ** Author
 
-+ Henry and Ed (henry.steere@gmail.com, edward.steere@gmail.com)
++ Henry and Ed
 
 ** Copyright
 
-Copyright (c) 2021 Henry and Ed (henry.steere@gmail.com, edward.steere@gmail.com)
+Copyright (c) 2021 Henry and Ed
 
 ** License
 

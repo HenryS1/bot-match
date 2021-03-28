@@ -33,7 +33,7 @@
     - Create different types of soldiers
     - They run across and attack enemy soldier or enemy base
     - Soldier behaviour is deterministic
-    - Win by destroying the opponents base
+    - Win by destroying the opponent's base
     - Bigger units take more time
       (or units cost an amount and fixed resources allocated per turn)
     - Spawn in various locations and that determines the path to the enemy base
