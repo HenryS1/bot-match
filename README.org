@@ -25,7 +25,8 @@ tests directory of the game-runner module.
 ** Platform
 
 The project only runs on *nix systems because it uses os signals to
-manage processes.
+manage processes. It also requires the SBCL lisp compiler, because it
+uses low level sbcl apis for process management.
 
 ** License
 
