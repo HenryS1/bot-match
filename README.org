@@ -22,8 +22,8 @@ tests directory of the game-runner module.
 
 ** Platform
 
-The project only runs on unix systems because it uses *nix os signals
-to manage processes.
+The project only runs on *nix systems because it uses os signals to
+manage processes.
 
 ** License
 
