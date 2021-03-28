@@ -40,8 +40,10 @@
   (let ((command-parts (split "\\s+" (regex-replace "<bot-file>" 
                                                     (command bot-definition)
                                                     (concatenate 'string base-path (relative-filepath bot-definition))))))
-    (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts))
-                   :bot-id (name bot-definition))))
+    (let ((bot (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts))
+                    :bot-id (name bot-definition))))
+      (stop-bot bot)
+      bot)))
 
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit))
