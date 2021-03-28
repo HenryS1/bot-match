@@ -28,7 +28,7 @@
   (loop for bot in (bots game-state)
      do (stop-bot bot)))
 
-(defmethod bot-turn (input (bot test-bot) turn-time-limit)
+(defmethod bot-turn ((bot test-bot) input turn-time-limit)
   (progn (setf (bot-input bot) input)
          (setf (turn-time-limit bot) turn-time-limit)
          (bot-output bot)))

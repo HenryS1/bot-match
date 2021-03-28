@@ -24,11 +24,13 @@
 
 (defmethod tick ((game-state game-state))
   (loop for bot in (bots game-state)
-     for bot-output = (bot-turn (get-bot-input game-state) bot (turn-time-limit game-state))
+     for bot-output = (bot-turn bot (get-bot-input game-state) (turn-time-limit game-state))
      do (update-game-state game-state bot-output (bot-id bot))
      finally (update-game-turn game-state)))
 
 (defmethod n-player-game ((game-state game-state))
-  (loop while (not (is-finished? game-state))
-     do (tick game-state)
-     finally (return (finish-game game-state))))
+  (unwind-protect 
+       (loop while (not (is-finished? game-state))
+          do (tick game-state)
+          finally (return (bot-scores game-state)))
+    (terminate-bots game-state)))

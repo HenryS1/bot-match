@@ -23,7 +23,7 @@
 (defparameter *bot-definition* (test-file-path "definition.json"))
 
 (defun run-test-bot (path)
-  (make-instance 'concrete-bot :bot-process (run-bot "sbcl" (list "--script" path)) :bot-id (random 100)))
+  (make-instance 'concrete-bot :bot-process (run-bot "ros" (list "+Q" "--" path)) :bot-id (random 100)))
 
 (deftest bot-output
   (testing "should capture bot output from stdout"
@@ -85,13 +85,13 @@
 (deftest bot-turn
   (testing "should send input, read output and stop bot"
     (let ((bot (run-test-bot *turn-bot*)))
-      (sleep 0.01)
+      (sleep 0.2)
       (ok (equal (bot-turn bot "input" 0.2) '("input")))
       (ok (equal (bot-status bot) :stopped))
       (interrupt-bot bot)))
   (testing "should not run a turn when the bot process is exited"
     (let ((bot (run-test-bot *turn-bot*)))
-      (sleep 0.02)
+      (sleep 0.2)
       (interrupt-bot bot)
       (sleep 0.02)
       (ok (not (bot-turn bot "input" 0.02))))))
@@ -101,7 +101,7 @@
     (with-open-file (f *bot-definition*)
       (let ((definition (bot-definition-json:from-json f)))
         (ok (equal (runtime:name definition) "bot"))
-        (ok (equal (runtime:command definition) "sbcl --script <bot-file>"))
+        (ok (equal (runtime:command definition) "ros +Q -- <bot-file>"))
         (ok (equal (runtime:relative-filepath definition) "./turn-bot.lisp"))))))
 
 (deftest start-bot-from-definition 

@@ -9,4 +9,6 @@
      do (format t "~a~%~%" input)
        (finish-output)))
 
-(run)
+(defun main (&rest argv)
+  (declare (ignorable argv))
+  (run))

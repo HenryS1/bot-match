@@ -48,8 +48,9 @@
 
 (defun run-guessing-game ()
   (format t "running guessing game~%")
-  (let* ((game (make-instance 'guessing-game-state :bots (run-bots) :turn-time-limit 0.1)))
-    (n-player-game game)))
+  (let ((*bot-initialisation-time* 0.2))
+   (let* ((game (make-instance 'guessing-game-state :bots (run-bots) :turn-time-limit 0.1)))
+     (n-player-game game))))
 
 (deftest guessing-game 
   (testing "should produce scores for bots"

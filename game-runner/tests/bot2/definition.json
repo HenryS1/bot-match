@@ -1,5 +1,5 @@
 {
     "name": "bot2",
     "relative-filepath": "./bot.lisp",
-    "command": "sbcl --script <bot-file>"
+    "command": "ros +Q -- <bot-file>"
 }

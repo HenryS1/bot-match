@@ -20,7 +20,8 @@
            :bot-definition
            :read-bot-definition
            :start-bot-from-definition
-           :bot-turn))
+           :bot-turn
+           :*bot-initialisation-time*))
 
 (in-package :runtime)
 
@@ -36,12 +37,16 @@
   (with-open-file (f path)
     (bot-definition-json:from-json f)))
 
+(defparameter *bot-initialisation-time* 0)
+
 (defmethod start-bot-from-definition ((bot-definition bot-definition) base-path)
   (let ((command-parts (split "\\s+" (regex-replace "<bot-file>" 
                                                     (command bot-definition)
                                                     (concatenate 'string base-path (relative-filepath bot-definition))))))
     (let ((bot (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts))
                     :bot-id (name bot-definition))))
+      (when (> *bot-initialisation-time* 0)
+        (sleep *bot-initialisation-time*))
       (stop-bot bot)
       bot)))
 
@@ -113,7 +118,7 @@
   (when (equal (bot-status bot) :running)
     (kill-bot bot)))
 
-(defmethod bot-turn (turn-input (bot concrete-bot) time-limit)
+(defmethod bot-turn ((bot concrete-bot) turn-input time-limit)
   (when (not (equal (bot-status bot) :exited))
     (continue-bot bot)
     (send-input-to-bot bot turn-input)
