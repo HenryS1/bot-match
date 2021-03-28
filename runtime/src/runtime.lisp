@@ -18,17 +18,23 @@
            :bot
            :bot-id
            :bot-definition
+           :read-bot-definition
            :start-bot-from-definition
            :bot-turn))
 
 (in-package :runtime)
 
-(defclass bot () ((bot-id :accessor bot-id :initarg :bot-id :initform (error "bot id must be provided"))))
+(defclass bot ()
+  ((bot-id :accessor bot-id :initarg :bot-id :initform (error "bot id must be provided"))))
 
 (defclass concrete-bot (bot)
   ((bot-process :accessor bot-process :initarg :bot-process)))
 
 (define-json-model bot-definition (name command relative-filepath) :kebab-case)
+
+(defun read-bot-definition (path)
+  (with-open-file (f path)
+    (bot-definition-json:from-json f)))
 
 (defmethod start-bot-from-definition ((bot-definition bot-definition) base-path)
   (let ((command-parts (split "\\s+" (regex-replace "<bot-file>" 
@@ -49,6 +55,7 @@
            while (and line (> (length line) 0))
            collect line))
     (timeout-error (e)
+      (declare (ignore e))
       (format t "timed out waiting for bot output~%")
       nil)))
 
@@ -104,8 +111,9 @@
   (when (equal (bot-status bot) :running)
     (kill-bot bot)))
 
-(defmethod bot-turn ((bot concrete-bot) turn-input time-limit)
+(defmethod bot-turn (turn-input (bot concrete-bot) time-limit)
   (when (not (equal (bot-status bot) :exited))
+    (continue-bot bot)
     (send-input-to-bot bot turn-input)
     (sleep time-limit)
     (end-bot-turn bot)

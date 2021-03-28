@@ -22,7 +22,7 @@
 
 (defparameter *exited-bot* (test-file-path "exited-bot.lisp"))
 
-(defparameter *bot-definition* (test-file-path "bot-definition.json"))
+(defparameter *bot-definition* (test-file-path "definition.json"))
 
 (defun run-test-bot (path)
   (make-instance 'concrete-bot :bot-process (run-bot "sbcl" (list "--script" path)) :bot-id (random 100)))

@@ -19,6 +19,7 @@
                "rove")
   :components ((:module "tests"
                 :components
-                ((:file "n-player-game"))))
+                ((:file "n-player-game")
+                 (:file "guessing-game"))))
   :description "Test system for game-runner"
   :perform (test-op (op c) (symbol-call :rove :run c)))
