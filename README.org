@@ -1,3 +1,5 @@
+[[https://github.com/HenryS1/bot-match/tree/master][https://github.com/HenryS1/bot-match/actions/workflows/ci.yaml/badge.svg]]
+
 * Bot match
 
 ** How it works
