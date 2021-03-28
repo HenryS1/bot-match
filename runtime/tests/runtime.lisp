@@ -5,8 +5,6 @@
 
 (in-package :runtime/tests/runtime)
 
-;; NOTE: To run this test file, execute `(asdf:test-system :runtime)' in your Lisp.
-
 (defparameter *test-base-path* (directory-namestring #.*compile-file-truename*))
 
 (defun test-file-path (filename)
@@ -28,7 +26,7 @@
   (make-instance 'concrete-bot :bot-process (run-bot "sbcl" (list "--script" path)) :bot-id (random 100)))
 
 (deftest bot-output
-  (testing "should capture bot output from the commandline"
+  (testing "should capture bot output from stdout"
     (let ((bot (run-test-bot *quick-bot*)))
       (sleep 0.05)
       (ok (equal (bot-output bot) '("bot output"))))))
@@ -75,7 +73,7 @@
       (interrupt-bot bot))))
 
 (deftest end-bot-turn
-  (testing "should stop a bot and read its output"
+  (testing "should stop a bot"
     (let ((bot (run-test-bot *turn-bot*)))
       (send-input-to-bot bot "input")
       (sleep 0.01)
