@@ -3,7 +3,7 @@
 
 (in-package :guessing-game)
 
-(defclass guessing-game-state (game-state)
+(defclass guessing-game-state (concrete-game)
   ((turns-remaining :accessor turns-remaining :initarg :turns-remaining :initform 10)
    (numbers :accessor numbers :initform (list 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20))
    (bot-guesses :accessor bot-guesses :initform (make-hash-table :test 'equal))
@@ -11,14 +11,6 @@
 
 (defmethod is-finished? ((game guessing-game-state))
   (= (turns-remaining game) 0))
-
-(defmethod terminate-bots ((game guessing-game-state))
-  (loop for bot in (bots game) 
-     do (interrupt-bot bot))
-  (sleep 0.5)
-  (loop for bot in (bots game)
-     when (not (equal (bot-status bot) :exited))
-     do (kill-bot bot)))
 
 (defmethod get-bot-input ((game guessing-game-state)) (format nil "~a" (car (numbers game))))
 
