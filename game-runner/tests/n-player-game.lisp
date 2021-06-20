@@ -47,30 +47,18 @@
 (defmethod is-finished? ((game test-game-state))
   (= (turns-remaining game) 0))
 
-(deftest finish-game
-  (testing "should terminate bots"
-    (let ((game (make-instance 'test-game-state :turns-remaining 0
-                               :bots (list (make-instance 'test-bot :bot-id "test")))))
-      (finish-game game)
-      (ok (every (lambda (bot) (stopped bot)) (bots game)))))
-  (testing "should return the scores of each bot"
-    (let ((game (make-instance 'test-game-state :turns-remaining 0
-                               :bots (list (make-instance 'test-bot :score 13 :bot-id "test-1")
-                                           (make-instance 'test-bot :score 21 :bot-id "test-2")))))
-      (ok (equal (finish-game game) (list 13 21))))))
-
 (deftest tick
   (testing "should update the state of the game with bot output"
     (let ((game (make-instance 'test-game-state :turns-remaining 1
                                :bots (list (make-instance 'test-bot :bot-output "output" 
-                                                          :bot-id "test")))))
+                                                          :bot-id "test" :bot-name "test-bot")))))
       (tick game)
       (ok (equal (gethash "test" (bot-output game)) (list "output")))))
   (testing "should give each bot a turn"
     (let ((game (make-instance 'test-game-state :turns-remaining 1
                                :bot-input "bot-input"
-                               :bots (list (make-instance 'test-bot :bot-id "test-1")
-                                           (make-instance 'test-bot :bot-id "test-2")))))
+                               :bots (list (make-instance 'test-bot :bot-id "test-1" :bot-name "test-bot")
+                                           (make-instance 'test-bot :bot-id "test-2" :bot-name "test-bot")))))
       (tick game)
       (ok (equal (mapcar #'bot-input (bots game)) (list "bot-input" "bot-input")))))
   (testing "should update the current turn for the game"

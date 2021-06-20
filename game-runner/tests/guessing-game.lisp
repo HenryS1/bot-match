@@ -46,6 +46,13 @@
 
 (deftest guessing-game 
   (testing "should produce scores for bots"
-    (let  ((bot-scores (run-guessing-game)))
-      (format t "bot scores ~a~%" (hash-table-alist bot-scores))
-      (ok (equalp bot-scores (alist-hash-table '(("bot1" . 0) ("bot2" . 10)) :test 'equal))))))
+    (let ((end-state (run-guessing-game)))
+      (format t "bot scores ~a~%" (hash-table-alist (bot-scores end-state)))
+      (ok (equalp (bot-scores end-state)
+                  (alist-hash-table
+                   (list (cons (bot-id (find-if (lambda (b)
+                                                  (string= (bot-name b) "bot1"))
+                                                (bots end-state))) 0)
+                         (cons (bot-id (find-if (lambda (b)
+                                                  (string= (bot-name b) "bot2"))
+                                                (bots end-state))) 10)) :test 'equal))))))

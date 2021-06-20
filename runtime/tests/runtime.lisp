@@ -23,7 +23,7 @@
 (defparameter *bot-definition* (test-file-path "definition.json"))
 
 (defun run-test-bot (path)
-  (make-instance 'concrete-bot :bot-process (run-bot "ros" (list "+Q" "--" path)) :bot-id (random 100)))
+  (make-instance 'concrete-bot :bot-process (run-bot "ros" (list "+Q" "--" path)) :bot-id (random 100) :bot-name "test-bot"))
 
 (deftest bot-output
   (testing "should capture bot output from stdout"

@@ -17,6 +17,7 @@
            :concrete-bot
            :bot
            :bot-id
+           :bot-name
            :bot-definition
            :read-bot-definition
            :start-bot-from-definition
@@ -26,7 +27,8 @@
 (in-package :runtime)
 
 (defclass bot ()
-  ((bot-id :accessor bot-id :initarg :bot-id :initform (error "bot id must be provided"))))
+  ((bot-id :accessor bot-id :initarg :bot-id :initform (error "bot id must be provided"))
+   (bot-name :accessor bot-name :initarg :bot-name :initform (error "bot name must be provided"))))
 
 (defclass concrete-bot (bot)
   ((bot-process :accessor bot-process :initarg :bot-process)))
@@ -39,12 +41,16 @@
 
 (defparameter *bot-initialisation-time* 0)
 
+(defun random-id (len)
+  (map 'string #'code-char (loop for i from 1 to len collecting (+ 97 (random 26)))))
+
 (defmethod start-bot-from-definition ((bot-definition bot-definition) base-path)
   (let ((command-parts (split "\\s+" (regex-replace "<bot-file>" 
                                                     (command bot-definition)
                                                     (concatenate 'string base-path (relative-filepath bot-definition))))))
     (let ((bot (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts))
-                    :bot-id (name bot-definition))))
+                    :bot-id (random-id 10)
+                    :bot-name (name bot-definition))))
       (when (> *bot-initialisation-time* 0)
         (sleep *bot-initialisation-time*))
       (stop-bot bot)
