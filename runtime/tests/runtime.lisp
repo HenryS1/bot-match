@@ -25,11 +25,13 @@
 (defun run-test-bot (path)
   (make-instance 'concrete-bot :bot-process (run-bot "ros" (list "+Q" "--" path)) :bot-id (random 100) :bot-name "test-bot"))
 
+(defparameter *turn-timeout* 3)
+
 (deftest bot-output
   (testing "should capture bot output from stdout"
     (let ((bot (run-test-bot *quick-bot*)))
       (sleep 0.05)
-      (ok (equal (bot-output bot) '("bot output"))))))
+      (ok (equal (bot-output bot *turn-timeout*) '("bot output"))))))
 
 (deftest start-bot
   (testing "should start the bot process"
@@ -68,15 +70,14 @@
   (testing "should send input to a bot"
     (let ((bot (run-test-bot *input-bot*)))
       (send-input-to-bot bot "hello bot")
-      (sleep 0.01)
-      (ok (equal (bot-output bot) '("hello bot")))
-      (interrupt-bot bot))))
+      (let ((bot-out (bot-output bot *turn-timeout*)))
+        (ok (equal bot-out '("hello bot")))
+        (interrupt-bot bot)))))
 
 (deftest end-bot-turn
   (testing "should stop a bot"
     (let ((bot (run-test-bot *turn-bot*)))
       (send-input-to-bot bot "input")
-      (sleep 0.01)
       (end-bot-turn bot)
       (sleep 0.01)
       (ok (equal (bot-status bot) :stopped))
@@ -85,8 +86,8 @@
 (deftest bot-turn
   (testing "should send input, read output and stop bot"
     (let ((bot (run-test-bot *turn-bot*)))
-      (sleep 0.2)
-      (ok (equal (bot-turn bot "input" 0.2) '("input")))
+      (sleep 0.5)
+      (ok (equal (bot-turn bot "input" *turn-timeout*) '("input")))
       (ok (equal (bot-status bot) :stopped))
       (interrupt-bot bot)))
   (testing "should not run a turn when the bot process is exited"
@@ -94,7 +95,7 @@
       (sleep 0.2)
       (interrupt-bot bot)
       (sleep 0.02)
-      (ok (not (bot-turn bot "input" 0.02))))))
+      (ok (not (bot-turn bot "input" *turn-timeout*))))))
 
 (deftest bot-definition 
   (testing "should read a bot definition from a file"
@@ -110,4 +111,4 @@
       (let* ((definition (bot-definition-json:from-json f))
              (bot (start-bot-from-definition definition *test-base-path*)))
         (sleep 0.01)
-        (ok (equal (bot-turn bot "input" 0.2) '("input")))))))
+        (ok (equal (bot-turn bot "input" *turn-timeout*) '("input")))))))

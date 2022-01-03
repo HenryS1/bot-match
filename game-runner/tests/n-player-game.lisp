@@ -11,8 +11,6 @@
   ((bot-input :accessor bot-input :initarg :bot-input :initform "")
    (stopped :accessor stopped :initarg :stopped :initform nil)
    (bot-status :accessor bot-status :initarg :bot-status :initform :running)
-   (score :accessor score :initarg :score :initform 10)
-
    (turn-time-limit :accessor turn-time-limit :initarg :turn-time-limit)))
 
 (defclass test-game (game)
@@ -25,6 +23,8 @@
 (defmethod get-bot-input ((game test-game))
   (bot-input game))
 
+(defmethod bot-output ((bot test-bot) time-limit) "output")
+
 (defmethod stop-bot ((bot test-bot))
   (setf (stopped bot) t))
 
@@ -33,21 +33,19 @@
 
 (defmethod bot-turn ((bot test-bot) input turn-time-limit)
   (progn (setf (bot-input bot) input)
-         (bot-output bot)))
+         (bot-output bot turn-time-limit)))
 
 (defmethod advance-turn (player-moves (game test-game))
   (make-instance 'test-game 
                  :turns-remaining (- (turns-remaining game) 1)
-                 :moves (cons player-moves (moves game))))
+                 :moves (append player-moves (moves game))))
+
+(defmethod turn-time-limit ((game test-game)) 1)
 
 (defun initialise-bots ()
   (alist-hash-table
-   (list (cons "player1" . (make-instance 'test-bot :bot-output "output"
-                                          :bot-id "test")))
+   (list (cons "player1" (make-instance 'test-bot :bot-id "test" :bot-name "test-name")))
    :test 'equal))
-
-(defmethod game-result ((game test-game))
-  (mapcar #'score (bots game)))
 
 (defmethod is-finished? ((game test-game))
   (= (turns-remaining game) 0))
@@ -56,13 +54,13 @@
   (testing "should update the state of the game with bot output"
     (let ((game (make-instance 'test-game))
           (bots (initialise-bots)))
-      (tick bots game 0)
-      (ok (equal (moves game) (list (cons "player1" . "output"))))
-      (ok (equal (turns-remaining game) 0)))))
+      (let ((next-game (tick bots game)))
+        (ok (equal (moves next-game) (list (cons "player1" "output"))))
+        (ok (equal (turns-remaining next-game) 0))))))
 
 (deftest n-player-game
   (testing "should run the game until finished"
-    (let ((game (make-instance 'test-game :turns-remaining 2)))
-      (n-player-game game)
-      (ok (is-finished? game)))))
-
+    (let ((game (make-instance 'test-game :turns-remaining 2))
+          (bots (initialise-bots)))
+      (let ((end-game (n-player-game bots game 0)))
+        (ok (is-finished? end-game))))))
