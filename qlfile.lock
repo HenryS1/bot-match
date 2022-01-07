@@ -22,3 +22,7 @@
  (:class qlot/source/git:source-git
   :initargs (:remote-url "https://github.com/HenryS1/herodotus.git" :tag "v1.0.0")
   :version "git-f580fbac47cdb23128e0531ebec6a1e1ae80ac5b"))
+("salmon" .
+ (:class qlot/source/git:source-git
+  :initargs (:remote-url "https://github.com/HenryS1/salmon.git" :branch "master")
+  :version "git-00096e1eb776b2c86a2100dc3f6e0a28ccd4621a"))

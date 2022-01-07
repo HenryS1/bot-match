@@ -63,7 +63,7 @@
 (deftest guessing-game 
   (testing "should produce scores for bots"
     (let ((end-state (run-guessing-game)))
-      (ok (equalp (assoc "player1" (player-scores end-state) :test 'equal)
-                  (cons "player1" 0))
-          (equalp (assoc "player2" (player-scores end-state) :test 'equal)
-                  (cons "player2" 10))))))
+      (ok (equal (assoc "player1" (player-scores end-state) :test 'equal)
+                 (cons "player1" 0)))
+      (ok (equal (assoc "player2" (player-scores end-state) :test 'equal)
+                 (cons "player2" 10))))))

@@ -3,3 +3,4 @@ ql anaphora 2020-03-25
 ql cl-ppcre 2020-03-25
 ql trivial-timeout 2020-03-25
 git herodotus https://github.com/HenryS1/herodotus.git :tag v1.0.0
+git salmon https://github.com/HenryS1/salmon.git :branch master
