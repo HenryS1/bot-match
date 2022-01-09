@@ -5,10 +5,14 @@
   :depends-on ("arrow-macros"
                "anaphora"
                "metabang-bind"
-               "sycamore")
+               "salmon"
+               "trivia"
+               "trivia.ppcre"
+               "runtime"
+               "game-runner")
   :components ((:module "src"
                 :components
-                ((:file "footsoldiers.lisp"))))
+                ((:file "footsoldiers"))))
   :description "A game called footsoldiers"
   :in-order-to ((test-op (test-op "footsoldiers/tests"))))
 
@@ -19,6 +23,6 @@
                "rove")
   :components ((:module "tests"
                 :components
-                ((:file "footsoldiers.lisp"))))
+                ((:file "footsoldiers"))))
   :description "Test system for footsoldiers"
   :perform (test-op (op c) (symbol-call :rove :run c)))

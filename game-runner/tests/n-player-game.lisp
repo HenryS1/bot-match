@@ -13,7 +13,7 @@
    (bot-status :accessor bot-status :initarg :bot-status :initform :running)
    (turn-time-limit :accessor turn-time-limit :initarg :turn-time-limit)))
 
-(defclass test-game (game)
+(defclass test-game ()
   ((turns-remaining :accessor turns-remaining :initarg :turns-remaining :initform 1)
    (moves :accessor moves :initarg :moves :initform nil)))
 

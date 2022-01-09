@@ -9,14 +9,13 @@
 
 (in-package :n-player-game)
 
-(defclass game () ())
 (defgeneric is-finished? (game))
 (defgeneric game-result (game))
 (defgeneric get-players-input-for-turn (game))
 (defgeneric advance-turn (player-moves game))
 (defgeneric turn-time-limit (game))
 
-(defmethod tick (bots (game game))
+(defmethod tick (bots game)
   (let* ((player-input-for-turn (get-players-input-for-turn game))
          (player-moves (mapcar (lambda (pin) 
                                  (let ((bot (gethash (car pin) bots)))
@@ -35,7 +34,7 @@
     (sleep *termination-timeout*)
     (mapc (lambda (bot) (when (not (equal (bot-status bot) :exited)) (kill-bot bot))) bs)))
 
-(defmethod n-player-game (bots (game game) turn-time-limit)
+(defmethod n-player-game (bots game turn-time-limit)
   (unwind-protect 
        (loop for gm = game then (tick bots gm)
           until (is-finished? gm)

@@ -3,7 +3,7 @@
 
 (in-package :guessing-game)
 
-(defclass guessing-game (game)
+(defclass guessing-game ()
   ((numbers :accessor numbers :initarg :numbers :initform (list 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20))
    (player-guesses :accessor player-guesses :initarg :player-guesses :initform nil)
    (current-player-id :accessor current-player-id :initarg :current-player-id :initform "player1")
