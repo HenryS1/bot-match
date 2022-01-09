@@ -59,13 +59,14 @@
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit))
 
-(defparameter *read-output-timeout* 0.3)
+;(defparameter *read-output-timeout* 1)
 
-(defun to-string (bot-stream)
+(defun to-string (bot-stream time-limit)
   (handler-case 
-      (with-timeout (*read-output-timeout*)
+      (with-timeout (time-limit)
         (loop for line = (read-line bot-stream nil nil)
            while (and line (> (length line) 0))
+
            collect line))
     (timeout-error (e)
       (declare (ignore e))
@@ -75,9 +76,9 @@
 (defun run-bot (command args)
   (sb-ext:run-program command args :wait nil :input :stream :output :stream :search t))
 
-(defmethod bot-output ((bot concrete-bot))
+(defmethod bot-output ((bot concrete-bot) time-limit)
   (-> (sb-ext:process-output (bot-process bot))
-      (to-string)))
+      (to-string time-limit)))
 
 ;; Interrupt process
 (defconstant SIGINT 2)
@@ -128,6 +129,6 @@
   (when (not (equal (bot-status bot) :exited))
     (continue-bot bot)
     (send-input-to-bot bot turn-input)
-    (sleep time-limit)
-    (end-bot-turn bot)
-    (bot-output bot)))
+    (let ((output (bot-output bot time-limit)))
+      (end-bot-turn bot)
+      output)))

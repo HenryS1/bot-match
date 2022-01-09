@@ -1,0 +1,17 @@
+* Footsoldiers 
+
+** Usage
+
+** Installation
+
+** Author
+
++ Henry and Ed
+
+** Copyright
+
+Copyright (c) 2021 Henry and Ed
+
+** License
+
+Licensed under the MIT License.
