@@ -192,9 +192,14 @@
                 new-soldier)))))
 
 (defmethod attack-base ((s soldier) (b base) (gm game))
-  (let ((new-p2 (copy-structure (game-player2 gm))))
-    (setf (player-health new-p2) (max 0 (- (player-health new-p2) (damage (soldier-type s)))))
-    (setf (game-player2 gm) new-p2)))
+  (let ((new-player (if (equalp (base-team b) (player-team (game-player1 gm)))
+                        (copy-structure (game-player1 gm))
+                        (copy-structure (game-player2 gm)))))
+    (setf (player-health new-player) (max 0 (- (player-health new-player)
+                                               (damage (soldier-type s)))))
+    (if (equalp (base-team b) (player-team (game-player1 gm)))
+        (setf (game-player1 gm) new-player)
+        (setf (game-player2 gm) new-player))))
 
 (defmethod attack-target ((s soldier) e (gm game))
   (match e
