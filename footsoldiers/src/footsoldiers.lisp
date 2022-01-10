@@ -220,30 +220,34 @@
 (defmethod close-enough-to-base (pos (player player))
   (<= (distance pos (player-base player)) (max-distance-from-base)))
 
-(defmethod build-soldier (soldier-type start destination (gm game) (new-gm game))
-  (if (< (player-money (game-player1 gm)) (cost soldier-type))
-      (left "Not enough money")
-      (if (not (close-enough-to-base start (game-player1 gm)))
-          (left "Too far from base")
-          (if (gethash start (game-map gm))
-              (left "Position is occupied")
-              (let* ((s (make-soldier :pos start
-                                      :health (initial-health soldier-type)
-                                      :type soldier-type
-                                      :destination destination
-                                      :team (player-team (game-player1 gm))))
-                     (new-player1 (copy-structure (game-player1 gm))))
-                (setf (player-money new-player1) (- (player-money new-player1) (cost soldier-type)))
-                (setf (gethash start (game-map new-gm)) s)
-                (setf (game-player1 new-gm) new-player1)
-                (right new-gm))))))
+(defmethod build-soldier (team soldier-type start destination (new-gm game))
+  (let ((player (copy-structure (if (equalp team (player-team (game-player1 new-gm)))
+                                    (game-player1 new-gm)
+                                    (game-player2 new-gm)))))
+    (if (< (player-money player) (cost soldier-type))
+        (left "Not enough money")
+        (if (not (close-enough-to-base start player))
+            (left "Too far from base")
+            (if (gethash start (game-map new-gm))
+                (left "Position is occupied")
+                (let* ((s (make-soldier :pos start
+                                        :health (initial-health soldier-type)
+                                        :type soldier-type
+                                        :destination destination
+                                        :team (player-team player))))
+                  (setf (player-money player) (- (player-money player) (cost soldier-type)))
+                  (setf (gethash start (game-map new-gm)) s)
+                  (if (equalp team (player-team (game-player1 new-gm)))
+                      (setf (game-player1 new-gm) player)
+                      (setf (game-player2 new-gm) player))
+                  (right new-gm)))))))
 
-(defmethod apply-move (move (gm game) (new-gm game))
+(defmethod apply-move (move (new-gm game))
   (match move
     ((type build) 
      (build-soldier (build-soldier-type move) 
                     (build-start move)
-                    (build-destination move) gm new-gm))
+                    (build-destination move) new-gm))
     (:no-op (right new-gm))))
 
 (defmethod game-over ((game game))
@@ -262,7 +266,7 @@
   (let ((new-mp (copy-hash-table (game-map gm)))
         (new-gm (copy-structure gm)))
     (setf (game-map new-gm) new-mp)
-    (let ((updated-game (match (apply-move move gm new-gm)
+    (let ((updated-game (match (apply-move move new-gm)
                           ((left (left-err _)) 
                            (move-soldiers (game-map new-gm))
                            (make-soldiers-attack new-gm))
