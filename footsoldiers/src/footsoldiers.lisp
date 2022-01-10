@@ -16,7 +16,14 @@
            :move-soldiers
            :eligible-target
            :make-base
-           :find-target))
+           :find-target
+           :soldier-health
+           :attack-soldier
+           :attack-base
+           :player-health
+           :make-game
+           :make-player
+           :attack-target))
 
 (in-package :footsoldiers)
 
@@ -73,19 +80,13 @@
 (defparameter *soldier-types* '(:scout :tank :assassin))
 (defparameter *team* '(:one :two))
 
-(defun initial-health (soldier-type) (declare (ignore soldier-type)) 5)
+(defun initial-health (soldier-type) (declare (ignore soldier-type)) 6)
 
 (defun soldier-speed (soldier-type)
   (case soldier-type
     (:scout 3)
     (:assassin 5)
     (:tank 2)))
-
-(defun armour (soldier-type)
-  (case soldier-type
-    (:scout 2)
-    (:assassin 1)
-    (:tank 4)))
 
 (defun damage (soldier-type)
   (case soldier-type
@@ -182,8 +183,7 @@
       (gethash it mp))))
 
 (defmethod attack-soldier ((s1 soldier) (s2 soldier) mp)
-  (let ((new-health (- (soldier-health s2) 
-                       (max 0 (- (damage (soldier-type s1)) (armour (soldier-type s2)))))))
+  (let ((new-health (max 0 (- (soldier-health s2) (damage (soldier-type s1))))))
     (if (= new-health 0)
         (remhash (soldier-pos s2) mp)
         (setf (gethash (soldier-pos s2) mp)

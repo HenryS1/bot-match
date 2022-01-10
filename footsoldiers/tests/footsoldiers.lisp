@@ -178,7 +178,7 @@
         (move-soldiers mp)
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
-                                               (list new-soldier2 new-soldier3)) :test 'equal)))))))
+                                              (list new-soldier2 new-soldier3)) :test 'equal)))))))
 
 (deftest eligible-target 
   (testing "returns false for a soldier from the same team as the attacker"
@@ -202,3 +202,76 @@
                                                 new-soldier3
                                                 new-soldier4)) :test 'equal)))
         (ok (equalp (find-target *test-soldier1* mp) new-soldier4))))))
+
+(deftest attack-soldier 
+  (testing "decreases the health of a soldier by the difference between armour and damage"
+    (let ((new-soldier2 (copy-structure *test-soldier2*))
+          (mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
+                                        (list *test-soldier1* *test-soldier2*)) :test 'equal)))
+      (setf (soldier-health new-soldier2) 1)
+      (attack-soldier *test-soldier1* *test-soldier2* mp)
+      (ok (equalp mp
+                  (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
+                                            (list *test-soldier1* new-soldier2)) :test 'equal)))))
+  (testing "removes a soldier from the map when it's health reaches zero"
+    (let ((new-soldier2 (copy-structure *test-soldier2*)))
+      (setf (soldier-health new-soldier2) 2)
+      (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
+                                          (list *test-soldier1* new-soldier2)) :test 'equal)))
+        (attack-soldier *test-soldier1* new-soldier2 mp)
+        (ok (equalp mp
+                    (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
+                                              (list *test-soldier1*)) :test 'equal))))))) 
+
+(deftest attack-base
+  (testing "decreases the attacked player's health"
+    (let* ((mp (alist-hash-table (list (cons (soldier-pos *test-soldier1*) *test-soldier1*)
+                                       (cons (cons 0 4) *test-base2*)
+                                       (cons (cons 10 13) *test-base1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 10 :base (cons 10 13) :health 20))
+           (player2 (make-player :team "player2" :money 7 :base (cons 0 4) :health 13))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
+      (attack-base *test-soldier1* *test-base2* gm)
+      (let ((new-player2 (copy-structure player2)))
+        (setf (player-health new-player2) 11)
+        (ok (equalp gm 
+                    (make-game :map mp :turns-remaining 20 :player1 player1 :player2 new-player2))))))
+  (testing "doesn't reduce the attacked player's health below zero"
+    (let* ((mp (alist-hash-table (list (cons (soldier-pos *test-soldier1*) *test-soldier1*)
+                                       (cons (cons 0 4) *test-base2*)
+                                       (cons (cons 10 13) *test-base1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 10 :base (cons 10 13) :health 20))
+           (player2 (make-player :team "player2" :money 7 :base (cons 0 4) :health 1))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
+      (attack-base *test-soldier1* *test-base2* gm)
+      (let ((new-player2 (copy-structure player2)))
+        (setf (player-health new-player2) 0)
+        (ok (equalp gm 
+                    (make-game :map mp :turns-remaining 20 :player1 player1 :player2 new-player2)))))))
+
+(deftest attack-target
+  (testing "attacks a soldier when the target is a soldier"
+    (let* ((mp (alist-hash-table (list (cons (soldier-pos *test-soldier1*) *test-soldier1*)
+                                       (cons (soldier-pos *test-soldier2*) *test-soldier2*)
+                                       (cons (cons 7 9) *test-base2*)
+                                       (cons (cons 10 13) *test-base1*)) :test 'equal))
+           (mp-copy (copy-hash-table mp))
+           (player1 (make-player :team "player1" :money 10 :base (cons 10 13) :health 20))
+           (player2 (make-player :team "player2" :money 7 :base (cons 0 4) :health 10))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (gm2 (make-game :map mp-copy :turns-remaining 20 :player1 player1 :player2 player2)))
+      (attack-target *test-soldier1* *test-soldier2* gm)
+      (attack-soldier *test-soldier1* *test-soldier2* mp-copy)
+      (ok (equalp gm gm2))))
+  (testing "attacks the base when target is a base"
+    (let* ((mp (alist-hash-table (list (cons (soldier-pos *test-soldier1*) *test-soldier1*)
+                                       (cons (cons 0 4) *test-base2*)
+                                       (cons (cons 10 13) *test-base1*)) :test 'equal))
+           (mp-copy (copy-hash-table mp))
+           (player1 (make-player :team "player1" :money 10 :base (cons 10 13) :health 20))
+           (player2 (make-player :team "player2" :money 7 :base (cons 0 4) :health 10))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (gm2 (make-game :map mp-copy :turns-remaining 20 :player1 player1 :player2 player2)))
+      (attack-target *test-soldier1* *test-base2* gm)
+      (attack-base *test-soldier1* *test-base2* gm2)
+      (ok (equalp gm gm2)))))
