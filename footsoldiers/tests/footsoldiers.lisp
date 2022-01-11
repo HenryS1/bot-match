@@ -275,3 +275,51 @@
       (attack-target *test-soldier1* *test-base2* gm)
       (attack-base *test-soldier1* *test-base2* gm2)
       (ok (equalp gm gm2)))))
+
+(deftest make-soldier-attack
+  (testing "makes a soldier find a target and attack it"
+    (let* ((mp (alist-hash-table (list (cons (soldier-pos *test-soldier1*) *test-soldier1*)
+                                       (cons (soldier-pos *test-soldier2*) *test-soldier2*)
+                                       (cons (cons 7 9) *test-base2*)
+                                       (cons (cons 10 13) *test-base1*)) :test 'equal))
+           (mp-copy (copy-hash-table mp))
+           (player1 (make-player :team "player1" :money 10 :base (cons 10 13) :health 20))
+           (player2 (make-player :team "player2" :money 7 :base (cons 0 4) :health 10))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (gm2 (make-game :map mp-copy :turns-remaining 20 :player1 player1 :player2 player2)))
+      (make-soldier-attack gm *test-soldier1*)
+      (attack-target *test-soldier1* *test-soldier2* gm2)
+      (ok (equalp gm gm2)))))
+
+(deftest make-soldiers-attack
+  (testing "makes all soldiers find a target and attack it"
+    (let* ((mp (alist-hash-table (list (cons (soldier-pos *test-soldier1*) *test-soldier1*)
+                                       (cons (soldier-pos *test-soldier2*) *test-soldier2*)
+                                       (cons (soldier-pos *test-soldier3*) *test-soldier3*)
+                                       (cons (soldier-pos *test-soldier4*) *test-soldier4*)
+                                       (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (mp-copy (copy-hash-table mp))
+           (player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 20))
+           (player2 (make-player :team "player2" :money 7 :base (cons 5 4) :health 10))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
+      (make-soldiers-attack gm)
+      (ok (equal (player-health (game-player1 gm)) 15))
+      (ok (equal (player-health (game-player2 gm)) 5))
+      (let ((new-soldier2 (copy-structure *test-soldier2*)))
+        (setf (soldier-health new-soldier2) 1)
+        (ok (equalp (game-map gm)
+                    (alist-hash-table (list 
+                                       (cons (soldier-pos new-soldier2) new-soldier2)
+                                       (cons (soldier-pos *test-soldier3*) *test-soldier3*)
+                                       (cons (soldier-pos *test-soldier4*) *test-soldier4*)
+                                       (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal)))))))
+
+(deftest close-enough-to-base 
+  (let ((player (make-player :team "player1" :money 10 :base (cons 4 3) :health 20)))
+    (testing "is true when a position is closer than the max distance from a player's base"
+      (ok (close-enough-to-base (cons 2 6) player)))
+    (testing "is false when a position is further than the max distance from a player's base"
+      (ok (not (close-enough-to-base (cons 2 7) player))))))
+

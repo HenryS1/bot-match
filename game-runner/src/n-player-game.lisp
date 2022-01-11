@@ -24,7 +24,7 @@
                                                                  (cdr pin) 
                                                                  (turn-time-limit game)))
                                        (cons (car pin) "")))) player-input-for-turn)))
-    (advance-turn player-moves game))) 
+    (advance-turn player-moves game)))
 
 (defparameter *termination-timeout* 0.5)
 

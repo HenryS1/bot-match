@@ -23,7 +23,13 @@
            :player-health
            :make-game
            :make-player
-           :attack-target))
+           :attack-target
+           :make-soldier-attack
+           :make-soldiers-attack
+           :game-player1
+           :game-player2
+           :game-map
+           :close-enough-to-base))
 
 (in-package :footsoldiers)
 
@@ -76,6 +82,8 @@
    (cons "soldier-type" (build-soldier-type build))
    (cons "start" (build-start build))
    (cons "destination" (build-destination build))))
+
+(defstruct move-result errors updated-game)
 
 (defparameter *soldier-types* '(:scout :tank :assassin))
 (defparameter *team* '(:one :two))
@@ -242,13 +250,38 @@
                       (setf (game-player2 new-gm) player))
                   (right new-gm)))))))
 
-(defmethod apply-move (move (new-gm game))
+(defmethod apply-move (team move (new-gm game))
   (match move
     ((type build) 
-     (build-soldier (build-soldier-type move) 
+     (build-soldier team 
+                    (build-soldier-type move) 
                     (build-start move)
                     (build-destination move) new-gm))
     (:no-op (right new-gm))))
+
+(defun combine-results (one other)
+  (match (cons one other)
+         ((cons (type move-result) (type move-result))
+          (make-move-result :errors (append (move-result-errors one) (move-result-errors other)) 
+                             :updated-game (move-result-updated-game other)))
+         ((cons (type move-result) (type right))
+          (make-move-result :errors (move-result-errors one) :updated-game (right-value other)))
+         ((cons (type right) (type move-result))
+          (make-move-result :errors (move-result-errors other) :updated-game (move-result-updated-game other)))
+         ((cons (type right) (type right))
+          (make-move-result :errors nil :updated-game (right-value other)))))
+
+(defmethod apply-moves (moves (new-gm game))
+  (if (null moves)
+      (right new-gm)
+      (bind (((team . move) (car moves)))
+        (match (apply-move team move new-gm)
+           ((left left-err) 
+            (combine-results (make-move-result :errors (list left-err) :updated-game new-gm)
+                             (apply-moves (cdr moves) new-gm)))
+           ((right right-value) 
+            (combine-results (right right-value)
+                             (apply-moves (cdr moves) new-gm)))))))
 
 (defmethod game-over ((game game))
   (or (= (game-turns-remaining game) 0) 
@@ -256,24 +289,21 @@
       (= (player-health (game-player2 game)) 0)))
 
 (defmethod determine-result ((game game))
-  (if (= (player-health (game-player1 game)) 0) 
-      (game-player2 game)
-      (if (= (player-health (game-player2 game)) 0)
-          (game-player1 game)
-          nil)))
+  (if (and (= (player-health (game-player1 game)) 0)
+           (> (player-health (game-player2 game)) 0)) 
+      (cons :win (game-player2 game))
+      (if (and (= (player-health (game-player2 game)) 0)
+               (> (player-health (game-player1 game)) 0))
+          (cons :win (game-player1 game))
+          :draw)))
 
-(defmethod step-game (move (gm game))
+(defmethod step-game (moves (gm game))
   (let ((new-mp (copy-hash-table (game-map gm)))
         (new-gm (copy-structure gm)))
     (setf (game-map new-gm) new-mp)
-    (let ((updated-game (match (apply-move move new-gm)
-                          ((left (left-err _)) 
-                           (move-soldiers (game-map new-gm))
-                           (make-soldiers-attack new-gm))
-                          ((right (right-value updated))
-                           (move-soldiers (game-map updated))
-                           (make-soldiers-attack updated)))))
-      (let* ((ticked-game (copy-structure updated-game))
+    (bind (((:structure move-result- errors updated-game) (apply-moves moves gm))
+           (after-attack (make-soldiers-attack updated-game)))
+      (let* ((ticked-game (copy-structure after-attack))
              (player1 (copy-structure (game-player1 ticked-game)))
              (player2 (copy-structure (game-player2 ticked-game))))
         (incf (player-money player1) (money-per-turn))
@@ -281,7 +311,8 @@
         (setf (game-turns-remaining ticked-game)
               (- (game-turns-remaining ticked-game) 1))
         (setf (game-player1 ticked-game) player2)
-        (setf (game-player2 ticked-game) player1)))))
+        (setf (game-player2 ticked-game) player1)
+        (make-move-result :errors errors :updated-game ticked-game)))))
 
 (defmethod is-finished? ((game game)) (game-over game))
 
@@ -289,15 +320,19 @@
 
 (defmethod get-players-input-for-turn ((game game))
   (list (cons (player-team (game-player1 game)) 
+              (format nil "~a" (game-alist game)))
+        (cons (player-team (game-player2 game))
               (format nil "~a" (game-alist game)))))
 
 (defmethod turn-time-limit ((game game)) 1)
 
 (defmethod advance-turn (player-moves (game game))
-  (let ((move (read-input (cadar player-moves))))
-    (step-game move game)))
+  (bind (((:structure move-result- errors updated-game) (step-game player-moves game)))
+    (when (not (null errors))
+      (format t "Errors while applying game moves ~a~%" errors))
+    updated-game))
 
-(defun read-input (player-move)
+(defun parse-move (player-move)
   (let ((mv (cadr player-move)))
     (match mv
       ((ppcre "BUILD (\\w+) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\)" name 
