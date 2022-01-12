@@ -479,3 +479,26 @@
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2)))
       (ok (not (game-over gm)))))) 
+
+(deftest determine-result 
+  (testing "returns win for player1 when player2 has no health and player1 has non-zero health"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 0))
+           (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2)))
+      (ok (equalp (determine-result gm) (cons :win "player1")))))
+  (testing "returns win for player2 when player1 has no health and player2 has non-zero health"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 0))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2)))
+      (ok (equalp (determine-result gm) (cons :win "player2")))))
+  (testing "returns draw otherwise"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 0 :player1 player1 :player2 player2)))
+      (ok (equalp (determine-result gm) :draw)))))

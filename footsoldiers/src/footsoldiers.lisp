@@ -37,7 +37,8 @@
            :make-move-result
            :move-result-updated-game
            :move-result-errors
-           :game-over))
+           :game-over
+           :determine-result))
 
 (in-package :footsoldiers)
 
@@ -299,10 +300,10 @@
 (defmethod determine-result ((game game))
   (if (and (= (player-health (game-player1 game)) 0)
            (> (player-health (game-player2 game)) 0)) 
-      (cons :win (game-player2 game))
+      (cons :win (player-team (game-player2 game)))
       (if (and (= (player-health (game-player2 game)) 0)
                (> (player-health (game-player1 game)) 0))
-          (cons :win (game-player1 game))
+          (cons :win (player-team (game-player1 game)))
           :draw)))
 
 (defmethod step-game (moves (gm game))
@@ -318,8 +319,8 @@
         (incf (player-money player2) (money-per-turn))
         (setf (game-turns-remaining ticked-game)
               (- (game-turns-remaining ticked-game) 1))
-        (setf (game-player1 ticked-game) player2)
-        (setf (game-player2 ticked-game) player1)
+        (setf (game-player1 ticked-game) player1)
+        (setf (game-player2 ticked-game) player2)
         (make-move-result :errors errors :updated-game ticked-game)))))
 
 (defmethod is-finished? ((game game)) (game-over game))
