@@ -30,7 +30,9 @@
            :game-player2
            :game-map
            :close-enough-to-base
-           :build-soldier))
+           :build-soldier
+           :apply-move
+           :make-build))
 
 (in-package :footsoldiers)
 

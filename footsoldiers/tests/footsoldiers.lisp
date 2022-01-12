@@ -300,7 +300,6 @@
                                        (cons (soldier-pos *test-soldier4*) *test-soldier4*)
                                        (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
-           (mp-copy (copy-hash-table mp))
            (player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 20))
            (player2 (make-player :team "player2" :money 7 :base (cons 5 4) :health 10))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
@@ -365,4 +364,32 @@
                                            (cons (cons 5 6) new-soldier)) :test 'equal))
            (new-gm (make-game :map new-mp :turns-remaining 20 :player1 new-player1 :player2 player2)))
       (ok (equalp result (right new-gm))))))
+
+(deftest apply-move 
+  (testing "does nothing for no-op"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 9 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))) 
+      (ok (equalp (apply-move "player1" :no-op gm)
+                  (right gm)))))
+  (testing "builds a soldier when the command is build"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (result (apply-move "player1" (make-build :soldier-type :scout 
+                                                     :start (cons 5 6)
+                                                     :destination (cons 8 10)) gm))
+           (new-soldier (make-soldier :pos (cons 5 6) :health 6 
+                                      :type :scout :team "player1" :destination (cons 8 10)))
+           (new-player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 25))
+           (new-mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                           (cons (cons 5 4) *test-base2*)
+                                           (cons (cons 5 6) new-soldier)) :test 'equal))
+           (new-gm (make-game :map new-mp :turns-remaining 20 :player1 new-player1 :player2 player2)))
+      (ok (equalp result (right new-gm))))))
+
 
