@@ -409,7 +409,42 @@
            (result (apply-moves moves gm)))
       (ok (equalp result
                   (make-move-result :errors (list "Position is occupied" "Not enough money")
-                                    :updated-game gm))))))
+                                    :updated-game gm)))))  
+  (testing "applies moves for both players"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 15 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (moves (list (cons "player1" (make-build :soldier-type :scout
+                                                    :start (cons 4 4)
+                                                    :destination (cons 8 10)))
+                        (cons "player2" (make-build :soldier-type :assassin
+                                                    :start (cons 3 3)
+                                                    :destination (cons 9 6)))))
+           (new-mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                           (cons (cons 5 4) *test-base2*)
+                                           (cons (cons 4 4) 
+                                                 (make-soldier :pos (cons 4 4)
+                                                               :health 6
+                                                               :type :scout
+                                                               :team "player1"
+                                                               :destination (cons 8 10)))
+                                           (cons (cons 3 3) 
+                                                 (make-soldier :pos (cons 3 3)
+                                                               :health 6
+                                                               :type :assassin
+                                                               :team "player2"
+                                                               :destination (cons 9 6)))) 
+                                     :test 'equal))
+           (new-player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 25))
+           (new-player2 (make-player :team "player2" :money 1 :base (cons 5 4) :health 24))
+           (new-gm (make-game :map new-mp :turns-remaining 20 
+                              :player1 new-player1
+                              :player2 new-player2))
+           (result (apply-moves moves gm)))
+      (ok (equalp result
+                  (make-move-result :errors nil :updated-game new-gm))))))
 
 (deftest game-over
   (testing "is true when there are no turns remaining"
