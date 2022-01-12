@@ -4,6 +4,7 @@
         :alexandria
         :metabang-bind
         :monad
+        :either
         :rove))
 
 (in-package :footsoldiers/tests/footsoldiers)
@@ -322,4 +323,46 @@
       (ok (close-enough-to-base (cons 2 6) player)))
     (testing "is false when a position is further than the max distance from a player's base"
       (ok (not (close-enough-to-base (cons 2 7) player))))))
+
+(deftest build-soldier
+  (testing "fails when a soldier costs more than a player's money"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 9 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))) 
+      (ok (equalp (build-soldier "player1" :scout (cons 4 4) (cons 8 10) gm)
+                  (left "Not enough money")))))
+  (testing "fails when the build position is already occupied"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (cons 4 4) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
+      (ok (equalp (build-soldier "player1" :scout (cons 4 4) (cons 8 10) gm)
+                  (left "Position is occupied")))))
+  (testing "fails when the build position is too far from the player's base"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
+      (ok (equalp (build-soldier "player1" :scout (cons 6 7) (cons 8 10) gm)
+                  (left "Too far from base")))))
+  (testing "adds a soldier to the map and reduces the player's money"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (result (build-soldier "player1" :scout (cons 5 6) (cons 8 10) gm))
+           (new-soldier (make-soldier :pos (cons 5 6) :health 6 
+                                      :type :scout :team "player1" :destination (cons 8 10)))
+           (new-player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 25))
+           (new-mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                           (cons (cons 5 4) *test-base2*)
+                                           (cons (cons 5 6) new-soldier)) :test 'equal))
+           (new-gm (make-game :map new-mp :turns-remaining 20 :player1 new-player1 :player2 player2)))
+      (ok (equalp result (right new-gm))))))
 

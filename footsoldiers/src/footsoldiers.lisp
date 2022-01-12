@@ -29,7 +29,8 @@
            :game-player1
            :game-player2
            :game-map
-           :close-enough-to-base))
+           :close-enough-to-base
+           :build-soldier))
 
 (in-package :footsoldiers)
 
