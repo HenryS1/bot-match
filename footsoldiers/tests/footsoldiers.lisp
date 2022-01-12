@@ -392,4 +392,55 @@
            (new-gm (make-game :map new-mp :turns-remaining 20 :player1 new-player1 :player2 player2)))
       (ok (equalp result (right new-gm))))))
 
+(deftest apply-moves 
+  (testing "collects all move failures"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (cons 4 4) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (moves (list (cons "player1" (make-build :soldier-type :scout
+                                                    :start (cons 4 4)
+                                                    :destination (cons 8 10)))
+                        (cons "player2" (make-build :soldier-type :assassin
+                                                    :start (cons 3 3)
+                                                    :destination (cons 9 6)))))
+           (result (apply-moves moves gm)))
+      (ok (equalp result
+                  (make-move-result :errors (list "Position is occupied" "Not enough money")
+                                    :updated-game gm))))))
 
+(deftest game-over
+  (testing "is true when there are no turns remaining"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (cons 4 4) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 0 :player1 player1 :player2 player2)))
+      (ok (game-over gm))))
+  (testing "is true when player1 has no health remaining"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (cons 4 4) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 0))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2)))
+      (ok (game-over gm))))
+  (testing "is true when player2 has no health remaining"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (cons 4 4) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 0))
+           (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2)))
+      (ok (game-over gm))))
+  (testing "is false otherwise"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (cons 4 4) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2)))
+      (ok (not (game-over gm)))))) 

@@ -32,7 +32,12 @@
            :close-enough-to-base
            :build-soldier
            :apply-move
-           :make-build))
+           :make-build
+           :apply-moves
+           :make-move-result
+           :move-result-updated-game
+           :move-result-errors
+           :game-over))
 
 (in-package :footsoldiers)
 
