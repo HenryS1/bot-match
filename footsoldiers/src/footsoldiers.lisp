@@ -39,7 +39,9 @@
            :move-result-errors
            :game-over
            :determine-result
-           :get-players-input-for-turn))
+           :get-players-input-for-turn
+           :money-per-turn
+           :step-game))
 
 (in-package :footsoldiers)
 
@@ -208,7 +210,8 @@
         (setf (gethash (soldier-pos s2) mp)
               (let ((new-soldier (copy-structure s2)))
                 (setf (soldier-health new-soldier) new-health)
-                new-soldier)))))
+                new-soldier)))
+    mp))
 
 (defmethod attack-base ((s soldier) (b base) (gm game))
   (let ((new-player (if (equalp (base-team b) (player-team (game-player1 gm)))
@@ -218,23 +221,38 @@
                                                (damage (soldier-type s)))))
     (if (equalp (base-team b) (player-team (game-player1 gm)))
         (setf (game-player1 gm) new-player)
-        (setf (game-player2 gm) new-player))))
+        (setf (game-player2 gm) new-player))
+    gm))
 
 (defmethod attack-target ((s soldier) e (gm game))
   (match e
-    ((type soldier) (attack-soldier s e (game-map gm)))
+    ((type soldier) 
+     (let ((new-gm (copy-structure gm)))
+       (setf (game-map new-gm)
+             (attack-soldier s e (game-map gm)))
+       new-gm))
     ((type base) (attack-base s e gm))))
 
 (defmethod make-soldier-attack ((gm game) (s soldier))
   (let ((target (find-target s (game-map gm))))
-    (when target
-      (attack-target s target gm))))
+    (if target
+        (progn (format t "FOUND TARGET ~a FOR SOLDIER ~a~%" target s)
+               (attack-target s target gm))
+        gm)))
 
 (defmethod make-soldiers-attack ((gm game))
   (let ((entries (sort (hash-table-alist (game-map gm)) #'pair-less :key #'car)))
     (iter (for (p . e) in entries)
-          (match e
-            ((type soldier) (make-soldier-attack gm e))))))
+          (format t "ENTRY ~a~%" e)
+          (for new-gm first (match e
+                              ((type soldier) 
+                               (make-soldier-attack gm e))
+                              ((type base) gm)) 
+               then (match e 
+                      ((type soldier) 
+                       (make-soldier-attack new-gm e))
+                      ((type base) new-gm)))
+          (finally (return new-gm)))))
 
 (defmethod close-enough-to-base (pos (player player))
   (<= (distance pos (player-base player)) (max-distance-from-base)))
@@ -312,8 +330,9 @@
   (let ((new-mp (copy-hash-table (game-map gm)))
         (new-gm (copy-structure gm)))
     (setf (game-map new-gm) new-mp)
-    (bind (((:structure move-result- errors updated-game) (apply-moves moves gm))
-           (after-attack (make-soldiers-attack updated-game)))
+    (bind ((result (apply-moves moves new-gm))
+           (after-attack (progn (move-soldiers (game-map (move-result-updated-game result)))
+                                (make-soldiers-attack (move-result-updated-game result)))))
       (let* ((ticked-game (copy-structure after-attack))
              (player1 (copy-structure (game-player1 ticked-game)))
              (player2 (copy-structure (game-player2 ticked-game))))
@@ -323,7 +342,7 @@
               (- (game-turns-remaining ticked-game) 1))
         (setf (game-player1 ticked-game) player1)
         (setf (game-player2 ticked-game) player2)
-        (make-move-result :errors errors :updated-game ticked-game)))))
+        (make-move-result :errors (move-result-errors result) :updated-game ticked-game)))))
 
 (defmethod is-finished? ((game game)) (game-over game))
 
