@@ -38,7 +38,8 @@
            :move-result-updated-game
            :move-result-errors
            :game-over
-           :determine-result))
+           :determine-result
+           :get-players-input-for-turn))
 
 (in-package :footsoldiers)
 
@@ -48,6 +49,7 @@
   (list
    (cons "pos" (soldier-pos soldier))
    (cons "health" (soldier-health soldier))
+   (cons "type" (format nil "~a" (soldier-type soldier)))
    (cons "team" (soldier-team soldier))
    (cons "destination" (soldier-destination soldier))))
 
@@ -66,7 +68,7 @@
                (cons (car e) (soldier-alist (cdr e))))
               ((type base)
                (cons (car e) (base-alist (cdr e))))))
-          (hash-table-alist mp)))
+          (sort (hash-table-alist mp) #'pair-less :key #'car)))
 
 (defun game-alist (game)
   (list
