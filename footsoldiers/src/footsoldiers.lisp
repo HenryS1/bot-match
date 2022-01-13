@@ -41,7 +41,9 @@
            :determine-result
            :get-players-input-for-turn
            :money-per-turn
-           :step-game))
+           :step-game
+           :parse-move
+           :advance-turn))
 
 (in-package :footsoldiers)
 
@@ -356,18 +358,33 @@
 
 (defmethod turn-time-limit ((game game)) 1)
 
+(defun parse-move (player-move)
+  (match (cdr player-move)
+    ((ppcre "BUILD (\\w+) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\)" name 
+            (read start-row) (read start-col) (read dest-row) (read dest-col))
+     (right (cons (car player-move)
+                  (make-build :soldier-type (intern (string-upcase name) "KEYWORD") 
+                              :start (cons start-row start-col)
+                              :destination (cons dest-row dest-col)))))
+    ((ppcre "NO-OP") (right (cons (car player-move) :no-op)))
+    (otherwise (left (format nil "Player ~a provided invalid move '~a'" 
+                     (car player-move) (cdr player-move))))))
+
+(defun rights (results)
+  (mapcar #'right-value (remove-if-not (lambda (r) (match r ((type right) t)
+                                                          (otherwise nil))) results)))
+
+(defun lefts (results)
+  (mapcar #'left-err (remove-if-not (lambda (r) (match r ((type left) t) 
+                                                       (otherwise nil))) results)))
+
 (defmethod advance-turn (player-moves (game game))
-  (bind (((:structure move-result- errors updated-game) (step-game player-moves game)))
+  (bind ((parsed-moves (mapcar #'parse-move player-moves))
+         (invalid-moves (lefts parsed-moves))
+         (valid-moves (rights parsed-moves))
+         ((:structure move-result- errors updated-game) (step-game valid-moves game)))
+    (when (not (null invalid-moves))
+      (mapc (lambda (err) (format t "~a~%" err)) invalid-moves))
     (when (not (null errors))
       (format t "Errors while applying game moves ~a~%" errors))
     updated-game))
-
-(defun parse-move (player-move)
-  (let ((mv (cadr player-move)))
-    (match mv
-      ((ppcre "BUILD (\\w+) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\)" name 
-              (read start-row) (read start-col) (read dest-row) (read dest-col))
-       (make-build :soldier-type (intern (string-upcase name) "KEYWORD") 
-                   :start (cons start-row start-col)
-                   :destination (cons dest-row dest-col)))
-      (t :no-op)))) 

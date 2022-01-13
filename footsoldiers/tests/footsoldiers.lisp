@@ -574,3 +574,16 @@
                   (list (cons "player1" (format nil "~a" game-repr))
                         (cons "player2" (format nil "~a" game-repr))))))))
 
+(deftest parse-move 
+  (testing "parses a build move"
+    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6)"))
+                (right (cons "player1"
+                             (make-build :soldier-type 
+                                         :scout :start (cons 1 3)
+                                         :destination (cons 4 6)))))))
+  (testing "parses a no-op move"
+    (ok (equalp (parse-move (cons "player1" "NO-OP"))
+                (right (cons "player1" :no-op)))))
+  (testing "returns an error for other input"
+    (ok (equalp (parse-move (cons "player1" "blah"))
+                (left "Player player1 provided invalid move 'blah'")))))
