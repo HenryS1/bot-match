@@ -4,6 +4,7 @@
         :iterate :trivia
         :trivia.ppcre
         :metabang-bind
+        :yason
         :monad 
         :n-player-game
         :anaphora
@@ -43,19 +44,24 @@
            :money-per-turn
            :step-game
            :parse-move
-           :advance-turn))
+           :advance-turn
+           :format-coord
+           :game-alist))
 
 (in-package :footsoldiers)
 
 (defstruct soldier pos health type team destination)
 
+(defun format-coord (coord)
+  (format nil "(~a, ~a)" (car coord) (cdr coord)))
+
 (defun soldier-alist (soldier)
   (list
-   (cons "pos" (soldier-pos soldier))
+   (cons "pos" (format-coord (soldier-pos soldier)))
    (cons "health" (soldier-health soldier))
    (cons "type" (format nil "~a" (soldier-type soldier)))
    (cons "team" (soldier-team soldier))
-   (cons "destination" (soldier-destination soldier))))
+   (cons "destination" (format-coord (soldier-destination soldier)))))
 
 (defstruct base team)
 
@@ -69,9 +75,9 @@
   (mapcar (lambda (e) 
             (match (cdr e)
               ((type soldier)
-               (cons (car e) (soldier-alist (cdr e))))
+               (cons (format-coord (car e)) (soldier-alist (cdr e))))
               ((type base)
-               (cons (car e) (base-alist (cdr e))))))
+               (cons (format-coord (car e)) (base-alist (cdr e))))))
           (sort (hash-table-alist mp) #'pair-less :key #'car)))
 
 (defun game-alist (game)
@@ -87,7 +93,7 @@
   (list 
    (cons "team" (player-team player))
    (cons "money" (player-money player))
-   (cons "base" (player-base player))
+   (cons "base" (format-coord (player-base player)))
    (cons "health" (player-health player))))
 
 (defstruct build soldier-type start destination)
@@ -348,11 +354,15 @@
 
 (defmethod game-result ((game game)) (determine-result game))
 
+(defun game-to-json (game)
+  (let ((yason:*list-encoder* #'yason:encode-alist))
+    (yason:with-output-to-string* (:stream-symbol s)
+      (yason:encode (game-alist game) s))))
+
 (defmethod get-players-input-for-turn ((game game))
-  (list (cons (player-team (game-player1 game)) 
-              (format nil "~a" (game-alist game)))
-        (cons (player-team (game-player2 game))
-              (format nil "~a" (game-alist game)))))
+  (let ((json-game (game-to-json game)))
+    (list (cons (player-team (game-player1 game)) json-game)
+          (cons (player-team (game-player2 game)) json-game))))
 
 (defmethod turn-time-limit ((game game)) 1)
 

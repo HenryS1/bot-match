@@ -5,6 +5,7 @@
   :depends-on ("arrow-macros"
                "anaphora"
                "metabang-bind"
+               "yason"
                "salmon"
                "trivia"
                "trivia.ppcre"
