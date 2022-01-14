@@ -238,14 +238,12 @@
 (defmethod make-soldier-attack ((gm game) (s soldier))
   (let ((target (find-target s (game-map gm))))
     (if target
-        (progn (format t "FOUND TARGET ~a FOR SOLDIER ~a~%" target s)
-               (attack-target s target gm))
+        (attack-target s target gm)
         gm)))
 
 (defmethod make-soldiers-attack ((gm game))
   (let ((entries (sort (hash-table-alist (game-map gm)) #'pair-less :key #'car)))
     (iter (for (p . e) in entries)
-          (format t "ENTRY ~a~%" e)
           (for new-gm first (match e
                               ((type soldier) 
                                (make-soldier-attack gm e))
@@ -360,7 +358,7 @@
 
 (defun parse-move (player-move)
   (match (cdr player-move)
-    ((ppcre "BUILD (\\w+) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\)" name 
+    ((ppcre "BUILD (SCOUT|ASSASSIN|TANK) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\)" name 
             (read start-row) (read start-col) (read dest-row) (read dest-col))
      (right (cons (car player-move)
                   (make-build :soldier-type (intern (string-upcase name) "KEYWORD") 

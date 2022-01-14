@@ -578,12 +578,71 @@
   (testing "parses a build move"
     (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6)"))
                 (right (cons "player1"
-                             (make-build :soldier-type 
-                                         :scout :start (cons 1 3)
+                             (make-build :soldier-type :scout
+                                         :start (cons 1 3)
                                          :destination (cons 4 6)))))))
+  (testing "only accepts three SCOUT, TANK or ASSASSIN for soldier type"
+    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6)"))
+                (right (cons "player1"
+                             (make-build :soldier-type :scout
+                                         :start (cons 1 3)
+                                         :destination (cons 4 6))))))
+    (ok (equalp (parse-move (cons "player1" "BUILD TANK (1, 3) (4, 6)"))
+                (right (cons "player1"
+                             (make-build :soldier-type :tank
+                                         :start (cons 1 3)
+                                         :destination (cons 4 6))))))
+    (ok (equalp (parse-move (cons "player1" "BUILD ASSASSIN (1, 3) (4, 6)"))
+                (right (cons "player1"
+                             (make-build :soldier-type :assassin
+                                         :start (cons 1 3)
+                                         :destination (cons 4 6))))))
+    (ok (equalp (parse-move (cons "player1" "BUILD INFANTRY (1, 3) (4, 6)"))
+                (left "Player player1 provided invalid move 'BUILD INFANTRY (1, 3) (4, 6)'"))))
   (testing "parses a no-op move"
     (ok (equalp (parse-move (cons "player1" "NO-OP"))
                 (right (cons "player1" :no-op)))))
   (testing "returns an error for other input"
     (ok (equalp (parse-move (cons "player1" "blah"))
                 (left "Player player1 provided invalid move 'blah'")))))
+
+(deftest advance-turn 
+  (testing "parses moves and steps the game"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 15 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (moves (list (cons "player1" (make-build :soldier-type :scout
+                                                    :start (cons 6 5)
+                                                    :destination (cons 5 5)))
+                        (cons "player2" (make-build :soldier-type :assassin
+                                                    :start (cons 3 2)
+                                                    :destination (cons 3 3)))))
+           (mp-copy (copy-hash-table mp))
+           (player1-copy (copy-structure player1))
+           (player2-copy (copy-structure player2))
+           (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
+           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
+                                 (cons "player2" "BUILD ASSASSIN (3, 2) (3, 3)")))
+           (step-result (step-game moves gm))
+           (advance-turn-result (advance-turn unparsed-moves gm)))
+      (ok (equalp (move-result-updated-game step-result) advance-turn-result))))
+  (testing "discards moves which failed parsing"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 15 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (moves (list (cons "player1" (make-build :soldier-type :scout
+                                                    :start (cons 6 5)
+                                                    :destination (cons 5 5)))))
+           (mp-copy (copy-hash-table mp))
+           (player1-copy (copy-structure player1))
+           (player2-copy (copy-structure player2))
+           (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
+           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
+                                 (cons "player2" "BUILD  (3, 2) (3, 3)")))
+           (step-result (step-game moves gm))
+           (advance-turn-result (advance-turn unparsed-moves gm)))
+      (ok (equalp (move-result-updated-game step-result) advance-turn-result)))))
