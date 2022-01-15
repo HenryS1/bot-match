@@ -45,40 +45,41 @@
            :step-game
            :parse-move
            :advance-turn
-           :format-coord
+           :coord-alist
            :game-alist))
 
 (in-package :footsoldiers)
 
 (defstruct soldier pos health type team destination)
 
-(defun format-coord (coord)
-  (format nil "(~a, ~a)" (car coord) (cdr coord)))
+(defun coord-alist (coord)
+  (list (cons "x" (car coord))
+        (cons "y" (cdr coord))))
 
 (defun soldier-alist (soldier)
   (list
-   (cons "pos" (format-coord (soldier-pos soldier)))
+   (cons "position" (coord-alist (soldier-pos soldier)))
    (cons "health" (soldier-health soldier))
    (cons "type" (format nil "~a" (soldier-type soldier)))
    (cons "team" (soldier-team soldier))
-   (cons "destination" (format-coord (soldier-destination soldier)))))
+   (cons "destination" (coord-alist (soldier-destination soldier)))))
 
 (defstruct base team)
 
-(defun base-alist (base)
-  (list 
+(defun base-alist (position base)
+  (list
+   (cons "type" "BASE")
+   (cons "position" (coord-alist position))
    (cons "team" (base-team base))))
 
 (defstruct game map turns-remaining player1 player2)
 
 (defun map-to-alist (mp)
-  (mapcar (lambda (e) 
-            (match (cdr e)
-              ((type soldier)
-               (cons (format-coord (car e)) (soldier-alist (cdr e))))
-              ((type base)
-               (cons (format-coord (car e)) (base-alist (cdr e))))))
-          (sort (hash-table-alist mp) #'pair-less :key #'car)))
+  (map 'vector (lambda (e) 
+                 (match (cdr e)
+                   ((type soldier) (soldier-alist (cdr e)))
+                   ((type base) (base-alist (car e) (cdr e)))))
+       (sort (hash-table-alist mp) #'pair-less :key #'car)))
 
 (defun game-alist (game)
   (list
@@ -93,7 +94,7 @@
   (list 
    (cons "team" (player-team player))
    (cons "money" (player-money player))
-   (cons "base" (format-coord (player-base player)))
+   (cons "base" (coord-alist (player-base player)))
    (cons "health" (player-health player))))
 
 (defstruct build soldier-type start destination)
