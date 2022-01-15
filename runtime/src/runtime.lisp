@@ -59,14 +59,11 @@
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit))
 
-;(defparameter *read-output-timeout* 1)
-
 (defun to-string (bot-stream time-limit)
   (handler-case 
       (with-timeout (time-limit)
         (loop for line = (read-line bot-stream nil nil)
            while (and line (> (length line) 0))
-
            collect line))
     (timeout-error (e)
       (declare (ignore e))
