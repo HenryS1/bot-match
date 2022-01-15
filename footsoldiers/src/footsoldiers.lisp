@@ -395,5 +395,41 @@
     (when (not (null invalid-moves))
       (mapc (lambda (err) (format t "~a~%" err)) invalid-moves))
     (when (not (null errors))
-      (format t "Errors while applying game moves ~a~%" errors))
+      (mapc (lambda (err) (format t "Error while applying game move ~a~%" err)) errors))
     updated-game))
+
+(defun construct-bot-paths ()
+  (let ((bot-1-relative-path (read-line t nil))
+        (bot-2-relative-path (read-line t nil))
+        (current-directory sb-ext:*core-pathname*))
+    (labels ((bot-absolute-path (bot-relative-path)
+               (merge-pathnames bot-relative-path current-directory)))
+      (cons (list (bot-absolute-path bot-1-relative-path))
+            (list (bot-absolute-path bot-2-relative-path))))))
+
+(defun run-bots (bot-absolute-paths)
+  (bind (((bot1-path . bot2-path) bot-absolute-paths)
+         (bot-1-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot1-path)))
+         (bot-2-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot2-path))))
+    (list (runtime:start-bot-from-definition bot-1-def bot1-path)
+          (runtime:start-bot-from-definition bot-2-def bot2-path))))
+
+(defun run-game ()
+  (format t "Running footsoldiers~%")
+  (let ((runtime:*bot-initialisation-time* 0.5))
+    (let* ((bots (alist-hash-table (pairlis '("player1" "player2") 
+                                            (run-bots (construct-bot-paths)))))
+           (game (make-game :map (alist-hash-table 
+                                  (list (cons (cons 0 0) (make-base :team "player1"))
+                                        (cons (cons 20 0) (make-base :team "player2"))) 
+                                  :test 'equal)
+                            :turns-remaining 100
+                            :player1 (make-player :team "player1" 
+                                                  :money (cost :scout)
+                                                  :base (cons 0 0)
+                                                  :health 40)
+                            :player2 (make-player :team "player2"
+                                                  :money (cost :scout)
+                                                  :base (cons 20 0)
+                                                  :health 40))))
+      (n-player-game bots game 1))))
