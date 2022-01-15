@@ -570,19 +570,21 @@
                                (cons "money" 3)
                                (cons "base" (coord-alist (cons 5 4)))
                                (cons "health" 7)))
-           (game-repr (list (cons "map" map-repr) 
+           (game-repr (list 
+                            (cons "map" map-repr) 
                             (cons "turns-remaining" 10)
                             (cons "player1" player1-repr)
                             (cons "player2" player2-repr)))
-           (game-json (let ((yason:*list-encoder* #'yason:encode-alist))
-                        (yason:with-output-to-string* (:stream-symbol s) 
-                          (yason:encode game-repr s))))
+           (player-1-game-json (let ((yason:*list-encoder* #'yason:encode-alist))
+                                 (yason:with-output-to-string* (:stream-symbol s) 
+                                   (yason:encode (cons (cons "you" "player1") game-repr) s))))
+           (player-2-game-json (let ((yason:*list-encoder* #'yason:encode-alist))
+                                 (yason:with-output-to-string* (:stream-symbol s) 
+                                   (yason:encode (cons (cons "you" "player2") game-repr) s))))
            (players-input (get-players-input-for-turn gm)))
-      (format t "GAME JSON ~a~%" game-json)
-      (format t "PLAYERS INPUT ~a~%" players-input)
       (ok (equalp players-input
-                  (list (cons "player1" game-json)
-                        (cons "player2" game-json)))))))
+                  (list (cons "player1" player-1-game-json)
+                        (cons "player2" player-2-game-json)))))))
 
 (deftest parse-move 
   (testing "parses a build move"
@@ -636,7 +638,7 @@
            (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
                                  (cons "player2" "BUILD ASSASSIN (3, 2) (3, 3)")))
            (step-result (step-game moves gm))
-           (advance-turn-result (advance-turn unparsed-moves gm)))
+           (advance-turn-result (advance-turn unparsed-moves gm-copy)))
       (ok (equalp (move-result-updated-game step-result) advance-turn-result))))
   (testing "discards moves which failed parsing"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
@@ -654,5 +656,5 @@
            (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
                                  (cons "player2" "BUILD  (3, 2) (3, 3)")))
            (step-result (step-game moves gm))
-           (advance-turn-result (advance-turn unparsed-moves gm)))
+           (advance-turn-result (advance-turn unparsed-moves gm-copy)))
       (ok (equalp (move-result-updated-game step-result) advance-turn-result)))))

@@ -355,15 +355,15 @@
 
 (defmethod game-result ((game game)) (determine-result game))
 
-(defun game-to-json (game)
+(defun game-to-json (player-name game)
   (let ((yason:*list-encoder* #'yason:encode-alist))
     (yason:with-output-to-string* (:stream-symbol s)
-      (yason:encode (game-alist game) s))))
+
+      (yason:encode (cons (cons "you" player-name) (game-alist game)) s))))
 
 (defmethod get-players-input-for-turn ((game game))
-  (let ((json-game (game-to-json game)))
-    (list (cons (player-team (game-player1 game)) json-game)
-          (cons (player-team (game-player2 game)) json-game))))
+  (list (cons (player-team (game-player1 game)) (game-to-json "player1" game))
+        (cons (player-team (game-player2 game)) (game-to-json "player2" game))))
 
 (defmethod turn-time-limit ((game game)) 1)
 
