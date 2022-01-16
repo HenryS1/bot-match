@@ -46,7 +46,9 @@
            :parse-move
            :advance-turn
            :coord-alist
-           :game-alist))
+           :game-alist
+           :start-game
+           :determine-result))
 
 (in-package :footsoldiers)
 
@@ -269,7 +271,8 @@
                                     (game-player1 new-gm)
                                     (game-player2 new-gm)))))
     (if (< (player-money player) (cost soldier-type))
-        (left "Not enough money")
+        (left (format nil "Player ~a with money ~a doesn't have enough money for ~a with cost ~a" 
+                      (player-team player) (player-money player) soldier-type (cost soldier-type)))
         (if (not (close-enough-to-base start player))
             (left "Too far from base")
             (if (gethash start (game-map new-gm))
@@ -301,15 +304,17 @@
           (make-move-result :errors (append (move-result-errors one) (move-result-errors other)) 
                              :updated-game (move-result-updated-game other)))
          ((cons (type move-result) (type right))
-          (make-move-result :errors (move-result-errors one) :updated-game (right-value other)))
+          (make-move-result :errors (move-result-errors one)
+                            :updated-game (right-value other)))
          ((cons (type right) (type move-result))
-          (make-move-result :errors (move-result-errors other) :updated-game (move-result-updated-game other)))
+          (make-move-result :errors (move-result-errors other)
+                            :updated-game (move-result-updated-game other)))
          ((cons (type right) (type right))
           (make-move-result :errors nil :updated-game (right-value other)))))
 
 (defmethod apply-moves (moves (new-gm game))
   (if (null moves)
-      (right new-gm)
+      (make-move-result :errors nil :updated-game new-gm)
       (bind (((team . move) (car moves)))
         (match (apply-move team move new-gm)
            ((left left-err) 
@@ -327,10 +332,10 @@
 (defmethod determine-result ((game game))
   (if (and (= (player-health (game-player1 game)) 0)
            (> (player-health (game-player2 game)) 0)) 
-      (cons :win (player-team (game-player2 game)))
+      (cons :winner (player-team (game-player2 game)))
       (if (and (= (player-health (game-player2 game)) 0)
                (> (player-health (game-player1 game)) 0))
-          (cons :win (player-team (game-player1 game)))
+          (cons :winner (player-team (game-player1 game)))
           :draw)))
 
 (defmethod step-game (moves (gm game))
@@ -368,7 +373,7 @@
 (defmethod turn-time-limit ((game game)) 1)
 
 (defun parse-move (player-move)
-  (match (cdr player-move)
+  (match (cadr player-move)
     ((ppcre "BUILD (SCOUT|ASSASSIN|TANK) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\)" name 
             (read start-row) (read start-col) (read dest-row) (read dest-col))
      (right (cons (car player-move)
@@ -377,7 +382,7 @@
                               :destination (cons dest-row dest-col)))))
     ((ppcre "NO-OP") (right (cons (car player-move) :no-op)))
     (otherwise (left (format nil "Player ~a provided invalid move '~a'" 
-                     (car player-move) (cdr player-move))))))
+                     (car player-move) (cadr player-move))))))
 
 (defun rights (results)
   (mapcar #'right-value (remove-if-not (lambda (r) (match r ((type right) t)
@@ -396,29 +401,29 @@
       (mapc (lambda (err) (format t "~a~%" err)) invalid-moves))
     (when (not (null errors))
       (mapc (lambda (err) (format t "Error while applying game move ~a~%" err)) errors))
+    (format t "Player moves ~a~%" player-moves)
     updated-game))
 
-(defun construct-bot-paths ()
-  (let ((bot-1-relative-path (read-line t nil))
-        (bot-2-relative-path (read-line t nil))
-        (current-directory sb-ext:*core-pathname*))
+(defun construct-bot-paths (current-directory bot-relative-paths)
+  (bind (((bot-1-relative-path . bot-2-relative-path) bot-relative-paths))
     (labels ((bot-absolute-path (bot-relative-path)
                (merge-pathnames bot-relative-path current-directory)))
-      (cons (list (bot-absolute-path bot-1-relative-path))
-            (list (bot-absolute-path bot-2-relative-path))))))
+      (cons (bot-absolute-path bot-1-relative-path)
+            (bot-absolute-path bot-2-relative-path)))))
 
 (defun run-bots (bot-absolute-paths)
   (bind (((bot1-path . bot2-path) bot-absolute-paths)
          (bot-1-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot1-path)))
          (bot-2-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot2-path))))
-    (list (runtime:start-bot-from-definition bot-1-def bot1-path)
-          (runtime:start-bot-from-definition bot-2-def bot2-path))))
+    (list (runtime:start-bot-from-definition bot-1-def (format nil "~a" bot1-path))
+          (runtime:start-bot-from-definition bot-2-def (format nil "~a" bot2-path)))))
 
-(defun run-game ()
+(defun start-game (current-directory bot-relative-paths)
   (format t "Running footsoldiers~%")
-  (let ((runtime:*bot-initialisation-time* 0.5))
-    (let* ((bots (alist-hash-table (pairlis '("player1" "player2") 
-                                            (run-bots (construct-bot-paths)))))
+  (let ((runtime:*bot-initialisation-time* 2))
+    (let* ((bots (alist-hash-table 
+                  (pairlis '("player1" "player2") 
+                           (run-bots (construct-bot-paths current-directory bot-relative-paths)))))
            (game (make-game :map (alist-hash-table 
                                   (list (cons (cons 0 0) (make-base :team "player1"))
                                         (cons (cons 20 0) (make-base :team "player2"))) 
@@ -433,3 +438,9 @@
                                                   :base (cons 20 0)
                                                   :health 40))))
       (n-player-game bots game 1))))
+
+(defun run ()
+  (let ((bot-1-relative-path (read-line nil nil))
+        (bot-2-relative-path (read-line nil nil))
+        (current-directory sb-ext:*core-pathname*))
+    (start-game current-directory (cons bot-1-relative-path bot-2-relative-path))))

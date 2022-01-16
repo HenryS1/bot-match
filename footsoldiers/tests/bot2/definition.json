@@ -1,0 +1,5 @@
+{
+    "name": "bot2",
+    "relative-filepath": "./bot.lisp",
+    "command": "ros -Q -s herodotus -- <bot-file>"
+}

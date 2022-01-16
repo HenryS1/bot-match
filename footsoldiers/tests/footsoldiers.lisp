@@ -331,7 +331,7 @@
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))) 
       (ok (equalp (build-soldier "player1" :scout (cons 4 4) (cons 8 10) gm)
-                  (left "Not enough money")))))
+                  (left "Player player1 with money 9 doesn't have enough money for SCOUT with cost 10")))))
   (testing "fails when the build position is already occupied"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)
@@ -408,7 +408,9 @@
                                                     :destination (cons 9 6)))))
            (result (apply-moves moves gm)))
       (ok (equalp result
-                  (make-move-result :errors (list "Position is occupied" "Not enough money")
+                  (make-move-result 
+                   :errors (list "Position is occupied" 
+                                 "Player player2 with money 3 doesn't have enough money for ASSASSIN with cost 14")
                                     :updated-game gm)))))  
   (testing "applies moves for both players"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
@@ -487,14 +489,14 @@
            (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 0))
            (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2)))
-      (ok (equalp (determine-result gm) (cons :win "player1")))))
+      (ok (equalp (determine-result gm) (cons :winner "player1")))))
   (testing "returns win for player2 when player1 has no health and player2 has non-zero health"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
            (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 0))
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2)))
-      (ok (equalp (determine-result gm) (cons :win "player2")))))
+      (ok (equalp (determine-result gm) (cons :winner "player2")))))
   (testing "returns draw otherwise"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
@@ -588,34 +590,34 @@
 
 (deftest parse-move 
   (testing "parses a build move"
-    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6)"))
+    (ok (equalp (parse-move (cons "player1" (list "BUILD SCOUT (1, 3) (4, 6)")))
                 (right (cons "player1"
                              (make-build :soldier-type :scout
                                          :start (cons 1 3)
                                          :destination (cons 4 6)))))))
   (testing "only accepts three SCOUT, TANK or ASSASSIN for soldier type"
-    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6)"))
+    (ok (equalp (parse-move (cons "player1" (list "BUILD SCOUT (1, 3) (4, 6)")))
                 (right (cons "player1"
                              (make-build :soldier-type :scout
                                          :start (cons 1 3)
                                          :destination (cons 4 6))))))
-    (ok (equalp (parse-move (cons "player1" "BUILD TANK (1, 3) (4, 6)"))
+    (ok (equalp (parse-move (cons "player1" (list "BUILD TANK (1, 3) (4, 6)")))
                 (right (cons "player1"
                              (make-build :soldier-type :tank
                                          :start (cons 1 3)
                                          :destination (cons 4 6))))))
-    (ok (equalp (parse-move (cons "player1" "BUILD ASSASSIN (1, 3) (4, 6)"))
+    (ok (equalp (parse-move (cons "player1" (list "BUILD ASSASSIN (1, 3) (4, 6)")))
                 (right (cons "player1"
                              (make-build :soldier-type :assassin
                                          :start (cons 1 3)
                                          :destination (cons 4 6))))))
-    (ok (equalp (parse-move (cons "player1" "BUILD INFANTRY (1, 3) (4, 6)"))
+    (ok (equalp (parse-move (cons "player1" (list "BUILD INFANTRY (1, 3) (4, 6)")))
                 (left "Player player1 provided invalid move 'BUILD INFANTRY (1, 3) (4, 6)'"))))
   (testing "parses a no-op move"
-    (ok (equalp (parse-move (cons "player1" "NO-OP"))
+    (ok (equalp (parse-move (cons "player1" (list "NO-OP")))
                 (right (cons "player1" :no-op)))))
   (testing "returns an error for other input"
-    (ok (equalp (parse-move (cons "player1" "blah"))
+    (ok (equalp (parse-move (cons "player1" (list "blah")))
                 (left "Player player1 provided invalid move 'blah'")))))
 
 (deftest advance-turn 
@@ -635,8 +637,8 @@
            (player1-copy (copy-structure player1))
            (player2-copy (copy-structure player2))
            (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
-           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
-                                 (cons "player2" "BUILD ASSASSIN (3, 2) (3, 3)")))
+           (unparsed-moves (list (cons "player1" (list "BUILD SCOUT (6, 5) (5, 5)"))
+                                 (cons "player2" (list "BUILD ASSASSIN (3, 2) (3, 3)"))))
            (step-result (step-game moves gm))
            (advance-turn-result (advance-turn unparsed-moves gm-copy)))
       (ok (equalp (move-result-updated-game step-result) advance-turn-result))))
@@ -653,8 +655,14 @@
            (player1-copy (copy-structure player1))
            (player2-copy (copy-structure player2))
            (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
-           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
-                                 (cons "player2" "BUILD  (3, 2) (3, 3)")))
+           (unparsed-moves (list (cons "player1" (list "BUILD SCOUT (6, 5) (5, 5)"))
+                                 (cons "player2" (list "BUILD  (3, 2) (3, 3)"))))
            (step-result (step-game moves gm))
            (advance-turn-result (advance-turn unparsed-moves gm-copy)))
       (ok (equalp (move-result-updated-game step-result) advance-turn-result)))))
+
+(deftest start-game
+  (testing "runs bots and plays game until it is finished"
+    (let ((result (start-game (directory-namestring #.*compile-file-truename*)
+                              (cons "bot1/" "bot2/"))))
+      (ok (equalp (determine-result result) (cons :winner "player2"))))))

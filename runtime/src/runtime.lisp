@@ -48,6 +48,7 @@
   (let ((command-parts (split "\\s+" (regex-replace "<bot-file>" 
                                                     (command bot-definition)
                                                     (concatenate 'string base-path (relative-filepath bot-definition))))))
+    (format t "COMMAND PARTS ~a~%" command-parts)
     (let ((bot (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts))
                     :bot-id (random-id 10)
                     :bot-name (name bot-definition))))
@@ -62,9 +63,11 @@
 (defun to-string (bot-stream time-limit)
   (handler-case 
       (with-timeout (time-limit)
-        (loop for line = (read-line bot-stream nil nil)
-           while (and line (> (length line) 0))
-           collect line))
+        (let ((output (loop for line = (read-line bot-stream nil nil)
+                  while (and line (> (length line) 0))
+                  collect line)))
+          (format t "BOT OUTPUT ~a~%" output)
+          output))
     (timeout-error (e)
       (declare (ignore e))
       (format t "timed out waiting for bot output~%")
