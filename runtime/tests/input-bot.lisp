@@ -8,9 +8,8 @@
                   (loop for line = (read-line t nil nil)
                      while (and line (> (length line) 0))
                      do (write-line line s)))))
-                    (format t "~a~%" result)
-                    (format t "~%")
-                    (finish-output)
-                    (sleep 2)))
+    (format t "~a~%" result)
+    (finish-output)
+    (sleep 2)))
 
 (run)

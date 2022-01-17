@@ -60,14 +60,17 @@
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit))
 
+(defun read-output (bot-stream)
+  (loop for line = (read-line bot-stream nil nil)
+     while (and line (> (length line) 0))
+     collect line))
+
 (defun to-string (bot-stream time-limit)
   (handler-case 
       (with-timeout (time-limit)
-        (let ((output (loop for line = (read-line bot-stream nil nil)
-                  while (and line (> (length line) 0))
-                  collect line)))
-          (format t "BOT OUTPUT ~a~%" output)
-          output))
+        (loop for bot-output = (read-output bot-stream)
+           while (listen bot-stream)
+           finally (return bot-output)))
     (timeout-error (e)
       (declare (ignore e))
       (format t "timed out waiting for bot output~%")

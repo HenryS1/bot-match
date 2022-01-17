@@ -30,7 +30,7 @@
 (deftest bot-output
   (testing "should capture bot output from stdout"
     (let ((bot (run-test-bot *quick-bot*)))
-      (sleep 0.05)
+      (sleep 0.1)
       (ok (equal (bot-output bot *turn-timeout*) '("bot output"))))))
 
 (deftest start-bot
