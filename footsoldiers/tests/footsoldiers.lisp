@@ -585,8 +585,8 @@
                                    (yason:encode (cons (cons "you" "player2") game-repr) s))))
            (players-input (get-players-input-for-turn gm)))
       (ok (equalp players-input
-                  (list (cons "player1" player-1-game-json)
-                        (cons "player2" player-2-game-json)))))))
+                  (list (cons "player1" (format nil "~a~%" player-1-game-json))
+                        (cons "player2" (format nil "~a~%" player-2-game-json))))))))
 
 (deftest parse-move 
   (testing "parses a build move"

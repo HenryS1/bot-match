@@ -12,8 +12,8 @@
   (loop for input = (input-json:from-json 
                   (with-output-to-string (s)
                     (loop for line = (read-line t nil nil)
-                       while (and line (> (length line) 0))
-                       do (write-line line s))))
+                       do (write-line line s)
+                       while (listen))))
      while (listen)
      finally (return (when input 
                        (cons (if (string= (you input) "player1")
@@ -28,12 +28,12 @@
      if (and my-player other-player (>= (money my-player) 10))
      do (let ((my-base-coord (base my-player))
               (enemy-base-coord (base other-player)))
-          (format t "~a~%~%" (format nil "BUILD SCOUT (~a, ~a) (~a, ~a)" 
-                                     (x my-base-coord)
-                                     (+ (y my-base-coord) 1)
-                                     (x enemy-base-coord)
-                                     (y enemy-base-coord))))
-     else do (format t "NO-OP~%~%")))
+          (format t "~a~%" (format nil "BUILD SCOUT (~a, ~a) (~a, ~a)" 
+                                   (x my-base-coord)
+                                   (+ (y my-base-coord) 1)
+                                   (x enemy-base-coord)
+                                   (y enemy-base-coord))))
+     else do (format t "NO-OP~%")))
 
 (defun main (&rest argv)
   (declare (ignorable argv))

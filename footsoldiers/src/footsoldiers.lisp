@@ -367,8 +367,8 @@
       (yason:encode (cons (cons "you" player-name) (game-alist game)) s))))
 
 (defmethod get-players-input-for-turn ((game game))
-  (list (cons (player-team (game-player1 game)) (game-to-json "player1" game))
-        (cons (player-team (game-player2 game)) (game-to-json "player2" game))))
+  (list (cons (player-team (game-player1 game)) (format nil "~a~%" (game-to-json "player1" game)))
+        (cons (player-team (game-player2 game)) (format nil "~a~%" (game-to-json "player2" game)))))
 
 (defmethod turn-time-limit ((game game)) 1)
 

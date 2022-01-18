@@ -30,7 +30,7 @@
 (deftest bot-output
   (testing "should capture bot output from stdout"
     (let ((bot (run-test-bot *quick-bot*)))
-      (sleep 0.1)
+      (sleep 0.2)
       (ok (equal (bot-output bot *turn-timeout*) '("bot output"))))))
 
 (deftest start-bot
@@ -69,7 +69,7 @@
 (deftest send-input-to-bot
   (testing "should send input to a bot"
     (let ((bot (run-test-bot *input-bot*)))
-      (send-input-to-bot bot "hello bot")
+      (send-input-to-bot bot (format nil "hello bot~%"))
       (let ((bot-out (bot-output bot *turn-timeout*)))
         (ok (equal bot-out '("hello bot")))
         (interrupt-bot bot)))))
@@ -77,7 +77,7 @@
 (deftest end-bot-turn
   (testing "should stop a bot"
     (let ((bot (run-test-bot *turn-bot*)))
-      (send-input-to-bot bot "input")
+      (send-input-to-bot bot (format nil "input~%"))
       (end-bot-turn bot)
       (sleep 0.01)
       (ok (equal (bot-status bot) :stopped))
@@ -87,7 +87,7 @@
   (testing "should send input, read output and stop bot"
     (let ((bot (run-test-bot *turn-bot*)))
       (sleep 0.5)
-      (ok (equal (bot-turn bot "input" *turn-timeout*) '("input")))
+      (ok (equal (bot-turn bot (format nil "input~%") *turn-timeout*) '("input")))
       (ok (equal (bot-status bot) :stopped))
       (interrupt-bot bot)))
   (testing "should not run a turn when the bot process is exited"
@@ -95,7 +95,7 @@
       (sleep 0.2)
       (interrupt-bot bot)
       (sleep 0.02)
-      (ok (not (bot-turn bot "input" *turn-timeout*))))))
+      (ok (not (bot-turn bot (format nil "input~%") *turn-timeout*))))))
 
 (deftest bot-definition 
   (testing "should read a bot definition from a file"
@@ -111,4 +111,4 @@
       (let* ((definition (bot-definition-json:from-json f))
              (bot (start-bot-from-definition definition *test-base-path*)))
         (sleep 0.01)
-        (ok (equal (bot-turn bot "input" *turn-timeout*) '("input")))))))
+        (ok (equal (bot-turn bot (format nil "input~%") *turn-timeout*) '("input")))))))

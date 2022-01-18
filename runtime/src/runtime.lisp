@@ -62,8 +62,8 @@
 
 (defun read-output (bot-stream)
   (loop for line = (read-line bot-stream nil nil)
-     while (and line (> (length line) 0))
-     collect line))
+     collect line
+     while (listen bot-stream)))
 
 (defun to-string (bot-stream time-limit)
   (handler-case 
@@ -118,8 +118,7 @@
 ;; End of input is signalled by an empty line
 (defmethod send-input-to-bot ((bot concrete-bot) str)
   (with-slots (bot-process) bot
-    (write-line str (sb-ext:process-input bot-process))
-    (write-line "" (sb-ext:process-input bot-process))
+    (write-string str (sb-ext:process-input bot-process))
     (finish-output (sb-ext:process-input bot-process))))
 
 (defmethod end-bot-turn ((bot concrete-bot) &optional (wait-time 0.1))
