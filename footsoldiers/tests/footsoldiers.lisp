@@ -585,39 +585,39 @@
                                    (yason:encode (cons (cons "you" "player2") game-repr) s))))
            (players-input (get-players-input-for-turn gm)))
       (ok (equalp players-input
-                  (list (cons "player1" (format nil "~a~%" player-1-game-json))
-                        (cons "player2" (format nil "~a~%" player-2-game-json))))))))
+                  (list (cons "player1" player-1-game-json)
+                        (cons "player2" player-2-game-json)))))))
 
 (deftest parse-move 
   (testing "parses a build move"
-    (ok (equalp (parse-move (cons "player1" (list "BUILD SCOUT (1, 3) (4, 6)")))
+    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6)"))
                 (right (cons "player1"
                              (make-build :soldier-type :scout
                                          :start (cons 1 3)
                                          :destination (cons 4 6)))))))
   (testing "only accepts three SCOUT, TANK or ASSASSIN for soldier type"
-    (ok (equalp (parse-move (cons "player1" (list "BUILD SCOUT (1, 3) (4, 6)")))
+    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6)"))
                 (right (cons "player1"
                              (make-build :soldier-type :scout
                                          :start (cons 1 3)
                                          :destination (cons 4 6))))))
-    (ok (equalp (parse-move (cons "player1" (list "BUILD TANK (1, 3) (4, 6)")))
+    (ok (equalp (parse-move (cons "player1" "BUILD TANK (1, 3) (4, 6)"))
                 (right (cons "player1"
                              (make-build :soldier-type :tank
                                          :start (cons 1 3)
                                          :destination (cons 4 6))))))
-    (ok (equalp (parse-move (cons "player1" (list "BUILD ASSASSIN (1, 3) (4, 6)")))
+    (ok (equalp (parse-move (cons "player1" "BUILD ASSASSIN (1, 3) (4, 6)"))
                 (right (cons "player1"
                              (make-build :soldier-type :assassin
                                          :start (cons 1 3)
                                          :destination (cons 4 6))))))
-    (ok (equalp (parse-move (cons "player1" (list "BUILD INFANTRY (1, 3) (4, 6)")))
+    (ok (equalp (parse-move (cons "player1" "BUILD INFANTRY (1, 3) (4, 6)"))
                 (left "Player player1 provided invalid move 'BUILD INFANTRY (1, 3) (4, 6)'"))))
   (testing "parses a no-op move"
-    (ok (equalp (parse-move (cons "player1" (list "NO-OP")))
+    (ok (equalp (parse-move (cons "player1" "NO-OP"))
                 (right (cons "player1" :no-op)))))
   (testing "returns an error for other input"
-    (ok (equalp (parse-move (cons "player1" (list "blah")))
+    (ok (equalp (parse-move (cons "player1" "blah"))
                 (left "Player player1 provided invalid move 'blah'")))))
 
 (deftest advance-turn 
@@ -637,8 +637,8 @@
            (player1-copy (copy-structure player1))
            (player2-copy (copy-structure player2))
            (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
-           (unparsed-moves (list (cons "player1" (list "BUILD SCOUT (6, 5) (5, 5)"))
-                                 (cons "player2" (list "BUILD ASSASSIN (3, 2) (3, 3)"))))
+           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
+                                 (cons "player2" "BUILD ASSASSIN (3, 2) (3, 3)")))
            (step-result (step-game moves gm))
            (advance-turn-result (advance-turn unparsed-moves gm-copy)))
       (ok (equalp (move-result-updated-game step-result) advance-turn-result))))
@@ -655,8 +655,8 @@
            (player1-copy (copy-structure player1))
            (player2-copy (copy-structure player2))
            (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
-           (unparsed-moves (list (cons "player1" (list "BUILD SCOUT (6, 5) (5, 5)"))
-                                 (cons "player2" (list "BUILD  (3, 2) (3, 3)"))))
+           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
+                                 (cons "player2" "BUILD  (3, 2) (3, 3)")))
            (step-result (step-game moves gm))
            (advance-turn-result (advance-turn unparsed-moves gm-copy)))
       (ok (equalp (move-result-updated-game step-result) advance-turn-result)))))

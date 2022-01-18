@@ -5,7 +5,8 @@
            :tick
            :terminate-bots
            :game-result
-           :turn-time-limit))
+           :turn-time-limit
+           :input-parser))
 
 (in-package :n-player-game)
 
@@ -13,6 +14,7 @@
 (defgeneric game-result (game))
 (defgeneric get-players-input-for-turn (game))
 (defgeneric advance-turn (player-moves game))
+(defgeneric input-parser (game))
 (defgeneric turn-time-limit (game))
 
 (defmethod tick (bots game)
@@ -22,7 +24,8 @@
                                    (if bot 
                                        (cons (car pin) (bot-turn bot
                                                                  (cdr pin) 
-                                                                 (turn-time-limit game)))
+                                                                 (turn-time-limit game)
+                                                                 (input-parser game)))
                                        (cons (car pin) "")))) player-input-for-turn)))
     (advance-turn player-moves game)))
 

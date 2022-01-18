@@ -17,7 +17,7 @@
   (player-scores game))
 
 (defmethod get-players-input-for-turn ((game guessing-game))
-  (list (cons (current-player-id game) (format nil "~a" (car (numbers game))))))
+  (list (cons (current-player-id game) (format nil "~a~%" (car (numbers game))))))
 
 (defmethod turn-time-limit ((game guessing-game)) 1)
 
@@ -35,6 +35,8 @@
            (new-score (+ old-score (- 1 (abs (- n target))))))
       (cons (cons (car player-move) new-score) 
             (remove (car player-move) old-scores :key #'car :test 'equal)))))
+
+(defmethod input-parser ((game guessing-game)) #'read-output)
 
 (defmethod advance-turn (player-moves game)
   (make-instance 'guessing-game 
@@ -55,7 +57,7 @@
 
 (defun run-guessing-game ()
   (format t "running guessing game~%")
-  (let ((*bot-initialisation-time* 0.2))
+  (let ((*bot-initialisation-time* 1))
    (let* ((bots (alist-hash-table (pairlis '("player1" "player2") (run-bots)) :test 'equal))
           (game (make-instance 'guessing-game)))
      (n-player-game bots game 1))))

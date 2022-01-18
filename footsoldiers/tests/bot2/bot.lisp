@@ -9,11 +9,7 @@
                               (player1 player) (player2 player)))
 
 (defun read-input ()
-  (loop for input = (input-json:from-json 
-                  (with-output-to-string (s)
-                    (loop for line = (read-line t nil nil)
-                       do (write-line line s)
-                       while (listen))))
+  (loop for input = (input-json:from-json *standard-input*)
      while (listen)
      finally (return (when input 
                        (cons (if (string= (you input) "player1")

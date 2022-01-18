@@ -1,13 +1,14 @@
 (defpackage :bot1
-  (:use :cl))
+  (:use :cl :herodotus))
 
 (in-package :bot1)
 
+(define-json-model input (you))
+
 (defun read-input ()
-  (loop for line = (read-line t nil nil)
-     collect line into lines
+  (loop for input = (input-json:from-json *standard-input*)
      while (listen)
-     finally (return lines)))
+     finally (return input)))
 
 (defun run ()
   (loop for input = (read-input)

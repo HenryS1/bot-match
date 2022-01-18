@@ -22,7 +22,8 @@
            :read-bot-definition
            :start-bot-from-definition
            :bot-turn
-           :*bot-initialisation-time*))
+           :*bot-initialisation-time*
+           :read-output))
 
 (in-package :runtime)
 
@@ -58,17 +59,17 @@
       bot)))
 
 (defgeneric bot-status (bot))
-(defgeneric bot-turn (bot input time-limit))
+(defgeneric bot-turn (bot input time-limit &optional parser))
 
 (defun read-output (bot-stream)
   (loop for line = (read-line bot-stream nil nil)
      collect line
      while (listen bot-stream)))
 
-(defun to-string (bot-stream time-limit)
+(defun to-string (bot-stream parser time-limit)
   (handler-case 
       (with-timeout (time-limit)
-        (loop for bot-output = (read-output bot-stream)
+        (loop for bot-output = (funcall parser bot-stream)
            while (listen bot-stream)
            finally (return bot-output)))
     (timeout-error (e)
@@ -79,9 +80,9 @@
 (defun run-bot (command args)
   (sb-ext:run-program command args :wait nil :input :stream :output :stream :search t))
 
-(defmethod bot-output ((bot concrete-bot) time-limit)
+(defmethod bot-output ((bot concrete-bot) time-limit &optional (parser #'read-output))
   (-> (sb-ext:process-output (bot-process bot))
-      (to-string time-limit)))
+      (to-string parser time-limit)))
 
 ;; Interrupt process
 (defconstant SIGINT 2)
@@ -127,10 +128,10 @@
   (when (equal (bot-status bot) :running)
     (kill-bot bot)))
 
-(defmethod bot-turn ((bot concrete-bot) turn-input time-limit)
+(defmethod bot-turn ((bot concrete-bot) turn-input time-limit &optional (parser #'read-output))
   (when (not (equal (bot-status bot) :exited))
     (continue-bot bot)
     (send-input-to-bot bot turn-input)
-    (let ((output (bot-output bot time-limit)))
+    (let ((output (bot-output bot time-limit parser)))
       (end-bot-turn bot)
       output)))

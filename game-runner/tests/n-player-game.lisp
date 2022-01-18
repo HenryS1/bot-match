@@ -20,10 +20,12 @@
 (defmethod get-players-input-for-turn ((game test-game))
   (list (cons "player1" "input1")))
 
+(defmethod input-parser ((game test-game)) nil)
+
 (defmethod get-bot-input ((game test-game))
   (bot-input game))
 
-(defmethod bot-output ((bot test-bot) time-limit) "output")
+(defmethod bot-output ((bot test-bot) time-limit &optional (parser nil)) "output")
 
 (defmethod stop-bot ((bot test-bot))
   (setf (stopped bot) t))
@@ -31,7 +33,7 @@
 (defmethod interrupt-bot ((bot test-bot))
   (setf (bot-status bot) :exited))
 
-(defmethod bot-turn ((bot test-bot) input turn-time-limit)
+(defmethod bot-turn ((bot test-bot) input turn-time-limit &optional (parser nil))
   (progn (setf (bot-input bot) input)
          (bot-output bot turn-time-limit)))
 

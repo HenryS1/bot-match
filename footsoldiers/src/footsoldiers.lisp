@@ -367,13 +367,13 @@
       (yason:encode (cons (cons "you" player-name) (game-alist game)) s))))
 
 (defmethod get-players-input-for-turn ((game game))
-  (list (cons (player-team (game-player1 game)) (format nil "~a~%" (game-to-json "player1" game)))
-        (cons (player-team (game-player2 game)) (format nil "~a~%" (game-to-json "player2" game)))))
+  (list (cons (player-team (game-player1 game)) (game-to-json "player1" game))
+        (cons (player-team (game-player2 game)) (game-to-json "player2" game))))
 
 (defmethod turn-time-limit ((game game)) 1)
 
 (defun parse-move (player-move)
-  (match (cadr player-move)
+  (match (cdr player-move)
     ((ppcre "BUILD (SCOUT|ASSASSIN|TANK) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\)" name 
             (read start-row) (read start-col) (read dest-row) (read dest-col))
      (right (cons (car player-move)
@@ -382,7 +382,7 @@
                               :destination (cons dest-row dest-col)))))
     ((ppcre "NO-OP") (right (cons (car player-move) :no-op)))
     (otherwise (left (format nil "Player ~a provided invalid move '~a'" 
-                     (car player-move) (cadr player-move))))))
+                     (car player-move) (cdr player-move))))))
 
 (defun rights (results)
   (mapcar #'right-value (remove-if-not (lambda (r) (match r ((type right) t)
@@ -403,6 +403,8 @@
       (mapc (lambda (err) (format t "Error while applying game move ~a~%" err)) errors))
     (format t "Player moves ~a~%" player-moves)
     updated-game))
+
+(defmethod input-parser ((game game)) #'read-line)
 
 (defun construct-bot-paths (current-directory bot-relative-paths)
   (bind (((bot-1-relative-path . bot-2-relative-path) bot-relative-paths))
