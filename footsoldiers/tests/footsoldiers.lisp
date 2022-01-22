@@ -617,6 +617,9 @@
   (testing "parses a no-op move"
     (ok (equalp (parse-move (cons "player1" "NO-OP"))
                 (right (cons "player1" :no-op)))))
+  (testing "returns an error when the player didn't provide a move"
+    (ok (equalp (parse-move (cons "player1" nil))
+                (left "Player player1 didn't provide a move"))))
   (testing "returns an error for other input"
     (ok (equalp (parse-move (cons "player1" "blah"))
                 (left "Player player1 provided invalid move 'blah'")))))

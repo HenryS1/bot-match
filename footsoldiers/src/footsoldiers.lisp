@@ -386,6 +386,7 @@
                               :start (cons start-row start-col)
                               :destination (cons dest-row dest-col)))))
     ((ppcre "NO-OP") (right (cons (car player-move) :no-op)))
+    (nil (left (format nil "Player ~a didn't provide a move" (car player-move))))
     (otherwise (left (format nil "Player ~a provided invalid move '~a'" 
                      (car player-move) (cdr player-move))))))
 
