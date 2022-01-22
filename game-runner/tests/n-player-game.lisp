@@ -18,10 +18,10 @@
    (moves :accessor moves :initarg :moves :initform nil)))
 
 (defmethod game-state ((game test-game))
-  (format nil "Turns remaining ~a, Moves ~a" (turns-remaining game) (moves game)))
+  (format nil "Turns remaining ~a" (turns-remaining game)))
 
 (defmethod get-players-input-for-turn ((game test-game))
-  (list (cons "player1" "input1")))
+  (list (cons "player1" (format nil "~a" (turns-remaining game)))))
 
 (defmethod input-parser ((game test-game)) nil)
 
@@ -30,7 +30,7 @@
 
 (defmethod bot-output ((bot test-bot) time-limit &optional (parser nil))
   (declare (ignore parser))
-  (make-bot-turn-result :output "output" :logs nil))
+  (make-bot-turn-result :output (format nil "output ~a" (bot-input bot)) :logs nil))
 
 (defmethod stop-bot ((bot test-bot))
   (setf (stopped bot) t))
@@ -71,7 +71,7 @@
                                                :moves *standard-output*
                                                :states *standard-output*)))
       (let ((next-game (tick bots game logging-config)))
-        (ok (equal (moves next-game) (list (cons "player1" "output"))))
+        (ok (equal (moves next-game) (list (cons "player1" "output 1"))))
         (ok (equal (turns-remaining next-game) 0))))))
 
 (deftest n-player-game
@@ -82,4 +82,22 @@
                                                :moves *standard-output*
                                                :states *standard-output*)))
       (let ((end-game (n-player-game bots game 0 logging-config)))
-        (ok (is-finished? end-game))))))
+        (ok (is-finished? end-game)))))
+  (testing "should log the game state at each turn"
+    (let ((state-logs (with-output-to-string (turn-log)
+             (let ((game (make-instance 'test-game :turns-remaining 2))
+                   (bots (initialise-bots))
+                   (logging-config (make-logging-config :turns nil
+                                                        :moves nil
+                                                        :states turn-log)))
+               (n-player-game bots game 0 logging-config)))))
+      (ok (equalp state-logs (format nil "Turns remaining 1~%Turns remaining 0~%")))))
+  (testing "should log the moves at each turn"
+    (let ((move-logs (with-output-to-string (move-log)
+             (let ((game (make-instance 'test-game :turns-remaining 2))
+                   (bots (initialise-bots))
+                   (logging-config (make-logging-config :turns nil
+                                                        :moves move-log
+                                                        :states nil)))
+               (n-player-game bots game 0 logging-config)))))
+      (ok (equalp move-logs (format nil "(player1 . output 2)~%(player1 . output 1)~%"))))))

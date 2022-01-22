@@ -66,9 +66,9 @@
   (let ((*bot-initialisation-time* 1))
    (let* ((bots (alist-hash-table (pairlis '("player1" "player2") (run-bots)) :test 'equal))
           (game (make-instance 'guessing-game))
-          (logging-config (make-logging-config :turns *standard-output*
-                                               :moves *standard-output*
-                                               :states *standard-output*)))
+          (logging-config (make-logging-config :turns nil
+                                               :moves nil
+                                               :states nil)))
      (n-player-game bots game 1 logging-config))))
 
 (deftest guessing-game 
