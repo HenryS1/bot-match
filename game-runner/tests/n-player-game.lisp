@@ -17,6 +17,9 @@
   ((turns-remaining :accessor turns-remaining :initarg :turns-remaining :initform 1)
    (moves :accessor moves :initarg :moves :initform nil)))
 
+(defmethod game-state ((game test-game))
+  (format nil "Turns remaining ~a, Moves ~a" (turns-remaining game) (moves game)))
+
 (defmethod get-players-input-for-turn ((game test-game))
   (list (cons "player1" "input1")))
 
@@ -25,7 +28,9 @@
 (defmethod get-bot-input ((game test-game))
   (bot-input game))
 
-(defmethod bot-output ((bot test-bot) time-limit &optional (parser nil)) "output")
+(defmethod bot-output ((bot test-bot) time-limit &optional (parser nil))
+  (declare (ignore parser))
+  (make-bot-turn-result :output "output" :logs nil))
 
 (defmethod stop-bot ((bot test-bot))
   (setf (stopped bot) t))
@@ -34,19 +39,25 @@
   (setf (bot-status bot) :exited))
 
 (defmethod bot-turn ((bot test-bot) input turn-time-limit &optional (parser nil))
+  (declare (ignore parser))
   (progn (setf (bot-input bot) input)
          (bot-output bot turn-time-limit)))
 
 (defmethod advance-turn (player-moves (game test-game))
-  (make-instance 'test-game 
-                 :turns-remaining (- (turns-remaining game) 1)
-                 :moves (append player-moves (moves game))))
+  (make-game-turn-result 
+   :game (make-instance 'test-game 
+                  :turns-remaining (- (turns-remaining game) 1)
+                  :moves (append player-moves (moves game)))
+   :move-log player-moves))
 
 (defmethod turn-time-limit ((game test-game)) 1)
 
 (defun initialise-bots ()
   (alist-hash-table
-   (list (cons "player1" (make-instance 'test-bot :bot-id "test" :bot-name "test-name")))
+   (list (cons "player1" (make-instance 'test-bot 
+                                        :bot-id "test" 
+                                        :bot-name "test-name"
+                                        :bot-definition nil)))
    :test 'equal))
 
 (defmethod is-finished? ((game test-game))
@@ -55,14 +66,20 @@
 (deftest tick
   (testing "should update the state of the game with bot output"
     (let ((game (make-instance 'test-game))
-          (bots (initialise-bots)))
-      (let ((next-game (tick bots game)))
+          (bots (initialise-bots))
+          (logging-config (make-logging-config :turns *standard-output*
+                                               :moves *standard-output*
+                                               :states *standard-output*)))
+      (let ((next-game (tick bots game logging-config)))
         (ok (equal (moves next-game) (list (cons "player1" "output"))))
         (ok (equal (turns-remaining next-game) 0))))))
 
 (deftest n-player-game
   (testing "should run the game until finished"
     (let ((game (make-instance 'test-game :turns-remaining 2))
-          (bots (initialise-bots)))
-      (let ((end-game (n-player-game bots game 0)))
+          (bots (initialise-bots))
+          (logging-config (make-logging-config :turns *standard-output*
+                                               :moves *standard-output*
+                                               :states *standard-output*)))
+      (let ((end-game (n-player-game bots game 0 logging-config)))
         (ok (is-finished? end-game))))))

@@ -6,6 +6,7 @@
                "anaphora"
                "metabang-bind"
                "yason"
+               "local-time"
                "salmon"
                "trivia"
                "trivia.ppcre"

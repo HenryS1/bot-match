@@ -10,6 +10,9 @@
    (other-player-id :accessor other-player-id :initarg :other-player-id :initform "player2")
    (player-scores :accessor player-scores :initarg :player-scores :initform nil)))
 
+(defmethod game-state ((game guessing-game))
+  (format nil "Player scores ~a, Player guesses ~a" (player-scores game) (player-guesses game)))
+
 (defmethod is-finished? ((game guessing-game))
   (null (numbers game)))
 
@@ -39,12 +42,15 @@
 (defmethod input-parser ((game guessing-game)) #'read-output)
 
 (defmethod advance-turn (player-moves game)
-  (make-instance 'guessing-game 
-                 :numbers (cdr (numbers game))
-                 :player-guesses (reduce #'add-guess player-moves :initial-value (player-guesses game))
-                 :current-player-id (other-player-id game)
-                 :other-player-id (current-player-id game)
-                 :player-scores (reduce (update-score game) player-moves :initial-value (player-scores game))))
+  (make-game-turn-result 
+   :game (make-instance 'guessing-game 
+                        :numbers (cdr (numbers game))
+                        :player-guesses (reduce #'add-guess player-moves :initial-value (player-guesses game))
+                        :current-player-id (other-player-id game)
+                        :other-player-id (current-player-id game)
+                        :player-scores (reduce (update-score game) player-moves :initial-value (player-scores game)))
+   :move-log (mapcar (lambda (m) (format nil "Player ~a, Move ~a" (car m) (cdr m))) 
+                     player-moves)))
 
 (defparameter *base-path* (directory-namestring #.*compile-file-truename*))
 
@@ -59,8 +65,11 @@
   (format t "running guessing game~%")
   (let ((*bot-initialisation-time* 1))
    (let* ((bots (alist-hash-table (pairlis '("player1" "player2") (run-bots)) :test 'equal))
-          (game (make-instance 'guessing-game)))
-     (n-player-game bots game 1))))
+          (game (make-instance 'guessing-game))
+          (logging-config (make-logging-config :turns *standard-output*
+                                               :moves *standard-output*
+                                               :states *standard-output*)))
+     (n-player-game bots game 1 logging-config))))
 
 (deftest guessing-game 
   (testing "should produce scores for bots"

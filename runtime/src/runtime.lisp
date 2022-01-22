@@ -23,13 +23,17 @@
            :start-bot-from-definition
            :bot-turn
            :*bot-initialisation-time*
-           :read-output))
+           :read-output
+           :make-bot-turn-result
+           :bot-turn-result-output
+           :bot-turn-result-logs))
 
 (in-package :runtime)
 
 (defclass bot ()
   ((bot-id :accessor bot-id :initarg :bot-id :initform (error "bot id must be provided"))
-   (bot-name :accessor bot-name :initarg :bot-name :initform (error "bot name must be provided"))))
+   (bot-name :accessor bot-name :initarg :bot-name :initform (error "bot name must be provided"))
+   (bot-definition :accessor bot-definition :initarg :bot-definition :initform (error "bot definition must be provided"))))
 
 (defclass concrete-bot (bot)
   ((bot-process :accessor bot-process :initarg :bot-process)))
@@ -52,7 +56,8 @@
     (format t "COMMAND PARTS ~a~%" command-parts)
     (let ((bot (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts))
                     :bot-id (random-id 10)
-                    :bot-name (name bot-definition))))
+                    :bot-name (name bot-definition)
+                    :bot-definition bot-definition)))
       (when (> *bot-initialisation-time* 0)
         (sleep *bot-initialisation-time*))
       (stop-bot bot)
@@ -116,22 +121,23 @@
 (defmethod bot-status ((bot concrete-bot))
   (sb-ext:process-status (bot-process bot)))
 
-;; End of input is signalled by an empty line
 (defmethod send-input-to-bot ((bot concrete-bot) str)
   (with-slots (bot-process) bot
     (write-string str (sb-ext:process-input bot-process))
     (finish-output (sb-ext:process-input bot-process))))
 
-(defmethod end-bot-turn ((bot concrete-bot) &optional (wait-time 0.1))
+(defmethod end-bot-turn ((bot concrete-bot) logs &optional (wait-time 0.1))
   (stop-bot bot)
   (sleep wait-time)
-  (when (equal (bot-status bot) :running)
-    (kill-bot bot)))
+  (when (equal (bot-status bot) :running)    
+    (kill-bot bot)
+    (cons (format nil "Bot ~a didn't respond to signal, terminating it." (bot-name bot)) logs)))
+
+(defstruct bot-turn-result output logs)
 
 (defmethod bot-turn ((bot concrete-bot) turn-input time-limit &optional (parser #'read-output))
   (when (not (equal (bot-status bot) :exited))
     (continue-bot bot)
     (send-input-to-bot bot turn-input)
     (let ((output (bot-output bot time-limit parser)))
-      (end-bot-turn bot)
-      output)))
+      (make-bot-turn-result :output output :logs (reverse (end-bot-turn bot nil))))))

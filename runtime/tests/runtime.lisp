@@ -23,7 +23,7 @@
 (defparameter *bot-definition* (test-file-path "definition.json"))
 
 (defun run-test-bot (path)
-  (make-instance 'concrete-bot :bot-process (run-bot "ros" (list "+Q" "--" path)) :bot-id (random 100) :bot-name "test-bot"))
+  (make-instance 'concrete-bot :bot-process (run-bot "ros" (list "+Q" "--" path)) :bot-id (random 100) :bot-name "test-bot" :bot-definition nil))
 
 (defparameter *turn-timeout* 3)
 
@@ -78,7 +78,7 @@
   (testing "should stop a bot"
     (let ((bot (run-test-bot *turn-bot*)))
       (send-input-to-bot bot (format nil "input~%"))
-      (end-bot-turn bot)
+      (end-bot-turn bot nil)
       (sleep 0.01)
       (ok (equal (bot-status bot) :stopped))
       (interrupt-bot bot))))
@@ -87,7 +87,8 @@
   (testing "should send input, read output and stop bot"
     (let ((bot (run-test-bot *turn-bot*)))
       (sleep 0.5)
-      (ok (equal (bot-turn bot (format nil "input~%") *turn-timeout*) '("input")))
+      (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*) 
+                  (make-bot-turn-result :output '("input") :logs nil)))
       (ok (equal (bot-status bot) :stopped))
       (interrupt-bot bot)))
   (testing "should not run a turn when the bot process is exited"
@@ -111,4 +112,5 @@
       (let* ((definition (bot-definition-json:from-json f))
              (bot (start-bot-from-definition definition *test-base-path*)))
         (sleep 0.01)
-        (ok (equal (bot-turn bot (format nil "input~%") *turn-timeout*) '("input")))))))
+        (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*)
+                    (make-bot-turn-result :output '("input") :logs nil)))))))

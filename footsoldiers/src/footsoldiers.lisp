@@ -2,6 +2,7 @@
   (:use :cl :herodotus :bind
         :alexandria :try
         :iterate :trivia
+        :local-time
         :trivia.ppcre
         :metabang-bind
         :yason
@@ -266,6 +267,9 @@
 (defmethod close-enough-to-base (pos (player player))
   (<= (distance pos (player-base player)) (max-distance-from-base)))
 
+(defun format-position (pos)
+  (format nil "(~a, ~a)" (car pos) (cdr pos)))
+
 (defmethod build-soldier (team soldier-type start destination (new-gm game))
   (let ((player (copy-structure (if (equalp team (player-team (game-player1 new-gm)))
                                     (game-player1 new-gm)
@@ -274,9 +278,11 @@
         (left (format nil "Player ~a with money ~a doesn't have enough money for ~a with cost ~a" 
                       (player-team player) (player-money player) soldier-type (cost soldier-type)))
         (if (not (close-enough-to-base start player))
-            (left "Too far from base")
+            (left (format nil "Player ~a tried to build ~a at position ~a, too far from base ~a"
+                          (player-team player) soldier-type (format-position start) (format-position (player-base player))))
             (if (gethash start (game-map new-gm))
-                (left "Position is occupied")
+                (left (format nil "Player ~a tried to build ~a at position ~a which is occupied" 
+                              (player-team player) soldier-type (format-position start)))
                 (let* ((s (make-soldier :pos start
                                         :health (initial-health soldier-type)
                                         :type soldier-type
@@ -363,7 +369,6 @@
 (defun game-to-json (player-name game)
   (let ((yason:*list-encoder* #'yason:encode-alist))
     (yason:with-output-to-string* (:stream-symbol s)
-
       (yason:encode (cons (cons "you" player-name) (game-alist game)) s))))
 
 (defmethod get-players-input-for-turn ((game game))
@@ -392,17 +397,31 @@
   (mapcar #'left-err (remove-if-not (lambda (r) (match r ((type left) t) 
                                                        (otherwise nil))) results)))
 
+(defun format-command (command)
+  (match command
+    ((type build) (format nil "BUILD ~a, ~a ~a" 
+                          (build-soldier-type command) 
+                          (format-position (build-start command))
+                          (format-position (build-destination command))))
+    (:no-op (format nil "NO-OP"))))
+
+(defun format-parsed-move (parsed-move)
+  (match parsed-move
+    ((left left-err) left-err)
+    ((right right-value) (format nil "Player ~a, Move ~a" (car right-value) 
+                                 (format-command (cdr right-value))))))
+
 (defmethod advance-turn (player-moves (game game))
   (bind ((parsed-moves (mapcar #'parse-move player-moves))
-         (invalid-moves (lefts parsed-moves))
          (valid-moves (rights parsed-moves))
-         ((:structure move-result- errors updated-game) (step-game valid-moves game)))
-    (when (not (null invalid-moves))
-      (mapc (lambda (err) (format t "~a~%" err)) invalid-moves))
-    (when (not (null errors))
-      (mapc (lambda (err) (format t "Error while applying game move ~a~%" err)) errors))
-    (format t "Player moves ~a~%" player-moves)
-    updated-game))
+         (move-result (step-game valid-moves game)))
+    (make-game-turn-result :game (move-result-updated-game move-result)
+                           :move-log (mapcar #'format-parsed-move parsed-moves))))
+
+(defmethod game-state ((game game)) 
+  (let ((yason:*list-encoder* #'yason:encode-alist))
+    (yason:with-output-to-string* (:stream-symbol s)
+      (yason:encode (game-alist game) s))))
 
 (defmethod input-parser ((game game)) #'read-line)
 
@@ -420,7 +439,7 @@
     (list (runtime:start-bot-from-definition bot-1-def (format nil "~a" bot1-path))
           (runtime:start-bot-from-definition bot-2-def (format nil "~a" bot2-path)))))
 
-(defun start-game (current-directory bot-relative-paths)
+(defun start-game (current-directory bot-relative-paths logging-config)
   (format t "Running footsoldiers~%")
   (let ((runtime:*bot-initialisation-time* 2))
     (let* ((bots (alist-hash-table 
@@ -439,10 +458,13 @@
                                                   :money (cost :scout)
                                                   :base (cons 20 0)
                                                   :health 40))))
-      (n-player-game bots game 1))))
+      (n-player-game bots game 1 logging-config))))
 
 (defun run ()
   (let ((bot-1-relative-path (read-line nil nil))
         (bot-2-relative-path (read-line nil nil))
         (current-directory sb-ext:*core-pathname*))
-    (start-game current-directory (cons bot-1-relative-path bot-2-relative-path))))
+    (start-game current-directory (cons bot-1-relative-path bot-2-relative-path) 
+                (make-logging-config :turns *standard-output*
+                                     :moves *standard-output*
+                                     :states *standard-output*))))

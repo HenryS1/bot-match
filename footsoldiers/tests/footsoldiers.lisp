@@ -3,6 +3,7 @@
         :footsoldiers
         :alexandria
         :metabang-bind
+        :n-player-game
         :monad
         :either
         :rove))
@@ -340,7 +341,7 @@
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
       (ok (equalp (build-soldier "player1" :scout (cons 4 4) (cons 8 10) gm)
-                  (left "Position is occupied")))))
+                  (left "Player player1 tried to build SCOUT at position (4, 4) which is occupied")))))
   (testing "fails when the build position is too far from the player's base"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
@@ -348,7 +349,7 @@
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
       (ok (equalp (build-soldier "player1" :scout (cons 6 7) (cons 8 10) gm)
-                  (left "Too far from base")))))
+                  (left "Player player1 tried to build SCOUT at position (6, 7), too far from base (4, 3)")))))
   (testing "adds a soldier to the map and reduces the player's money"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
@@ -409,7 +410,7 @@
            (result (apply-moves moves gm)))
       (ok (equalp result
                   (make-move-result 
-                   :errors (list "Position is occupied" 
+                   :errors (list "Player player1 tried to build SCOUT at position (4, 4) which is occupied" 
                                  "Player player2 with money 3 doesn't have enough money for ASSASSIN with cost 14")
                                     :updated-game gm)))))  
   (testing "applies moves for both players"
@@ -641,7 +642,7 @@
                                  (cons "player2" "BUILD ASSASSIN (3, 2) (3, 3)")))
            (step-result (step-game moves gm))
            (advance-turn-result (advance-turn unparsed-moves gm-copy)))
-      (ok (equalp (move-result-updated-game step-result) advance-turn-result))))
+      (ok (equalp (move-result-updated-game step-result) (game-turn-result-game advance-turn-result)))))
   (testing "discards moves which failed parsing"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
@@ -659,10 +660,14 @@
                                  (cons "player2" "BUILD  (3, 2) (3, 3)")))
            (step-result (step-game moves gm))
            (advance-turn-result (advance-turn unparsed-moves gm-copy)))
-      (ok (equalp (move-result-updated-game step-result) advance-turn-result)))))
+      (ok (equalp (move-result-updated-game step-result)
+                  (game-turn-result-game advance-turn-result))))))
 
 (deftest start-game
   (testing "runs bots and plays game until it is finished"
     (let ((result (start-game (directory-namestring #.*compile-file-truename*)
-                              (cons "bot1/" "bot2/"))))
+                              (cons "bot1/" "bot2/")
+                              (make-logging-config :turns *standard-output* 
+                                                   :moves *standard-output*
+                                                   :states *standard-output*))))
       (ok (equalp (determine-result result) (cons :winner "player2"))))))
