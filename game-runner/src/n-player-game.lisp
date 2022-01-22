@@ -27,6 +27,7 @@
 
 (defmethod tick (bots game logging-config)
   (let* ((player-input-for-turn (get-players-input-for-turn game))
+         (new-bots (make-hash-table :test 'equal))
          (turn-results (mapcar (lambda (pin) 
                                  (let ((bot (gethash (car pin) bots)))
                                    (if bot 
@@ -37,18 +38,25 @@
                                                        (input-parser game)))
                                        (cons (car pin) 
                                              (make-bot-turn-result 
+                                              :updated-bot bot
                                               :output ""
                                               :logs (list (format nil "Failed to find bot for player id ~a" (car pin)))))))) 
                                player-input-for-turn)))
     (mapc (lambda (res) (mapc (lambda (l) (format (logging-config-turns logging-config) "~a~%" l)) 
                               (bot-turn-result-logs (cdr res)))) turn-results)
+    (mapc (lambda (res) 
+            (let ((updated-bot (bot-turn-result-updated-bot (cdr res))))
+              (when updated-bot
+                (setf (gethash (car res) new-bots) updated-bot))))
+          turn-results)
+    (maphash (lambda (p b) (when (not (gethash p new-bots)) (setf (gethash p new-bots) b))) bots)
     (let ((turn-result (advance-turn (mapcar (lambda (res) (cons (car res) (bot-turn-result-output (cdr res)))) 
                                  turn-results) game)))
       (mapc (lambda (l) (format (logging-config-moves logging-config) "~a~%" l)) 
             (game-turn-result-move-log turn-result))
       (format (logging-config-states logging-config) "~a~%" 
               (game-state (game-turn-result-game turn-result)))
-      (game-turn-result-game turn-result))))
+      (cons new-bots (game-turn-result-game turn-result)))))
 
 (defparameter *termination-timeout* 0.5)
 
@@ -60,7 +68,7 @@
 
 (defmethod n-player-game (bots game logging-config)
   (unwind-protect 
-       (loop for gm = game then (tick bots gm logging-config)
+       (loop for (cur-bots . gm) = (cons bots game) then (tick cur-bots gm logging-config)
           until (is-finished? gm)
           finally (return gm))
     (terminate-bots bots)))

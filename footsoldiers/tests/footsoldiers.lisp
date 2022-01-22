@@ -670,7 +670,7 @@
   (testing "runs bots and plays game until it is finished"
     (let ((result (start-game (directory-namestring #.*compile-file-truename*)
                               (cons "bot1/" "bot2/")
-                              (make-logging-config :turns *standard-output* 
+                              (make-logging-config :turns nil 
                                                    :moves *standard-output*
-                                                   :states *standard-output*))))
+                                                   :states nil))))
       (ok (equalp (determine-result result) (cons :winner "player2"))))))

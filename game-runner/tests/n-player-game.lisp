@@ -1,6 +1,7 @@
 (defpackage n-player-game/tests/n-player-game
   (:use :cl
         :n-player-game
+        :bind
         :runtime
         :alexandria
         :rove))
@@ -12,6 +13,8 @@
    (stopped :accessor stopped :initarg :stopped :initform nil)
    (bot-status :accessor bot-status :initarg :bot-status :initform :running)
    (turn-time-limit :accessor turn-time-limit :initarg :turn-time-limit)))
+
+(defclass recoverable-bot (test-bot) ())
 
 (defclass test-game ()
   ((turns-remaining :accessor turns-remaining :initarg :turns-remaining :initform 1)
@@ -28,9 +31,10 @@
 (defmethod get-bot-input ((game test-game))
   (bot-input game))
 
-(defmethod bot-output ((bot test-bot) time-limit &optional (parser nil))
-  (declare (ignore parser))
-  (make-bot-turn-result :output (format nil "output ~a" (- 3 (parse-integer (bot-input bot)))) 
+(defmethod bot-output ((bot test-bot) time-limit logs &optional (parser nil))
+  (declare (ignore parser logs))
+  (make-bot-turn-result :updated-bot bot
+                        :output (format nil "output ~a" (- 3 (parse-integer (bot-input bot)))) 
                         :logs (list (format nil "bot turn ~a" 
                                             (- 3 (parse-integer (bot-input bot)))))))
 
@@ -43,7 +47,19 @@
 (defmethod bot-turn ((bot test-bot) input turn-time-limit &optional (parser nil))
   (declare (ignore parser))
   (progn (setf (bot-input bot) input)
-         (bot-output bot turn-time-limit)))
+         (bot-output bot turn-time-limit nil)))
+
+(defmethod bot-turn ((bot recoverable-bot) input turn-time-limit &optional (parser nil))
+  (declare (ignore parser))
+  (format t "CALLING BOT TURN ON RECOVERABLE BOT~%")
+  (let ((new-bot (make-instance 'recoverable-bot 
+                                :bot-id "test" 
+                                :bot-name "test-name"
+                                :bot-status :stopped)))
+    (make-bot-turn-result 
+     :updated-bot new-bot
+     :output (format nil "output")
+     :logs nil)))
 
 (defmethod advance-turn (player-moves (game test-game))
   (make-game-turn-result 
@@ -58,8 +74,7 @@
   (alist-hash-table
    (list (cons "player1" (make-instance 'test-bot 
                                         :bot-id "test" 
-                                        :bot-name "test-name"
-                                        :bot-definition nil)))
+                                        :bot-name "test-name")))
    :test 'equal))
 
 (defmethod is-finished? ((game test-game))
@@ -72,9 +87,23 @@
           (logging-config (make-logging-config :turns *standard-output*
                                                :moves *standard-output*
                                                :states *standard-output*)))
-      (let ((next-game (tick bots game logging-config)))
+      (bind (((_ . next-game) (tick bots game logging-config)))
         (ok (equal (moves next-game) (list (cons "player1" "output 1"))))
-        (ok (equal (turns-remaining next-game) 1))))))
+        (ok (equal (turns-remaining next-game) 1)))))
+  (testing "should recover bots that have exited"
+    (let* ((game (make-instance 'test-game :turns-remaining 2))
+           (bot (make-instance 'recoverable-bot
+                               :bot-id "test" 
+                               :bot-name "test-name"))
+           (bots (alist-hash-table
+                  (list (cons "player1" bot))
+                  :test 'equal))
+           (logging-config (make-logging-config :turns *standard-output*
+                                                :moves *standard-output*
+                                                :states *standard-output*)))
+      (setf (bot-status bot) :exited)
+      (bind (((next-bots . _) (tick bots game logging-config)))
+        (ok (equal (bot-status (gethash "player1" next-bots)) :stopped))))))
 
 (deftest n-player-game
   (testing "should run the game until finished"

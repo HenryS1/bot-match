@@ -4,6 +4,7 @@
   :license "MIT"
   :depends-on ("arrow-macros"
                "anaphora"
+               "metabang-bind"
                "cl-ppcre"
                "runtime")
   :components ((:module "src"

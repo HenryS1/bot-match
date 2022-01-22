@@ -1,6 +1,7 @@
 (defpackage runtime
   (:use :cl :uiop :arrow-macros :trivial-timeout
         :cl-ppcre
+        :bind
         :herodotus)
   (:export :run-bot
            :bot-output
@@ -26,17 +27,19 @@
            :read-output
            :make-bot-turn-result
            :bot-turn-result-output
-           :bot-turn-result-logs))
+           :bot-turn-result-logs
+           :bot-turn-result-updated-bot))
 
 (in-package :runtime)
 
 (defclass bot ()
   ((bot-id :accessor bot-id :initarg :bot-id :initform (error "bot id must be provided"))
-   (bot-name :accessor bot-name :initarg :bot-name :initform (error "bot name must be provided"))
-   (bot-definition :accessor bot-definition :initarg :bot-definition :initform (error "bot definition must be provided"))))
+   (bot-name :accessor bot-name :initarg :bot-name :initform (error "bot name must be provided"))))
 
 (defclass concrete-bot (bot)
-  ((bot-process :accessor bot-process :initarg :bot-process)))
+  ((bot-process :accessor bot-process :initarg :bot-process)
+   (bot-definition :accessor bot-definition :initarg :bot-definition :initform (error "bot definition must be provided"))
+   (command-parts :accessor command-parts :initarg :command-parts :initform (error "command parts must be provided"))))
 
 (define-json-model bot-definition (name command relative-filepath) :kebab-case)
 
@@ -49,15 +52,23 @@
 (defun random-id (len)
   (map 'string #'code-char (loop for i from 1 to len collecting (+ 97 (random 26)))))
 
+(defun run-bot (command args)
+  (sb-ext:run-program command args :wait nil :input :stream :output :stream :search t))
+
+(defun initialise-bot (bot-definition command-parts)
+  (make-instance 'concrete-bot
+                 :bot-process (run-bot (car command-parts) (cdr command-parts))
+                 :bot-id (random-id 10)
+                 :bot-name (name bot-definition)
+                 :bot-definition bot-definition
+                 :command-parts command-parts))
+
 (defmethod start-bot-from-definition ((bot-definition bot-definition) base-path)
   (let ((command-parts (split "\\s+" (regex-replace "<bot-file>" 
                                                     (command bot-definition)
                                                     (concatenate 'string base-path (relative-filepath bot-definition))))))
     (format t "COMMAND PARTS ~a~%" command-parts)
-    (let ((bot (make-instance 'concrete-bot :bot-process (run-bot (car command-parts) (cdr command-parts))
-                    :bot-id (random-id 10)
-                    :bot-name (name bot-definition)
-                    :bot-definition bot-definition)))
+    (let ((bot (initialise-bot bot-definition command-parts)))
       (when (> *bot-initialisation-time* 0)
         (sleep *bot-initialisation-time*))
       (stop-bot bot)
@@ -71,23 +82,19 @@
      collect line
      while (listen bot-stream)))
 
-(defun to-string (bot-stream parser time-limit)
+(defun to-string (bot-stream bot-name parser time-limit logs)
   (handler-case 
       (with-timeout (time-limit)
         (loop for bot-output = (funcall parser bot-stream)
            while (listen bot-stream)
-           finally (return bot-output)))
+           finally (return (cons bot-output (cons (format nil "Bot ~a returned output ~a" bot-name bot-output) logs)))))
     (timeout-error (e)
       (declare (ignore e))
-      (format t "timed out waiting for bot output~%")
-      nil)))
+      (cons nil (cons (format nil "Timed out waiting for output from bot ~a" bot-name) logs)))))
 
-(defun run-bot (command args)
-  (sb-ext:run-program command args :wait nil :input :stream :output :stream :search t))
-
-(defmethod bot-output ((bot concrete-bot) time-limit &optional (parser #'read-output))
+(defmethod bot-output ((bot concrete-bot) time-limit logs &optional (parser #'read-output))
   (-> (sb-ext:process-output (bot-process bot))
-      (to-string parser time-limit)))
+      (to-string (bot-name bot) parser time-limit logs)))
 
 ;; Interrupt process
 (defconstant SIGINT 2)
@@ -110,7 +117,14 @@
   (sb-ext:process-kill (bot-process bot) SIGSTOP))
 
 (defmethod continue-bot ((bot concrete-bot))
-  (sb-ext:process-kill (bot-process bot) SIGCONT))
+  ;; when a bot process exits on its own it's status is :exited 
+  ;; when it is killed its status is :signaled
+  (let ((running-bot (if (or (equal (bot-status bot) :exited)
+                             (equal (bot-status bot) :signaled))
+                         (initialise-bot (bot-definition bot) (command-parts bot))
+                         bot)))
+   (sb-ext:process-kill (bot-process running-bot) SIGCONT)
+   running-bot))
 
 (defmethod kill-bot ((bot concrete-bot))
   (sb-ext:process-kill (bot-process bot) SIGKILL))
@@ -133,11 +147,12 @@
     (kill-bot bot)
     (cons (format nil "Bot ~a didn't respond to signal, terminating it." (bot-name bot)) logs)))
 
-(defstruct bot-turn-result output logs)
+(defstruct bot-turn-result updated-bot output logs)
 
 (defmethod bot-turn ((bot concrete-bot) turn-input time-limit &optional (parser #'read-output))
-  (when (not (equal (bot-status bot) :exited))
-    (continue-bot bot)
-    (send-input-to-bot bot turn-input)
-    (let ((output (bot-output bot time-limit parser)))
-      (make-bot-turn-result :output output :logs (reverse (end-bot-turn bot nil))))))
+  (let ((running-bot (continue-bot bot)))
+    (send-input-to-bot running-bot turn-input)
+    (bind (((output . logs) (bot-output running-bot time-limit nil parser)))
+      (make-bot-turn-result :updated-bot running-bot
+                            :output output 
+                            :logs (reverse (end-bot-turn running-bot logs))))))

@@ -22,8 +22,13 @@
 
 (defparameter *bot-definition* (test-file-path "definition.json"))
 
-(defun run-test-bot (path)
-  (make-instance 'concrete-bot :bot-process (run-bot "ros" (list "+Q" "--" path)) :bot-id (random 100) :bot-name "test-bot" :bot-definition nil))
+(defun run-test-bot (path &optional (bot-definition nil) (command-parts nil))
+  (make-instance 'concrete-bot
+                 :bot-process (run-bot "ros" (list "+Q" "--" path)) 
+                 :bot-id (random 100) 
+                 :bot-name "test-bot"
+                 :bot-definition bot-definition
+                 :command-parts command-parts))
 
 (defparameter *turn-timeout* 3)
 
@@ -31,7 +36,9 @@
   (testing "should capture bot output from stdout"
     (let ((bot (run-test-bot *quick-bot*)))
       (sleep 0.2)
-      (ok (equal (bot-output bot *turn-timeout*) '("bot output"))))))
+      (ok (equalp (bot-output bot *turn-timeout* nil) 
+                  (cons '("bot output") 
+                        (list "Bot test-bot returned output (bot output)")))))))
 
 (deftest start-bot
   (testing "should start the bot process"
@@ -56,7 +63,32 @@
       (continue-bot bot)
       (sleep 0.01)
       (ok (equal (bot-status bot) :running))
-      (interrupt-bot bot))))
+      (interrupt-bot bot)))
+  (testing "should start the bot from definition if it was killed"
+    (with-open-file (f *bot-definition*)
+      (let* ((definition (bot-definition-json:from-json f))
+             (initial-bot (start-bot-from-definition definition *test-base-path*)))
+        (sleep 0.01)
+        (ok (equalp (bot-status initial-bot) :stopped))
+        (kill-bot initial-bot)
+        (sleep 0.2)
+        (ok (equalp (bot-status initial-bot) :signaled))
+        (let ((continued-bot (continue-bot initial-bot)))
+          (sleep 0.01)
+          (ok (equalp (bot-status continued-bot) :running))))))
+  (testing "should start the bot from definition if it exited"
+    (with-open-file (f *bot-definition*)
+      (let* ((definition (bot-definition-json:from-json f)))
+        (setf (relative-filepath definition) "./exited-bot.lisp")
+        (let ((initial-bot (start-bot-from-definition definition *test-base-path*)))
+          (sleep 0.01)
+          (continue-bot initial-bot)
+          (sleep 0.5)
+          (ok (equalp (bot-status initial-bot) :exited))
+          (setf (relative-filepath (bot-definition initial-bot)) "./turn-bot.lisp")
+          (let ((continued-bot (continue-bot initial-bot)))
+            (sleep 0.01)
+            (ok (equalp (bot-status continued-bot) :running))))))))
 
 (deftest interrupt-bot
   (testing "should interrupt execution of a bot"
@@ -70,8 +102,8 @@
   (testing "should send input to a bot"
     (let ((bot (run-test-bot *input-bot*)))
       (send-input-to-bot bot (format nil "hello bot~%"))
-      (let ((bot-out (bot-output bot *turn-timeout*)))
-        (ok (equal bot-out '("hello bot")))
+      (let ((bot-out (bot-output bot *turn-timeout* nil)))
+        (ok (equal bot-out (cons '("hello bot") (list "Bot test-bot returned output (hello bot)"))))
         (interrupt-bot bot)))))
 
 (deftest end-bot-turn
@@ -88,15 +120,9 @@
     (let ((bot (run-test-bot *turn-bot*)))
       (sleep 0.5)
       (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*) 
-                  (make-bot-turn-result :output '("input") :logs nil)))
+                  (make-bot-turn-result :updated-bot bot :output '("input") :logs nil)))
       (ok (equal (bot-status bot) :stopped))
-      (interrupt-bot bot)))
-  (testing "should not run a turn when the bot process is exited"
-    (let ((bot (run-test-bot *turn-bot*)))
-      (sleep 0.2)
-      (interrupt-bot bot)
-      (sleep 0.02)
-      (ok (not (bot-turn bot (format nil "input~%") *turn-timeout*))))))
+      (interrupt-bot bot))))
 
 (deftest bot-definition 
   (testing "should read a bot definition from a file"
@@ -113,4 +139,4 @@
              (bot (start-bot-from-definition definition *test-base-path*)))
         (sleep 0.01)
         (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*)
-                    (make-bot-turn-result :output '("input") :logs nil)))))))
+                    (make-bot-turn-result :updated-bot bot :output '("input") :logs nil)))))))
