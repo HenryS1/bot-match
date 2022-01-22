@@ -58,7 +58,7 @@
     (sleep *termination-timeout*)
     (mapc (lambda (bot) (when (not (equal (bot-status bot) :exited)) (kill-bot bot))) bs)))
 
-(defmethod n-player-game (bots game turn-time-limit logging-config)
+(defmethod n-player-game (bots game logging-config)
   (unwind-protect 
        (loop for gm = game then (tick bots gm logging-config)
           until (is-finished? gm)

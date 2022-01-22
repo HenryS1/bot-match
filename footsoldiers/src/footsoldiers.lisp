@@ -459,7 +459,7 @@
                                                   :money (cost :scout)
                                                   :base (cons 20 0)
                                                   :health 40))))
-      (n-player-game bots game 1 logging-config))))
+      (n-player-game bots game logging-config))))
 
 (defun run ()
   (let ((bot-1-relative-path (read-line nil nil))

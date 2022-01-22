@@ -83,7 +83,7 @@
           (logging-config (make-logging-config :turns *standard-output*
                                                :moves *standard-output*
                                                :states *standard-output*)))
-      (let ((end-game (n-player-game bots game 0 logging-config)))
+      (let ((end-game (n-player-game bots game logging-config)))
         (ok (is-finished? end-game)))))
   (testing "should log the game state at each turn"
     (let ((state-logs (with-output-to-string (turn-log)
@@ -92,7 +92,7 @@
                    (logging-config (make-logging-config :turns nil
                                                         :moves nil
                                                         :states turn-log)))
-               (n-player-game bots game 0 logging-config)))))
+               (n-player-game bots game logging-config)))))
       (ok (equalp state-logs (format nil "Turns remaining 1~%Turns remaining 0~%")))))
   (testing "should log the moves at each turn"
     (let ((move-logs (with-output-to-string (move-log)
@@ -101,7 +101,7 @@
                    (logging-config (make-logging-config :turns nil
                                                         :moves move-log
                                                         :states nil)))
-               (n-player-game bots game 0 logging-config)))))
+               (n-player-game bots game logging-config)))))
       (ok (equalp move-logs (format nil "(player1 . output 1)~%(player1 . output 2)~%")))))
   (testing "should log output from bot turns"
     (let ((turn-logs (with-output-to-string (turn-log)
@@ -110,5 +110,5 @@
                    (logging-config (make-logging-config :turns turn-log
                                                         :moves nil
                                                         :states nil)))
-               (n-player-game bots game 0 logging-config)))))
+               (n-player-game bots game logging-config)))))
       (ok (equalp turn-logs (format nil "bot turn 1~%bot turn 2~%"))))))

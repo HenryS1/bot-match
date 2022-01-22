@@ -69,7 +69,7 @@
           (logging-config (make-logging-config :turns nil
                                                :moves nil
                                                :states nil)))
-     (n-player-game bots game 1 logging-config))))
+     (n-player-game bots game logging-config))))
 
 (deftest guessing-game 
   (testing "should produce scores for bots"
