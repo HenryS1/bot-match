@@ -668,9 +668,9 @@
 
 (deftest start-game
   (testing "runs bots and plays game until it is finished"
-    (let ((result (start-game (directory-namestring #.*compile-file-truename*)
-                              (cons "bot1/" "bot2/")
+    (let ((result (start-game (cons "bot1/" "bot2/")
                               (make-logging-config :turns nil 
                                                    :moves *standard-output*
-                                                   :states nil))))
+                                                   :states nil)
+                              (directory-namestring #.*compile-file-truename*))))
       (ok (equalp (determine-result result) (cons :winner "player2"))))))

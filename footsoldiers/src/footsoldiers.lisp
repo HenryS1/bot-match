@@ -49,7 +49,8 @@
            :coord-alist
            :game-alist
            :start-game
-           :determine-result))
+           :determine-result
+           :run-footsoldiers))
 
 (in-package :footsoldiers)
 
@@ -426,10 +427,12 @@
 
 (defmethod input-parser ((game game)) #'read-line)
 
-(defun construct-bot-paths (current-directory bot-relative-paths)
+(defun construct-bot-paths (bot-relative-paths &optional (current-directory nil))
   (bind (((bot-1-relative-path . bot-2-relative-path) bot-relative-paths))
     (labels ((bot-absolute-path (bot-relative-path)
-               (merge-pathnames bot-relative-path current-directory)))
+               (if current-directory 
+                   (merge-pathnames bot-relative-path current-directory)
+                   (merge-pathnames bot-relative-path))))
       (cons (bot-absolute-path bot-1-relative-path)
             (bot-absolute-path bot-2-relative-path)))))
 
@@ -440,12 +443,12 @@
     (list (runtime:start-bot-from-definition bot-1-def (format nil "~a" bot1-path))
           (runtime:start-bot-from-definition bot-2-def (format nil "~a" bot2-path)))))
 
-(defun start-game (current-directory bot-relative-paths logging-config)
+(defun start-game (bot-relative-paths logging-config &optional (current-directory nil))
   (format t "Running footsoldiers~%")
   (let ((runtime:*bot-initialisation-time* 2))
     (let* ((bots (alist-hash-table 
                   (pairlis '("player1" "player2") 
-                           (run-bots (construct-bot-paths current-directory bot-relative-paths)))))
+                           (run-bots (construct-bot-paths bot-relative-paths current-directory)))))
            (game (make-game :map (alist-hash-table 
                                   (list (cons (cons 0 0) (make-base :team "player1"))
                                         (cons (cons 20 0) (make-base :team "player2"))) 
@@ -461,11 +464,13 @@
                                                   :health 40))))
       (n-player-game bots game logging-config))))
 
-(defun run ()
-  (let ((bot-1-relative-path (read-line nil nil))
-        (bot-2-relative-path (read-line nil nil))
-        (current-directory sb-ext:*core-pathname*))
-    (start-game current-directory (cons bot-1-relative-path bot-2-relative-path) 
-                (make-logging-config :turns *standard-output*
-                                     :moves *standard-output*
-                                     :states *standard-output*))))
+(defun run-footsoldiers ()
+  (handler-case 
+      (let ((bot-1-relative-path (read-line nil nil))
+            (bot-2-relative-path (read-line nil nil)))
+        (start-game (cons bot-1-relative-path bot-2-relative-path) 
+                    (make-logging-config :turns *standard-output*
+                                         :moves *standard-output*
+                                         :states *standard-output*)))
+    (sb-sys:interactive-interrupt (e) (progn (format t "User interrupt. Exiting.~%") (sb-ext:exit :code 0)))
+    (error (e) (progn (format t "Error occurred: ~%~a~%" e) (sb-ext:exit :code 1)))))
