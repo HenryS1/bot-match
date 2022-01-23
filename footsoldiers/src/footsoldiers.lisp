@@ -472,5 +472,5 @@
                     (make-logging-config :turns *standard-output*
                                          :moves *standard-output*
                                          :states *standard-output*)))
-    (sb-sys:interactive-interrupt (e) (progn (format t "User interrupt. Exiting.~%") (sb-ext:exit :code 0)))
+    (sb-sys:interactive-interrupt () (progn (format t "User interrupt. Exiting.~%") (sb-ext:exit :code 0)))
     (error (e) (progn (format t "Error occurred: ~%~a~%" e) (sb-ext:exit :code 1)))))
