@@ -50,7 +50,11 @@
            :game-alist
            :start-game
            :determine-result
-           :run-footsoldiers))
+           :run-footsoldiers
+           :change-destination-soldier-position
+           :change-soldier-destination
+           :format-position
+           :make-change-destination))
 
 (in-package :footsoldiers)
 
@@ -296,6 +300,25 @@
                       (setf (game-player2 new-gm) player))
                   (right new-gm)))))))
 
+(defstruct change-destination soldier-position new-destination)
+
+(defmethod change-soldier-destination (team soldier-position new-destination (new-gm game))
+  (let ((soldier-lookup (gethash soldier-position (game-map new-gm))))
+    (if (not soldier-lookup)
+        (left (format nil "Player ~a tried to change destination, but position ~a is not occupied"
+                      team (format-position soldier-position)))
+        (match soldier-lookup
+          ((type base) (left (format nil "Player ~a tried to change destination, but position ~a has a base, not a soldier"
+                              team (format-position soldier-position))))
+          ((type soldier) 
+           (if (not (equal (soldier-team soldier-lookup) team))
+               (left (format nil "Player ~a tried to change destination, but position ~a has an enemy soldier"
+                             team (format-position soldier-position)))
+               (let ((new-soldier (copy-structure soldier-lookup)))
+                 (setf (soldier-destination new-soldier) new-destination)
+                 (setf (gethash soldier-position (game-map new-gm)) new-soldier)
+                 (right new-gm))))))))
+
 (defmethod apply-move (team move (new-gm game))
   (match move
     ((type build) 
@@ -303,6 +326,11 @@
                     (build-soldier-type move) 
                     (build-start move)
                     (build-destination move) new-gm))
+    ((type change-destination)
+     (change-soldier-destination team
+                                 (change-destination-soldier-position move)
+                                 (change-destination-new-destination move)
+                                 new-gm))
     (:no-op (right new-gm))))
 
 (defun combine-results (one other)
@@ -381,11 +409,16 @@
 (defun parse-move (player-move)
   (match (cdr player-move)
     ((ppcre "BUILD (SCOUT|ASSASSIN|TANK) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\)" name 
-            (read start-row) (read start-col) (read dest-row) (read dest-col))
+            (read start-x) (read start-y) (read dest-x) (read dest-y))     
      (right (cons (car player-move)
                   (make-build :soldier-type (intern (string-upcase name) "KEYWORD") 
-                              :start (cons start-row start-col)
-                              :destination (cons dest-row dest-col)))))
+                              :start (cons start-x start-y)
+                              :destination (cons dest-x dest-y)))))
+    ((ppcre "MOVE \\((\\d+), (\\d+)\\) TO \\((\\d+), (\\d+)\\)"
+            (read position-x) (read position-y) (read dest-x) (read dest-y))
+     (right (cons (car player-move)
+                  (make-change-destination :soldier-position (cons position-x position-y)
+                                :new-destination (cons dest-x dest-y)))))
     ((ppcre "NO-OP") (right (cons (car player-move) :no-op)))
     (nil (left (format nil "Player ~a didn't provide a move" (car player-move))))
     (otherwise (left (format nil "Player ~a provided invalid move '~a'" 
@@ -410,8 +443,9 @@
 (defun format-parsed-move (parsed-move)
   (match parsed-move
     ((left left-err) left-err)
-    ((right right-value) (format nil "Player ~a, Move ~a" (car right-value) 
-                                 (format-command (cdr right-value))))))
+    ((right right-value) 
+     (format nil "Player ~a, Move ~a" (car right-value) 
+             (format-command (cdr right-value))))))
 
 (defmethod advance-turn (player-moves (game game))
   (bind ((parsed-moves (mapcar #'parse-move player-moves))

@@ -366,6 +366,48 @@
            (new-gm (make-game :map new-mp :turns-remaining 20 :player1 new-player1 :player2 player2)))
       (ok (equalp result (right new-gm))))))
 
+(deftest change-soldier-destination
+  (testing "fails when the soldier position is not occupied"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
+      (ok (equalp (change-soldier-destination "player1" (cons 1 2) (cons 5 6) gm)
+                  (left "Player player1 tried to change destination, but position (1, 2) is not occupied")))))
+  (testing "fails when the position is occupied by a base instead of a soldier"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
+      (ok (equalp (change-soldier-destination "player1" (cons 4 3) (cons 5 6) gm)
+                  (left "Player player1 tried to change destination, but position (4, 3) has a base, not a soldier")))))
+  (testing "fails when the position is occupied by an enemy soldier"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (soldier-pos *test-soldier2*) *test-soldier2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
+      (ok (equalp (change-soldier-destination "player1" (soldier-pos *test-soldier2*) (cons 5 6) gm)
+                  (left (format nil "Player player1 tried to change destination, but position ~a has an enemy soldier" (format-position (soldier-pos *test-soldier2*))))))))
+  (testing "succeeds when the position is occupied by a soldier from the player's team"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (soldier-pos *test-soldier1*) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (new-map (copy-hash-table (game-map gm)))
+           (new-gm (copy-structure gm))
+           (new-soldier (copy-structure *test-soldier1*)))
+      (setf (game-map new-gm) new-map)
+      (setf (soldier-destination new-soldier) (cons 10 10))
+      (setf (gethash (soldier-pos new-soldier) new-map) new-soldier)
+      (ok (equalp (change-soldier-destination "player1" (soldier-pos *test-soldier1*) (cons 10 10) new-gm)
+                  (right new-gm))))))
+
 (deftest apply-move 
   (testing "does nothing for no-op"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
@@ -391,7 +433,25 @@
                                            (cons (cons 5 4) *test-base2*)
                                            (cons (cons 5 6) new-soldier)) :test 'equal))
            (new-gm (make-game :map new-mp :turns-remaining 20 :player1 new-player1 :player2 player2)))
-      (ok (equalp result (right new-gm))))))
+      (ok (equalp result (right new-gm)))))
+  (testing "changes a soldier's destination when the command is change destination"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (soldier-pos *test-soldier1*) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (new-map (copy-hash-table (game-map gm)))
+           (new-gm (copy-structure gm))
+           (new-soldier (copy-structure *test-soldier1*)))
+      (setf (game-map new-gm) new-map)
+      (setf (soldier-destination new-soldier) (cons 10 10))
+      (setf (gethash (soldier-pos new-soldier) new-map) new-soldier)
+      (ok (equalp (apply-move "player1"
+                              (make-change-destination :soldier-position (soldier-pos *test-soldier1*)
+                                                       :new-destination (cons 10 10))
+                              new-gm)
+                  (right new-gm))))))
 
 (deftest apply-moves 
   (testing "collects all move failures"
