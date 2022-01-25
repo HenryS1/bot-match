@@ -54,9 +54,18 @@
            :change-destination-soldier-position
            :change-soldier-destination
            :format-position
-           :make-change-destination))
+           :make-change-destination
+           :format-command
+           :make-rock))
 
 (in-package :footsoldiers)
+
+(defstruct rock)
+
+(defun rock-alist (coord r)
+  (declare (ignore r))
+  (list (cons "position" (coord-alist coord))
+        (cons "type" "ROCK")))
 
 (defstruct soldier pos health type team destination)
 
@@ -85,6 +94,7 @@
 (defun map-to-alist (mp)
   (map 'vector (lambda (e) 
                  (match (cdr e)
+                   ((type rock) (rock-alist (car e) (cdr e)))
                    ((type soldier) (soldier-alist (cdr e)))
                    ((type base) (base-alist (car e) (cdr e)))))
        (sort (hash-table-alist mp) #'pair-less :key #'car)))
@@ -190,6 +200,7 @@
 
 (defmethod is-soldier ((s soldier)) t)
 (defmethod is-soldier ((non-soldier t)) nil)
+(defmethod is-soldier ((r rock)) nil)
 
 (defun pair-less (p1 p2)
   (or (< (car p1) (car p2))
@@ -204,6 +215,7 @@
 
 (defmethod eligible-target ((s soldier) e) 
   (match e
+    ((type rock) nil)
     ((soldier team) 
      (not (equalp team (soldier-team s))))
     ((base team)
@@ -243,12 +255,14 @@
 
 (defmethod attack-target ((s soldier) e (gm game))
   (match e
+    ((type rock) gm)
     ((type soldier) 
      (let ((new-gm (copy-structure gm)))
        (setf (game-map new-gm)
              (attack-soldier s e (game-map gm)))
        new-gm))
-    ((type base) (attack-base s e gm))))
+    ((type base) 
+     (attack-base s e gm))))
 
 (defmethod make-soldier-attack ((gm game) (s soldier))
   (let ((target (find-target s (game-map gm))))
@@ -260,10 +274,12 @@
   (let ((entries (sort (hash-table-alist (game-map gm)) #'pair-less :key #'car)))
     (iter (for (p . e) in entries)
           (for new-gm first (match e
+                              ((type rock) gm)
                               ((type soldier) 
                                (make-soldier-attack gm e))
                               ((type base) gm)) 
                then (match e 
+                      ((type rock) new-gm)
                       ((type soldier) 
                        (make-soldier-attack new-gm e))
                       ((type base) new-gm)))
@@ -284,7 +300,9 @@
                       (player-team player) (player-money player) soldier-type (cost soldier-type)))
         (if (not (close-enough-to-base start player))
             (left (format nil "Player ~a tried to build ~a at position ~a, too far from base ~a"
-                          (player-team player) soldier-type (format-position start) (format-position (player-base player))))
+                          (player-team player) soldier-type 
+                          (format-position start)
+                          (format-position (player-base player))))
             (if (gethash start (game-map new-gm))
                 (left (format nil "Player ~a tried to build ~a at position ~a which is occupied" 
                               (player-team player) soldier-type (format-position start)))
@@ -308,6 +326,8 @@
         (left (format nil "Player ~a tried to change destination, but position ~a is not occupied"
                       team (format-position soldier-position)))
         (match soldier-lookup
+          ((type rock) (left (format nil "Player ~a tried to change destination, but position ~a has a rock, not a soldier"
+                              team (format-position soldier-position))))
           ((type base) (left (format nil "Player ~a tried to change destination, but position ~a has a base, not a soldier"
                               team (format-position soldier-position))))
           ((type soldier) 
@@ -434,10 +454,15 @@
 
 (defun format-command (command)
   (match command
-    ((type build) (format nil "BUILD ~a, ~a ~a" 
-                          (build-soldier-type command) 
-                          (format-position (build-start command))
-                          (format-position (build-destination command))))
+    ((type change-destination)
+     (format nil "MOVE ~a TO ~a"
+             (format-position (change-destination-soldier-position command))
+             (format-position (change-destination-new-destination command))))
+    ((type build)
+     (format nil "BUILD ~a ~a ~a" 
+             (build-soldier-type command) 
+             (format-position (build-start command))
+             (format-position (build-destination command))))
     (:no-op (format nil "NO-OP"))))
 
 (defun format-parsed-move (parsed-move)
@@ -485,7 +510,12 @@
                            (run-bots (construct-bot-paths bot-relative-paths current-directory)))))
            (game (make-game :map (alist-hash-table 
                                   (list (cons (cons 0 0) (make-base :team "player1"))
-                                        (cons (cons 20 0) (make-base :team "player2"))) 
+                                        (cons (cons 20 0) (make-base :team "player2"))
+                                        (cons (cons 10 0) (make-rock))
+                                        (cons (cons 10 -1) (make-rock))
+                                        (cons (cons 10 -2) (make-rock))
+                                        (cons (cons 10 1) (make-rock))
+                                        (cons (cons 10 2) (make-rock))) 
                                   :test 'equal)
                             :turns-remaining 100
                             :player1 (make-player :team "player1" 

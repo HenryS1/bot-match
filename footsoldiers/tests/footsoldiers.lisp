@@ -92,10 +92,13 @@
                                                (cons (+ x 2) (+ y 1))
                                                (cons (+ x 3) y))) :test 'equal))))))
   (testing "doesn't find nearby positions that are blocked"
-    (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
-                                        (list *test-soldier1* *test-soldier2*
-                                              *test-soldier3* *test-soldier4*
-                                              *test-soldier5*)) :test 'equal)))
+    (let ((mp (alist-hash-table (append
+                                 (list (cons (cons 1 1) (make-rock))
+                                       (cons (cons 1 7) (make-rock)))
+                                 (mapcar (lambda (s) (cons (soldier-pos s) s))
+                                         (list *test-soldier1* *test-soldier2*
+                                               *test-soldier3* *test-soldier4*
+                                               *test-soldier5*))) :test 'equal)))
       (bind (((x . y) (soldier-pos *test-soldier1*)))
         (ok (equalp (reachable-positions 3 (soldier-pos *test-soldier1*) mp)
                     (alist-hash-table (mapcar (lambda (p) (cons p t))
@@ -112,10 +115,8 @@
                                                (cons x y)
                                                (cons x (- y 1))
                                                (cons x (- y 2))
-                                               (cons x (- y 3))
                                                (cons x (+ y 1))
                                                (cons x (+ y 2))
-                                               (cons x (+ y 3))
                                                (cons (+ x 1) (- y 1))
                                                (cons (+ x 1) (- y 2))
                                                (cons (+ x 1) (+ y 1))
@@ -141,7 +142,7 @@
         (ok (equal (closest-reachable-position new-soldier1 mp)
                    (cons 1 1)))))))
 
-(deftest move-soldier 
+(deftest move-soldier
   (testing "moves a soldier to the reachable position closest to it's destination"
     (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                         (list *test-soldier1* *test-soldier2*
@@ -169,7 +170,6 @@
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                               (list new-soldier1 new-soldier2)) :test 'equal))))))
-
   (testing "moves soldiers in lexicographical order of their starting coordinate"
     (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                         (list *test-soldier2* *test-soldier3*)) :test 'equal)))
@@ -180,7 +180,16 @@
         (move-soldiers mp)
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
-                                              (list new-soldier2 new-soldier3)) :test 'equal)))))))
+                                              (list new-soldier2 new-soldier3)) :test 'equal))))))
+  (testing "does nothing when there are no soldiers to move"
+    (let ((mp (alist-hash-table (list (cons (cons 1 2) (make-rock)) 
+                                      (cons (cons 3 4) *test-base1*)
+                                      (cons (cons 6 9) *test-base2*)) :test 'equal))
+          (expected (alist-hash-table (list (cons (cons 1 2) (make-rock)) 
+                                      (cons (cons 3 4) *test-base1*)
+                                      (cons (cons 6 9) *test-base2*)) :test 'equal)))
+      (move-soldiers mp)
+      (ok (equalp mp expected)))))
 
 (deftest eligible-target 
   (testing "returns false for a soldier from the same team as the attacker"
@@ -190,7 +199,9 @@
   (testing "returns false for the base from a soldier's team"
     (ok (not (eligible-target *test-soldier1* *test-base1*))))
   (testing "returns true for the base from an enemy soldier's team"
-    (ok (eligible-target *test-soldier1* *test-base2*))))
+    (ok (eligible-target *test-soldier1* *test-base2*)))
+  (testing "returns false for a rock"
+    (ok (not (eligible-target *test-soldier1* (make-rock))))))
 
 (deftest find-target
   (testing "finds the first adjacent target clockwise starting from the bottom"
@@ -203,7 +214,14 @@
                                                 *test-soldier2*
                                                 new-soldier3
                                                 new-soldier4)) :test 'equal)))
-        (ok (equalp (find-target *test-soldier1* mp) new-soldier4))))))
+        (ok (equalp (find-target *test-soldier1* mp) new-soldier4)))))
+  (testing "ignores rocks"
+    (let ((mp (alist-hash-table (list (cons (cons 3 4) (make-rock)) 
+                                      (cons (soldier-pos *test-soldier2*) *test-soldier2*)
+                                      (cons (cons 2 5) (make-rock))
+                                      (cons (cons 1 4) (make-rock))
+                                      (cons (cons 2 3) (make-rock))) :test 'equal)))
+        (ok (not (find-target *test-soldier2* mp))))))
 
 (deftest attack-soldier 
   (testing "decreases the health of a soldier by the difference between armour and damage"
@@ -300,6 +318,7 @@
                                        (cons (soldier-pos *test-soldier3*) *test-soldier3*)
                                        (cons (soldier-pos *test-soldier4*) *test-soldier4*)
                                        (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 10 10) (make-rock))
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
            (player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 20))
            (player2 (make-player :team "player2" :money 7 :base (cons 5 4) :health 10))
@@ -315,6 +334,7 @@
                                        (cons (soldier-pos *test-soldier3*) *test-soldier3*)
                                        (cons (soldier-pos *test-soldier4*) *test-soldier4*)
                                        (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 10 10) (make-rock))
                                        (cons (cons 5 4) *test-base2*)) :test 'equal)))))))
 
 (deftest close-enough-to-base 
@@ -407,6 +427,20 @@
       (setf (gethash (soldier-pos new-soldier) new-map) new-soldier)
       (ok (equalp (change-soldier-destination "player1" (soldier-pos *test-soldier1*) (cons 10 10) new-gm)
                   (right new-gm))))))
+
+(deftest format-command
+  (testing "prints a no-op the same way it was read in"
+    (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
+                      (parse-move (cons "player1" "NO-OP")))
+                (right "NO-OP"))))
+  (testing "prints a build command the same way it was read in"
+    (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
+                      (parse-move (cons "player1" "BUILD ASSASSIN (1, 2) (5, 3)")))
+                (right "BUILD ASSASSIN (1, 2) (5, 3)"))))
+  (testing "prints a change destination command the same way it was read in"
+    (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
+                      (parse-move (cons "player1" "MOVE (1, 4) TO (6, 9)")))
+                (right "MOVE (1, 4) TO (6, 9)")))))
 
 (deftest apply-move 
   (testing "does nothing for no-op"
