@@ -42,7 +42,6 @@
            :game-over
            :determine-result
            :get-players-input-for-turn
-           :money-per-turn
            :step-game
            :parse-move
            :advance-turn
@@ -56,7 +55,10 @@
            :format-position
            :make-change-destination
            :format-command
-           :make-rock))
+           :make-rock
+           :*default-game-config*
+           :game-config
+           :game-config-money-per-turn))
 
 (in-package :footsoldiers)
 
@@ -89,8 +91,6 @@
    (cons "position" (coord-alist position))
    (cons "team" (base-team base))))
 
-(defstruct game map turns-remaining player1 player2)
-
 (defun map-to-alist (mp)
   (map 'vector (lambda (e) 
                  (match (cdr e)
@@ -98,13 +98,6 @@
                    ((type soldier) (soldier-alist (cdr e)))
                    ((type base) (base-alist (car e) (cdr e)))))
        (sort (hash-table-alist mp) #'pair-less :key #'car)))
-
-(defun game-alist (game)
-  (list
-   (cons "map" (map-to-alist (game-map game)))
-   (cons "turns-remaining" (game-turns-remaining game))
-   (cons "player1" (player-alist (game-player1 game)))
-   (cons "player2" (player-alist (game-player2 game)))))
 
 (defstruct player team money base health)
 
@@ -125,32 +118,75 @@
 
 (defstruct move-result errors updated-game)
 
+(defstruct speed-config scout assassin tank)
+(defstruct damage-config scout assassin tank)
+(defstruct cost-config scout assassin tank)
+(defstruct health-config scout assassin tank)
+
+(defstruct game-config 
+  initial-money
+  money-per-turn
+  max-distance-from-base
+  health
+  speed
+  damage
+  cost)
+
 (defparameter *soldier-types* '(:scout :tank :assassin))
-(defparameter *team* '(:one :two))
+(defparameter *default-health-config* 
+  (make-health-config :scout 6 :assassin 6 :tank 6))
+(defparameter *default-speed-config*
+  (make-speed-config :scout 3 :assassin 5 :tank 2))
+(defparameter *default-damage-config* 
+  (make-damage-config :scout 2 :assassin 5 :tank 2))
+(defparameter *default-cost-config*
+  (make-cost-config :scout 10 :tank 12 :assassin 14))
+(defparameter *default-game-config*
+  (make-game-config 
+   :initial-money 10
+   :money-per-turn 3 
+   :max-distance-from-base 5 
+   :health *default-health-config*
+   :speed *default-speed-config*
+   :damage *default-damage-config*
+   :cost *default-cost-config*))
 
-(defun initial-health (soldier-type) (declare (ignore soldier-type)) 6)
+(defstruct game map turns-remaining player1 player2 (config *default-game-config*))
 
-(defun soldier-speed (soldier-type)
-  (case soldier-type
-    (:scout 3)
-    (:assassin 5)
-    (:tank 2)))
+(defun game-alist (game)
+  (list
+   (cons "map" (map-to-alist (game-map game)))
+   (cons "turns-remaining" (game-turns-remaining game))
+   (cons "player1" (player-alist (game-player1 game)))
+   (cons "player2" (player-alist (game-player2 game)))))
 
-(defun damage (soldier-type)
-  (case soldier-type
-    (:scout 2)
-    (:assassin 5)
-    (:tank 2)))
+(defmethod initial-health (soldier-type (game-config game-config))
+  (let ((config (game-config-health game-config)))
+    (case soldier-type
+      (:scout (health-config-scout config))
+      (:assassin (health-config-assassin config))
+      (:tank (health-config-tank config)))))
 
-(defun cost (soldier-type)
-  (case soldier-type
-    (:scout 10)
-    (:tank 12)
-    (:assassin 14)))
+(defmethod soldier-speed (soldier-type (game-config game-config))
+  (let ((config (game-config-speed game-config)))
+    (case soldier-type
+      (:scout (speed-config-scout config))
+      (:assassin (speed-config-assassin config))
+      (:tank (speed-config-tank config)))))
 
-(defun money-per-turn () 3)
+(defmethod damage (soldier-type (game-config game-config))
+  (let ((config (game-config-damage game-config)))
+    (case soldier-type
+      (:scout (damage-config-scout config))
+      (:assassin (damage-config-assassin config))
+      (:tank (damage-config-tank config)))))
 
-(defun max-distance-from-base () 5)
+(defmethod cost (soldier-type (game-config game-config))
+  (let ((config (game-config-cost game-config)))
+    (case soldier-type
+      (:scout (cost-config-scout config))
+      (:assassin (cost-config-assassin config))
+      (:tank (cost-config-tank config)))))
 
 (defun sqr (x) (* x x))
 
@@ -182,17 +218,17 @@
       (rec p1)
       seen)))
 
-(defmethod closest-reachable-position ((s soldier) mp)
-  (let ((range (soldier-speed (soldier-type s)))
+(defmethod closest-reachable-position ((s soldier) mp (game-config game-config))
+  (let ((range (soldier-speed (soldier-type s) game-config))
         (origin (soldier-pos s))
         (dest (soldier-destination s)))
     (iter (for p in (sort (hash-table-keys (reachable-positions range origin mp)) #'pair-less))
           (reducing p by (lambda (a b) (if (< (distance b dest) (distance a dest)) b a)) 
                     initial-value origin))))
 
-(defmethod move-soldier (mp (s soldier))
+(defmethod move-soldier (mp (s soldier) (game-config game-config))
   (when (not (equal (soldier-pos s) (soldier-destination s)))
-    (let* ((destination (closest-reachable-position s mp))
+    (let* ((destination (closest-reachable-position s mp game-config))
            (new-soldier (copy-structure s)))
       (setf (soldier-pos new-soldier) destination)
       (remhash (soldier-pos s) mp)
@@ -207,11 +243,11 @@
       (and (= (car p1) (car p2))
            (< (cdr p1) (cdr p2)))))
 
-(defun move-soldiers (mp)
+(defun move-soldiers (mp game-config)
   (let ((es (sort (hash-table-alist mp) #'pair-less :key #'car)))
     (iter (for (p . e) in es)
           (when (is-soldier e)
-            (move-soldier mp e)))))
+            (move-soldier mp e game-config)))))
 
 (defmethod eligible-target ((s soldier) e) 
   (match e
@@ -232,8 +268,8 @@
                      (eligible-target s (gethash p mp)))) search-candidates)
       (gethash it mp))))
 
-(defmethod attack-soldier ((s1 soldier) (s2 soldier) mp)
-  (let ((new-health (max 0 (- (soldier-health s2) (damage (soldier-type s1))))))
+(defmethod attack-soldier ((s1 soldier) (s2 soldier) mp config)
+  (let ((new-health (max 0 (- (soldier-health s2) (damage (soldier-type s1) config)))))
     (if (= new-health 0)
         (remhash (soldier-pos s2) mp)
         (setf (gethash (soldier-pos s2) mp)
@@ -247,7 +283,7 @@
                         (copy-structure (game-player1 gm))
                         (copy-structure (game-player2 gm)))))
     (setf (player-health new-player) (max 0 (- (player-health new-player)
-                                               (damage (soldier-type s)))))
+                                               (damage (soldier-type s) (game-config gm)))))
     (if (equalp (base-team b) (player-team (game-player1 gm)))
         (setf (game-player1 gm) new-player)
         (setf (game-player2 gm) new-player))
@@ -259,7 +295,7 @@
     ((type soldier) 
      (let ((new-gm (copy-structure gm)))
        (setf (game-map new-gm)
-             (attack-soldier s e (game-map gm)))
+             (attack-soldier s e (game-map gm) (game-config gm)))
        new-gm))
     ((type base) 
      (attack-base s e gm))))
@@ -285,8 +321,9 @@
                       ((type base) new-gm)))
           (finally (return new-gm)))))
 
-(defmethod close-enough-to-base (pos (player player))
-  (<= (distance pos (player-base player)) (max-distance-from-base)))
+(defmethod close-enough-to-base (pos (player player) (game-config game-config))
+  (<= (distance pos (player-base player))
+      (game-config-max-distance-from-base game-config)))
 
 (defun format-position (pos)
   (format nil "(~a, ~a)" (car pos) (cdr pos)))
@@ -295,10 +332,10 @@
   (let ((player (copy-structure (if (equalp team (player-team (game-player1 new-gm)))
                                     (game-player1 new-gm)
                                     (game-player2 new-gm)))))
-    (if (< (player-money player) (cost soldier-type))
+    (if (< (player-money player) (cost soldier-type (game-config new-gm)))
         (left (format nil "Player ~a with money ~a doesn't have enough money for ~a with cost ~a" 
-                      (player-team player) (player-money player) soldier-type (cost soldier-type)))
-        (if (not (close-enough-to-base start player))
+                      (player-team player) (player-money player) soldier-type (cost soldier-type (game-config new-gm))))
+        (if (not (close-enough-to-base start player (game-config new-gm)))
             (left (format nil "Player ~a tried to build ~a at position ~a, too far from base ~a"
                           (player-team player) soldier-type 
                           (format-position start)
@@ -307,11 +344,11 @@
                 (left (format nil "Player ~a tried to build ~a at position ~a which is occupied" 
                               (player-team player) soldier-type (format-position start)))
                 (let* ((s (make-soldier :pos start
-                                        :health (initial-health soldier-type)
+                                        :health (initial-health soldier-type (game-config new-gm))
                                         :type soldier-type
                                         :destination destination
                                         :team (player-team player))))
-                  (setf (player-money player) (- (player-money player) (cost soldier-type)))
+                  (setf (player-money player) (- (player-money player) (cost soldier-type (game-config new-gm))))
                   (setf (gethash start (game-map new-gm)) s)
                   (if (equalp team (player-team (game-player1 new-gm)))
                       (setf (game-player1 new-gm) player)
@@ -398,13 +435,14 @@
         (new-gm (copy-structure gm)))
     (setf (game-map new-gm) new-mp)
     (bind ((result (apply-moves moves new-gm))
-           (after-attack (progn (move-soldiers (game-map (move-result-updated-game result)))
+           (after-attack (progn (move-soldiers (game-map (move-result-updated-game result)) 
+                                               (game-config gm))
                                 (make-soldiers-attack (move-result-updated-game result)))))
       (let* ((ticked-game (copy-structure after-attack))
              (player1 (copy-structure (game-player1 ticked-game)))
              (player2 (copy-structure (game-player2 ticked-game))))
-        (incf (player-money player1) (money-per-turn))
-        (incf (player-money player2) (money-per-turn))
+        (incf (player-money player1) (game-config-money-per-turn (game-config gm)))
+        (incf (player-money player2) (game-config-money-per-turn (game-config gm)))
         (setf (game-turns-remaining ticked-game)
               (- (game-turns-remaining ticked-game) 1))
         (setf (game-player1 ticked-game) player1)
@@ -502,7 +540,9 @@
     (list (runtime:start-bot-from-definition bot-1-def (format nil "~a" bot1-path))
           (runtime:start-bot-from-definition bot-2-def (format nil "~a" bot2-path)))))
 
-(defun start-game (bot-relative-paths logging-config &optional (current-directory nil))
+(defun start-game (bot-relative-paths logging-config 
+                   &optional (current-directory nil)
+                     (game-config *default-game-config*))
   (format t "Running footsoldiers~%")
   (let ((runtime:*bot-initialisation-time* 2))
     (let* ((bots (alist-hash-table 
@@ -519,13 +559,14 @@
                                   :test 'equal)
                             :turns-remaining 100
                             :player1 (make-player :team "player1" 
-                                                  :money (cost :scout)
+                                                  :money (game-config-initial-money game-config)
                                                   :base (cons 0 0)
                                                   :health 40)
                             :player2 (make-player :team "player2"
-                                                  :money (cost :scout)
+                                                  :money (game-config-initial-money game-config)
                                                   :base (cons 20 0)
-                                                  :health 40))))
+                                                  :health 40)
+                            :config *default-game-config*)))
       (n-player-game bots game logging-config))))
 
 (defun run-footsoldiers ()

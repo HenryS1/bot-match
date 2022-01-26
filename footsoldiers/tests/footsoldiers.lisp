@@ -129,7 +129,7 @@
                                               *test-soldier3* *test-soldier4*
                                               *test-soldier5*))
                                  :test 'equal)))
-      (ok (equal (closest-reachable-position *test-soldier1* mp)
+      (ok (equal (closest-reachable-position *test-soldier1* mp *default-game-config*)
                  (cons 2 5)))))
   (testing "chooses the least lexicographic position when multiple closest positions exist"
     (let ((new-soldier1 (copy-structure *test-soldier1*)))
@@ -139,7 +139,7 @@
                                                 *test-soldier3* *test-soldier4*
                                                 *test-soldier5*))
                                   :test 'equal)))
-        (ok (equal (closest-reachable-position new-soldier1 mp)
+        (ok (equal (closest-reachable-position new-soldier1 mp *default-game-config*)
                    (cons 1 1)))))))
 
 (deftest move-soldier
@@ -149,7 +149,7 @@
                                               *test-soldier3* *test-soldier4*
                                               *test-soldier5*))
                                  :test 'equal)))
-      (move-soldier mp *test-soldier1*)
+      (move-soldier mp *test-soldier1* *default-game-config*)
       (let ((new-soldier1 (copy-structure *test-soldier1*)))
         (setf (soldier-pos new-soldier1) (cons 2 5))
         (ok (equalp mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
@@ -166,7 +166,7 @@
              (new-soldier2 (copy-structure *test-soldier2*)))
         (setf (soldier-pos new-soldier1) (cons 3 5))
         (setf (soldier-pos new-soldier2) (cons 3 1))
-        (move-soldiers mp)
+        (move-soldiers mp *default-game-config*)
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                               (list new-soldier1 new-soldier2)) :test 'equal))))))
@@ -177,7 +177,7 @@
              (new-soldier3 (copy-structure *test-soldier3*)))
         (setf (soldier-pos new-soldier2) (cons 3 1))
         (setf (soldier-pos new-soldier3) (cons 2 1))
-        (move-soldiers mp)
+        (move-soldiers mp *default-game-config*)
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                               (list new-soldier2 new-soldier3)) :test 'equal))))))
@@ -188,7 +188,7 @@
           (expected (alist-hash-table (list (cons (cons 1 2) (make-rock)) 
                                       (cons (cons 3 4) *test-base1*)
                                       (cons (cons 6 9) *test-base2*)) :test 'equal)))
-      (move-soldiers mp)
+      (move-soldiers mp *default-game-config*)
       (ok (equalp mp expected)))))
 
 (deftest eligible-target 
@@ -229,7 +229,7 @@
           (mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                         (list *test-soldier1* *test-soldier2*)) :test 'equal)))
       (setf (soldier-health new-soldier2) 1)
-      (attack-soldier *test-soldier1* *test-soldier2* mp)
+      (attack-soldier *test-soldier1* *test-soldier2* mp *default-game-config*)
       (ok (equalp mp
                   (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                             (list *test-soldier1* new-soldier2)) :test 'equal)))))
@@ -238,7 +238,7 @@
       (setf (soldier-health new-soldier2) 2)
       (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                           (list *test-soldier1* new-soldier2)) :test 'equal)))
-        (attack-soldier *test-soldier1* new-soldier2 mp)
+        (attack-soldier *test-soldier1* new-soldier2 mp *default-game-config*)
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                               (list *test-soldier1*)) :test 'equal))))))) 
@@ -281,7 +281,7 @@
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
            (gm2 (make-game :map mp-copy :turns-remaining 20 :player1 player1 :player2 player2)))
       (attack-target *test-soldier1* *test-soldier2* gm)
-      (attack-soldier *test-soldier1* *test-soldier2* mp-copy)
+      (attack-soldier *test-soldier1* *test-soldier2* mp-copy (game-config gm))
       (ok (equalp gm gm2))))
   (testing "attacks the base when target is a base"
     (let* ((mp (alist-hash-table (list (cons (soldier-pos *test-soldier1*) *test-soldier1*)
@@ -340,9 +340,9 @@
 (deftest close-enough-to-base 
   (let ((player (make-player :team "player1" :money 10 :base (cons 4 3) :health 20)))
     (testing "is true when a position is closer than the max distance from a player's base"
-      (ok (close-enough-to-base (cons 2 6) player)))
+      (ok (close-enough-to-base (cons 2 6) player *default-game-config*)))
     (testing "is false when a position is further than the max distance from a player's base"
-      (ok (not (close-enough-to-base (cons 2 7) player))))))
+      (ok (not (close-enough-to-base (cons 2 7) player *default-game-config*))))))
 
 (deftest build-soldier
   (testing "fails when a soldier costs more than a player's money"
@@ -629,10 +629,10 @@
                                                                :destination (cons 3 3)))) 
                                      :test 'equal))
            (new-player1 (make-player :team "player1" 
-                                     :money (+ 10 (money-per-turn)) 
+                                     :money (+ 10 (game-config-money-per-turn *default-game-config*)) 
                                      :base (cons 4 3) :health 20))
            (new-player2 (make-player :team "player2" 
-                                     :money (+ 1 (money-per-turn)) 
+                                     :money (+ 1 (game-config-money-per-turn *default-game-config*)) 
                                      :base (cons 5 4) :health 22))
            (new-gm (make-game :map new-mp :turns-remaining 19
                               :player1 new-player1
