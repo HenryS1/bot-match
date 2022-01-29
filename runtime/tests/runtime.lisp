@@ -22,13 +22,13 @@
 
 (defparameter *bot-definition* (test-file-path "definition.json"))
 
-(defun run-test-bot (path &optional (bot-definition nil) (command-parts nil))
+(defun run-test-bot (path &optional (bot-definition nil))
   (make-instance 'concrete-bot
                  :bot-process (run-bot "ros" (list "+Q" "--" path)) 
                  :bot-id (random 100) 
                  :bot-name "test-bot"
                  :bot-definition bot-definition
-                 :command-parts command-parts))
+                 :command nil))
 
 (defparameter *turn-timeout* 3)
 
@@ -53,6 +53,15 @@
       (sleep 0.01)
       (ok (equal (bot-status bot) :stopped))
       (interrupt-bot bot))))
+
+#+linux
+(deftest memory-limiting
+  (testing "should prevent a bot from starting if it exceeds the memory limit"
+    (with-open-file (f *bot-definition*)
+      (let* ((definition (bot-definition-json:from-json f))
+             (initial-bot (start-bot-from-definition definition *test-base-path* 10)))
+        (sleep 0.01)
+        (ok (equalp (bot-status initial-bot) :exited))))))
 
 (deftest continue-bot
   (testing "should continue execution of a bot"

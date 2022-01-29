@@ -39,7 +39,7 @@
 (defclass concrete-bot (bot)
   ((bot-process :accessor bot-process :initarg :bot-process)
    (bot-definition :accessor bot-definition :initarg :bot-definition :initform (error "bot definition must be provided"))
-   (command-parts :accessor command-parts :initarg :command-parts :initform (error "command parts must be provided"))))
+   (command :accessor command :initarg :command :initform (error "command must be provided"))))
 
 (define-json-model bot-definition (name command relative-filepath) :kebab-case)
 
@@ -55,20 +55,33 @@
 (defun run-bot (command args)
   (sb-ext:run-program command args :wait nil :input :stream :output :stream :search t))
 
-(defun initialise-bot (bot-definition command-parts)
+(defmethod initialise-bot ((bot concrete-bot))
   (make-instance 'concrete-bot
-                 :bot-process (run-bot (car command-parts) (cdr command-parts))
-                 :bot-id (random-id 10)
-                 :bot-name (name bot-definition)
-                 :bot-definition bot-definition
-                 :command-parts command-parts))
+                 :bot-process (run-bot "bash" (list "-c" (command bot)))
+                 :bot-id (bot-id bot)
+                 :bot-name (bot-name bot)
+                 :bot-definition (bot-definition bot)
+                 :command (command bot)))
 
-(defmethod start-bot-from-definition ((bot-definition bot-definition) base-path)
-  (let ((command-parts (split "\\s+" (regex-replace "<bot-file>" 
-                                                    (command bot-definition)
-                                                    (concatenate 'string base-path (relative-filepath bot-definition))))))
-    (format t "COMMAND PARTS ~a~%" command-parts)
-    (let ((bot (initialise-bot bot-definition command-parts)))
+(defparameter *memory-limit* 2000000)
+
+(defmethod start-bot-from-definition ((bot-definition bot-definition) base-path 
+                                      &optional (memory-limit *memory-limit*))
+  (let* ((templated-command
+          (regex-replace "<bot-file>" 
+                         (command bot-definition)
+                         (concatenate 'string base-path (relative-filepath bot-definition))))
+         (memory-limited-command (format nil "ulimit -v ~a; ~a" 
+                                         memory-limit
+                                         templated-command)))
+    (format t "BOT COMMAND ~a~%" memory-limited-command)
+    (let ((bot (make-instance 
+                'concrete-bot
+                :bot-process (run-bot "bash" (list "-c" memory-limited-command))
+                :bot-id (random-id 10)
+                :bot-name (name bot-definition)
+                :bot-definition bot-definition
+                :command memory-limited-command)))      
       (when (> *bot-initialisation-time* 0)
         (sleep *bot-initialisation-time*))
       (stop-bot bot)
@@ -121,7 +134,7 @@
   ;; when it is killed its status is :signaled
   (let ((running-bot (if (or (equal (bot-status bot) :exited)
                              (equal (bot-status bot) :signaled))
-                         (initialise-bot (bot-definition bot) (command-parts bot))
+                         (initialise-bot bot)
                          bot)))
    (sb-ext:process-kill (bot-process running-bot) SIGCONT)
    running-bot))
