@@ -54,21 +54,24 @@
 
 (defparameter *base-path* (directory-namestring #.*compile-file-truename*))
 
-(defun run-bots ()
+(defun run-bots (logging-config)
   (loop for i from 1 to 2
      for bot-base-path in (mapcar (lambda (dir) (merge-pathnames dir *base-path* ))
                                   '("bot1/" "bot2/"))
      for definition = (read-bot-definition (merge-pathnames "definition.json" bot-base-path))
-     collect (start-bot-from-definition definition (format nil "~a" bot-base-path))))
+     collect (start-bot-from-definition definition 
+                                        (format nil "~a" bot-base-path)
+                                        (logging-config-turns logging-config))))
 
 (defun run-guessing-game ()
   (format t "running guessing game~%")
   (let ((*bot-initialisation-time* 1))
-   (let* ((bots (alist-hash-table (pairlis '("player1" "player2") (run-bots)) :test 'equal))
-          (game (make-instance 'guessing-game))
-          (logging-config (make-logging-config :turns nil
+   (let* ((logging-config (make-logging-config :turns nil
                                                :moves nil
-                                               :states nil)))
+                                               :states nil))
+          (bots (alist-hash-table (pairlis '("player1" "player2") 
+                                           (run-bots logging-config)) :test 'equal))
+          (game (make-instance 'guessing-game)))
      (n-player-game bots game logging-config))))
 
 (deftest guessing-game 

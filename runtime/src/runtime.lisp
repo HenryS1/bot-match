@@ -27,7 +27,6 @@
            :read-output
            :make-bot-turn-result
            :bot-turn-result-output
-           :bot-turn-result-logs
            :bot-turn-result-updated-bot))
 
 (in-package :runtime)
@@ -66,6 +65,7 @@
 (defparameter *memory-limit* 2000000)
 
 (defmethod start-bot-from-definition ((bot-definition bot-definition) base-path 
+                                      log-stream
                                       &optional (memory-limit *memory-limit*))
   (let* ((templated-command
           (regex-replace "<bot-file>" 
@@ -74,7 +74,9 @@
          (memory-limited-command (format nil "ulimit -f 0 -v ~a; ~a" 
                                          memory-limit
                                          templated-command)))
-    (format t "BOT COMMAND ~a~%" memory-limited-command)
+    (format log-stream "starting bot ~a using command ~a~%" 
+            (name bot-definition)
+            templated-command)
     (let ((bot (make-instance 
                 'concrete-bot
                 :bot-process (run-bot "bash" (list "-c" memory-limited-command))
@@ -88,26 +90,29 @@
       bot)))
 
 (defgeneric bot-status (bot))
-(defgeneric bot-turn (bot input time-limit &optional parser))
+(defgeneric bot-turn (bot input time-limit &optional log-stream parser))
 
 (defun read-output (bot-stream)
   (loop for line = (read-line bot-stream nil nil)
      collect line
      while (listen bot-stream)))
 
-(defun to-string (bot-stream bot-name parser time-limit logs)
+(defun to-string (bot-stream bot-name parser time-limit log-stream)
   (handler-case 
       (with-timeout (time-limit)
         (loop for bot-output = (funcall parser bot-stream)
            while (listen bot-stream)
-           finally (return (cons bot-output (cons (format nil "Bot ~a returned output ~a" bot-name bot-output) logs)))))
+           finally (return (progn
+                             (format log-stream "Bot ~a returned output ~a~%" bot-name bot-output)
+                             bot-output))))
     (timeout-error (e)
       (declare (ignore e))
-      (cons nil (cons (format nil "Timed out waiting for output from bot ~a" bot-name) logs)))))
+      (format log-stream "Timed out waiting for output from bot ~a~%" bot-name)
+      nil)))
 
-(defmethod bot-output ((bot concrete-bot) time-limit logs &optional (parser #'read-output))
+(defmethod bot-output ((bot concrete-bot) time-limit log-stream &optional (parser #'read-output))
   (-> (sb-ext:process-output (bot-process bot))
-      (to-string (bot-name bot) parser time-limit logs)))
+      (to-string (bot-name bot) parser time-limit log-stream)))
 
 ;; Interrupt process
 (defconstant SIGINT 2)
@@ -153,19 +158,19 @@
     (write-string str (sb-ext:process-input bot-process))
     (finish-output (sb-ext:process-input bot-process))))
 
-(defmethod end-bot-turn ((bot concrete-bot) logs &optional (wait-time 0.1))
+(defmethod end-bot-turn ((bot concrete-bot) log-stream &optional (wait-time 0.1))
   (stop-bot bot)
   (sleep wait-time)
   (when (equal (bot-status bot) :running)    
-    (kill-bot bot)
-    (cons (format nil "Bot ~a didn't respond to signal, terminating it." (bot-name bot)) logs)))
+    (format log-stream "Bot ~a didn't respond to stop signal, terminating it.~%" (bot-name bot))
+    (kill-bot bot)))
 
-(defstruct bot-turn-result updated-bot output logs)
+(defstruct bot-turn-result updated-bot output)
 
-(defmethod bot-turn ((bot concrete-bot) turn-input time-limit &optional (parser #'read-output))
+(defmethod bot-turn ((bot concrete-bot) turn-input time-limit &optional (log-stream *standard-output*) (parser #'read-output))
   (let ((running-bot (continue-bot bot)))
     (send-input-to-bot running-bot turn-input)
-    (bind (((output . logs) (bot-output running-bot time-limit nil parser)))
+    (bind ((output (bot-output running-bot time-limit log-stream parser)))
+      (end-bot-turn running-bot log-stream)
       (make-bot-turn-result :updated-bot running-bot
-                            :output output 
-                            :logs (reverse (end-bot-turn running-bot logs))))))
+                            :output output))))

@@ -533,12 +533,12 @@
       (cons (bot-absolute-path bot-1-relative-path)
             (bot-absolute-path bot-2-relative-path)))))
 
-(defun run-bots (bot-absolute-paths)
+(defun run-bots (bot-absolute-paths turns-log-stream)
   (bind (((bot1-path . bot2-path) bot-absolute-paths)
          (bot-1-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot1-path)))
          (bot-2-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot2-path))))
-    (list (runtime:start-bot-from-definition bot-1-def (format nil "~a" bot1-path))
-          (runtime:start-bot-from-definition bot-2-def (format nil "~a" bot2-path)))))
+    (list (runtime:start-bot-from-definition bot-1-def (format nil "~a" bot1-path) turns-log-stream)
+          (runtime:start-bot-from-definition bot-2-def (format nil "~a" bot2-path) turns-log-stream))))
 
 (defun start-game (bot-relative-paths logging-config 
                    &optional (current-directory nil)
@@ -547,7 +547,8 @@
   (let ((runtime:*bot-initialisation-time* 2))
     (let* ((bots (alist-hash-table 
                   (pairlis '("player1" "player2") 
-                           (run-bots (construct-bot-paths bot-relative-paths current-directory)))))
+                           (run-bots (construct-bot-paths bot-relative-paths current-directory)
+                                     (logging-config-turns logging-config)))))
            (game (make-game :map (alist-hash-table 
                                   (list (cons (cons 0 0) (make-base :team "player1"))
                                         (cons (cons 20 0) (make-base :team "player2"))

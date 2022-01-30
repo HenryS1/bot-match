@@ -36,11 +36,12 @@
 
 (deftest bot-output
   (testing "should capture bot output from stdout"
-    (let ((bot (run-test-bot *quick-bot*)))
+    (let ((logs (make-array 0 :element-type 'base-char :fill-pointer 0 :adjustable t))
+          (bot (run-test-bot *quick-bot*)))
       (sleep 0.2)
-      (ok (equalp (bot-output bot *turn-timeout* nil) 
-                  (cons '("bot output") 
-                        (list "Bot test-bot returned output (bot output)")))))))
+      (ok (equalp (with-output-to-string (s logs) (bot-output bot *turn-timeout* s)) 
+                  '("bot output")))
+      (ok (equalp logs (format nil "Bot test-bot returned output (bot output)~%"))))))
 
 (deftest start-bot
   (testing "should start the bot process"
@@ -61,7 +62,7 @@
   (testing "should prevent a bot from starting if it exceeds the memory limit"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
-             (initial-bot (start-bot-from-definition definition *test-base-path* 10)))
+             (initial-bot (start-bot-from-definition definition *test-base-path* *standard-output* 10)))
         (sleep 0.01)
         (ok (equalp (bot-status initial-bot) :exited))))))
 
@@ -69,7 +70,7 @@
   (testing "should prevent a bot from writing to a file"
     (with-open-file (f *filesystem-bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
-             (bot (continue-bot (start-bot-from-definition definition *test-base-path*))))
+             (bot (continue-bot (start-bot-from-definition definition *test-base-path* *standard-output*))))
         (sleep 0.6)
         (let ((f (probe-file "./test-file")))
           (when f (delete-file f)))
@@ -88,7 +89,7 @@
   (testing "should start the bot from definition if it was killed"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
-             (initial-bot (start-bot-from-definition definition *test-base-path*)))
+             (initial-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
         (sleep 0.01)
         (ok (equalp (bot-status initial-bot) :stopped))
         (kill-bot initial-bot)
@@ -101,7 +102,7 @@
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f)))
         (setf (relative-filepath definition) "./exited-bot.lisp")
-        (let ((initial-bot (start-bot-from-definition definition *test-base-path*)))
+        (let ((initial-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
           (sleep 0.01)
           (continue-bot initial-bot)
           (sleep 0.5)
@@ -123,8 +124,10 @@
   (testing "should send input to a bot"
     (let ((bot (run-test-bot *input-bot*)))
       (send-input-to-bot bot (format nil "hello bot~%"))
-      (let ((bot-out (bot-output bot *turn-timeout* nil)))
-        (ok (equal bot-out (cons '("hello bot") (list "Bot test-bot returned output (hello bot)"))))
+      (let* ((logs (make-array 0 :element-type 'base-char :fill-pointer 0 :adjustable t))
+             (bot-out (with-output-to-string (s logs) (bot-output bot *turn-timeout* s))))
+        (ok (equal bot-out '("hello bot")))
+        (ok (equal logs (format nil "Bot test-bot returned output (hello bot)~%")))
         (interrupt-bot bot)))))
 
 (deftest end-bot-turn
@@ -141,7 +144,7 @@
     (let ((bot (run-test-bot *turn-bot*)))
       (sleep 0.5)
       (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*) 
-                  (make-bot-turn-result :updated-bot bot :output '("input") :logs nil)))
+                  (make-bot-turn-result :updated-bot bot :output '("input"))))
       (ok (equal (bot-status bot) :stopped))
       (interrupt-bot bot))))
 
@@ -157,7 +160,7 @@
   (testing "should start a bot process using the provided command"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
-             (bot (start-bot-from-definition definition *test-base-path*)))
+             (bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
         (sleep 0.01)
         (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*)
-                    (make-bot-turn-result :updated-bot bot :output '("input") :logs nil)))))))
+                    (make-bot-turn-result :updated-bot bot :output '("input"))))))))

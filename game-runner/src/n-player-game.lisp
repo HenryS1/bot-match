@@ -10,7 +10,8 @@
            :make-game-turn-result
            :make-logging-config
            :game-state
-           :game-turn-result-game))
+           :game-turn-result-game
+           :logging-config-turns))
 
 (in-package :n-player-game)
 
@@ -35,15 +36,13 @@
                                              (bot-turn bot
                                                        (cdr pin) 
                                                        (turn-time-limit game)
+                                                       (logging-config-turns logging-config)
                                                        (input-parser game)))
                                        (cons (car pin) 
                                              (make-bot-turn-result 
                                               :updated-bot bot
-                                              :output ""
-                                              :logs (list (format nil "Failed to find bot for player id ~a" (car pin)))))))) 
+                                              :output ""))))) 
                                player-input-for-turn)))
-    (mapc (lambda (res) (mapc (lambda (l) (format (logging-config-turns logging-config) "~a~%" l)) 
-                              (bot-turn-result-logs (cdr res)))) turn-results)
     (mapc (lambda (res) 
             (let ((updated-bot (bot-turn-result-updated-bot (cdr res))))
               (when updated-bot

@@ -32,11 +32,10 @@
   (bot-input game))
 
 (defmethod bot-output ((bot test-bot) time-limit logs &optional (parser nil))
-  (declare (ignore parser logs))
+  (declare (ignore parser))
+  (format logs (format nil "bot turn ~a~%" (- 3 (parse-integer (bot-input bot)))))
   (make-bot-turn-result :updated-bot bot
-                        :output (format nil "output ~a" (- 3 (parse-integer (bot-input bot)))) 
-                        :logs (list (format nil "bot turn ~a" 
-                                            (- 3 (parse-integer (bot-input bot)))))))
+                        :output (format nil "output ~a" (- 3 (parse-integer (bot-input bot))))))
 
 (defmethod stop-bot ((bot test-bot))
   (setf (stopped bot) t))
@@ -44,22 +43,22 @@
 (defmethod interrupt-bot ((bot test-bot))
   (setf (bot-status bot) :exited))
 
-(defmethod bot-turn ((bot test-bot) input turn-time-limit &optional (parser nil))
+(defmethod bot-turn ((bot test-bot) input turn-time-limit 
+                     &optional (log-stream *standard-output*) (parser nil))
   (declare (ignore parser))
   (progn (setf (bot-input bot) input)
-         (bot-output bot turn-time-limit nil)))
+         (bot-output bot turn-time-limit log-stream)))
 
-(defmethod bot-turn ((bot recoverable-bot) input turn-time-limit &optional (parser nil))
-  (declare (ignore parser))
-  (format t "CALLING BOT TURN ON RECOVERABLE BOT~%")
+(defmethod bot-turn ((bot recoverable-bot) input turn-time-limit 
+                     &optional (log-stream *standard-output*) (parser nil))
+  (declare (ignore parser log-stream))
   (let ((new-bot (make-instance 'recoverable-bot 
                                 :bot-id "test" 
                                 :bot-name "test-name"
                                 :bot-status :stopped)))
     (make-bot-turn-result 
      :updated-bot new-bot
-     :output (format nil "output")
-     :logs nil)))
+     :output (format nil "output"))))
 
 (defmethod advance-turn (player-moves (game test-game))
   (make-game-turn-result 
