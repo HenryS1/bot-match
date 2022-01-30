@@ -22,6 +22,8 @@
 
 (defparameter *bot-definition* (test-file-path "definition.json"))
 
+(defparameter *filesystem-bot-definition* (test-file-path "filesystem-bot-definition.json"))
+
 (defun run-test-bot (path &optional (bot-definition nil))
   (make-instance 'concrete-bot
                  :bot-process (run-bot "ros" (list "+Q" "--" path)) 
@@ -62,6 +64,16 @@
              (initial-bot (start-bot-from-definition definition *test-base-path* 10)))
         (sleep 0.01)
         (ok (equalp (bot-status initial-bot) :exited))))))
+
+(deftest file-access-limiting
+  (testing "should prevent a bot from writing to a file"
+    (with-open-file (f *filesystem-bot-definition*)
+      (let* ((definition (bot-definition-json:from-json f))
+             (bot (continue-bot (start-bot-from-definition definition *test-base-path*))))
+        (sleep 0.6)
+        (let ((f (probe-file "./test-file")))
+          (when f (delete-file f)))
+        (ok (equalp (bot-status bot) :exited))))))
 
 (deftest continue-bot
   (testing "should continue execution of a bot"

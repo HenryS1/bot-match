@@ -71,7 +71,7 @@
           (regex-replace "<bot-file>" 
                          (command bot-definition)
                          (concatenate 'string base-path (relative-filepath bot-definition))))
-         (memory-limited-command (format nil "ulimit -v ~a; ~a" 
+         (memory-limited-command (format nil "ulimit -f 0 -v ~a; ~a" 
                                          memory-limit
                                          templated-command)))
     (format t "BOT COMMAND ~a~%" memory-limited-command)
