@@ -1,2 +1,2 @@
-(format t "done~%")
+(format t "READY~%")
 

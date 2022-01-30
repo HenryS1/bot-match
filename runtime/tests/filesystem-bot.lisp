@@ -4,6 +4,7 @@
 (in-package :turn-bot)
 
 (defun run ()
+  (format t "READY~%")
   (with-open-file (f "./test-file" 
                      :direction :output 
                      :if-exists :supersede

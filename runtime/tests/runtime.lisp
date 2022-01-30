@@ -1,6 +1,7 @@
 (defpackage runtime/tests/runtime
   (:use :cl
         :runtime
+        :ppcre
         :rove))
 
 (in-package :runtime/tests/runtime)
@@ -23,6 +24,8 @@
 (defparameter *bot-definition* (test-file-path "definition.json"))
 
 (defparameter *filesystem-bot-definition* (test-file-path "filesystem-bot-definition.json"))
+
+(defparameter *not-ready-bot-definition* (test-file-path "not-ready-bot-definition.json"))
 
 (defun run-test-bot (path &optional (bot-definition nil))
   (make-instance 'concrete-bot
@@ -66,11 +69,21 @@
         (sleep 0.01)
         (ok (equalp (bot-status initial-bot) :exited))))))
 
+(deftest readiness-check
+  (testing "should kill a bot if it fails to respond with ready within the time limit"
+    (with-open-file (f *not-ready-bot-definition*)
+      (let* ((definition (bot-definition-json:from-json f))
+             (bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
+        (sleep 0.1)
+        (ok (equal (bot-status bot) :signaled))))))
+
 (deftest file-access-limiting
   (testing "should prevent a bot from writing to a file"
     (with-open-file (f *filesystem-bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
-             (bot (continue-bot (start-bot-from-definition definition *test-base-path* *standard-output*))))
+             (bot (continue-bot (start-bot-from-definition definition
+                                                           *test-base-path* *standard-output*)
+                                *standard-output*)))
         (sleep 0.6)
         (let ((f (probe-file "./test-file")))
           (when f (delete-file f)))
@@ -82,11 +95,11 @@
       (stop-bot bot)
       (sleep 0.01)
       (ok (equal (bot-status bot) :stopped))
-      (continue-bot bot)
+      (continue-bot bot *standard-output*)
       (sleep 0.01)
       (ok (equal (bot-status bot) :running))
       (interrupt-bot bot)))
-  (testing "should start the bot from definition if it was killed"
+  (testing "should restart the bot if it was killed"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
              (initial-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
@@ -95,20 +108,22 @@
         (kill-bot initial-bot)
         (sleep 0.2)
         (ok (equalp (bot-status initial-bot) :signaled))
-        (let ((continued-bot (continue-bot initial-bot)))
+        (let ((continued-bot (continue-bot initial-bot *standard-output*)))
           (sleep 0.01)
           (ok (equalp (bot-status continued-bot) :running))))))
-  (testing "should start the bot from definition if it exited"
+  (testing "should restart the bot if it exited"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f)))
         (setf (relative-filepath definition) "./exited-bot.lisp")
         (let ((initial-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
           (sleep 0.01)
-          (continue-bot initial-bot)
+          (continue-bot initial-bot *standard-output*)
           (sleep 0.5)
           (ok (equalp (bot-status initial-bot) :exited))
-          (setf (relative-filepath (bot-definition initial-bot)) "./turn-bot.lisp")
-          (let ((continued-bot (continue-bot initial-bot)))
+          (setf (command initial-bot) (regex-replace "./exited-bot.lisp" 
+                                                    (command initial-bot)
+                                                    "./turn-bot.lisp"))
+          (let ((continued-bot (continue-bot initial-bot *standard-output*)))
             (sleep 0.01)
             (ok (equalp (bot-status continued-bot) :running))))))))
 
@@ -141,12 +156,14 @@
 
 (deftest bot-turn
   (testing "should send input, read output and stop bot"
-    (let ((bot (run-test-bot *turn-bot*)))
-      (sleep 0.5)
-      (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*) 
-                  (make-bot-turn-result :updated-bot bot :output '("input"))))
-      (ok (equal (bot-status bot) :stopped))
-      (interrupt-bot bot))))
+    (with-open-file (f *bot-definition*)
+      (let* ((definition (bot-definition-json:from-json f))
+             (bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
+        (sleep 0.5)
+        (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*) 
+                    (make-bot-turn-result :updated-bot bot :output '("input"))))
+        (ok (equal (bot-status bot) :stopped))
+        (interrupt-bot bot)))))
 
 (deftest bot-definition 
   (testing "should read a bot definition from a file"

@@ -20,6 +20,7 @@
                                  (player1 input)))))))
 
 (defun run ()
+  (format t "READY~%")
   (loop for (my-player . other-player) = (read-input)
      if (and my-player other-player (>= (money my-player) 10))
      do (let ((my-base-coord (base my-player))

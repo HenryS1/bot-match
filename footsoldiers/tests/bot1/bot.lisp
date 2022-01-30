@@ -11,6 +11,7 @@
      finally (return input)))
 
 (defun run ()
+  (format t "READY~%")
   (loop for input = (read-input)
      do (format t "NO-OP~%")))
 

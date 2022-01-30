@@ -4,6 +4,7 @@
                     finally (return line))))
 
 (defun run ()
+  (format t "READY~%")
   (loop for input = (read-input)
      do (format t "~a~%" (+ input 1))
        (finish-output)))

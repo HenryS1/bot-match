@@ -4,6 +4,7 @@
 (in-package :turn-bot)
 
 (defun run ()
+  (format t "READY~%")
   (let ((input (with-output-to-string (s)
                  (loop for line = (read-line t nil nil)
                     do (write-line line s)
