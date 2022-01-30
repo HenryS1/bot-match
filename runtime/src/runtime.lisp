@@ -27,7 +27,10 @@
            :read-output
            :make-bot-turn-result
            :bot-turn-result-output
-           :bot-turn-result-updated-bot))
+           :bot-turn-result-updated-bot
+           :*max-bot-restarts*
+           :*memory-limit*
+           :bot-restarts))
 
 (in-package :runtime)
 
@@ -155,7 +158,7 @@
   ;; when it is killed its status is :signaled
   (let ((running-bot (if (or (equal (bot-status bot) :exited)
                              (equal (bot-status bot) :signaled))
-                         (if (<= (bot-restarts bot) *max-bot-restarts*)
+                         (if (< (bot-restarts bot) *max-bot-restarts*)
                              (progn (format log-stream "bot ~a not running. re-initialising it~%"
                                             (bot-name bot))
                                     (initialise-bot bot log-stream))

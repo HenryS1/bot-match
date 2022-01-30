@@ -544,7 +544,7 @@
                    &optional (current-directory nil)
                      (game-config *default-game-config*))
   (format t "Running footsoldiers~%")
-  (let ((runtime:*bot-initialisation-time* 2))
+  (let ((runtime:*bot-initialisation-time* 15))
     (let* ((bots (alist-hash-table 
                   (pairlis '("player1" "player2") 
                            (run-bots (construct-bot-paths bot-relative-paths current-directory)

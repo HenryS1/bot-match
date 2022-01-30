@@ -111,6 +111,19 @@
         (let ((continued-bot (continue-bot initial-bot *standard-output*)))
           (sleep 0.01)
           (ok (equalp (bot-status continued-bot) :running))))))
+  (testing "should not restart a killed bot if it has reached the maximum restarts"
+    (with-open-file (f *bot-definition*)
+      (let* ((definition (bot-definition-json:from-json f))
+             (initial-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
+        (sleep 0.01)
+        (ok (equalp (bot-status initial-bot) :stopped))
+        (kill-bot initial-bot)
+        (setf (bot-restarts initial-bot) *max-bot-restarts*)
+        (sleep 0.2)
+        (ok (equalp (bot-status initial-bot) :signaled))
+        (let ((continued-bot (continue-bot initial-bot *standard-output*)))
+          (sleep 0.01)
+          (ok (equalp (bot-status continued-bot) :signaled))))))
   (testing "should restart the bot if it exited"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f)))
@@ -125,7 +138,23 @@
                                                     "./turn-bot.lisp"))
           (let ((continued-bot (continue-bot initial-bot *standard-output*)))
             (sleep 0.01)
-            (ok (equalp (bot-status continued-bot) :running))))))))
+            (ok (equalp (bot-status continued-bot) :running)))))))
+  (testing "should not restart an exited bot if it has reached the maximum restarts"
+    (with-open-file (f *bot-definition*)
+      (let* ((definition (bot-definition-json:from-json f)))
+        (setf (relative-filepath definition) "./exited-bot.lisp")
+        (let ((initial-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
+          (sleep 0.01)
+          (continue-bot initial-bot *standard-output*)
+          (sleep 0.5)
+          (ok (equalp (bot-status initial-bot) :exited))
+          (setf (command initial-bot) (regex-replace "./exited-bot.lisp" 
+                                                    (command initial-bot)
+                                                    "./turn-bot.lisp"))
+          (setf (bot-restarts initial-bot) *max-bot-restarts*)
+          (let ((continued-bot (continue-bot initial-bot *standard-output*)))
+            (sleep 0.01)
+            (ok (equalp (bot-status continued-bot) :exited))))))))
 
 (deftest interrupt-bot
   (testing "should interrupt execution of a bot"
