@@ -2,6 +2,7 @@ ql arrow-macros 2020-03-25
 ql anaphora 2020-03-25
 ql cl-ppcre 2020-03-25
 ql local-time 2020-03-25
+ql unix-opts 2020-03-25
 ql rove 2020-03-25
 ql dissect 2020-03-25
 ql trivial-timeout 2020-03-25

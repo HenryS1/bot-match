@@ -9,6 +9,7 @@
                "local-time"
                "salmon"
                "trivia"
+               "unix-opts"
                "trivia.ppcre"
                "runtime"
                "game-runner")

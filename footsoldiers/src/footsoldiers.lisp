@@ -544,39 +544,64 @@
                    &optional (current-directory nil)
                      (game-config *default-game-config*))
   (format t "Running footsoldiers~%")
-  (let ((runtime:*bot-initialisation-time* 15))
-    (let* ((bots (alist-hash-table 
-                  (pairlis '("player1" "player2") 
-                           (run-bots (construct-bot-paths bot-relative-paths current-directory)
-                                     (logging-config-turns logging-config)))))
-           (game (make-game :map (alist-hash-table 
-                                  (list (cons (cons 0 0) (make-base :team "player1"))
-                                        (cons (cons 20 0) (make-base :team "player2"))
-                                        (cons (cons 10 0) (make-rock))
-                                        (cons (cons 10 -1) (make-rock))
-                                        (cons (cons 10 -2) (make-rock))
-                                        (cons (cons 10 1) (make-rock))
-                                        (cons (cons 10 2) (make-rock))) 
-                                  :test 'equal)
-                            :turns-remaining 100
-                            :player1 (make-player :team "player1" 
-                                                  :money (game-config-initial-money game-config)
-                                                  :base (cons 0 0)
-                                                  :health 40)
-                            :player2 (make-player :team "player2"
-                                                  :money (game-config-initial-money game-config)
-                                                  :base (cons 20 0)
-                                                  :health 40)
-                            :config *default-game-config*)))
-      (n-player-game bots game logging-config))))
+  (let* ((runtime:*bot-initialisation-time* 15)
+         (bots (alist-hash-table 
+                (pairlis '("player1" "player2") 
+                         (run-bots (construct-bot-paths bot-relative-paths current-directory)
+                                   (logging-config-turns logging-config)))))
+         (game (make-game :map (alist-hash-table 
+                                (list (cons (cons 0 0) (make-base :team "player1"))
+                                      (cons (cons 20 0) (make-base :team "player2"))
+                                      (cons (cons 10 0) (make-rock))
+                                      (cons (cons 10 -1) (make-rock))
+                                      (cons (cons 10 -2) (make-rock))
+                                      (cons (cons 10 1) (make-rock))
+                                      (cons (cons 10 2) (make-rock))) 
+                                :test 'equal)
+                          :turns-remaining 100
+                          :player1 (make-player :team "player1" 
+                                                :money (game-config-initial-money game-config)
+                                                :base (cons 0 0)
+                                                :health 40)
+                          :player2 (make-player :team "player2"
+                                                :money (game-config-initial-money game-config)
+                                                :base (cons 20 0)
+                                                :health 40)
+                          :config *default-game-config*)))
+    (n-player-game bots game logging-config)))
+
+(opts:define-opts 
+    (:name :help
+           :description "Print this help dialogue"
+           :long "help"
+           :short #\h)
+    (:name :bot-dir-1
+           :description "The directory where the first bot can be found"
+           :long "bot-dir-1"
+           :arg-parser #'identity
+           :meta-var "DIR")
+    (:name :bot-dir-2
+           :description "The director where the second bot can be found"
+           :long "bot-dir-2"
+           :arg-parser #'identity
+           :meta-var "DIR"))
 
 (defun run-footsoldiers ()
   (handler-case 
-      (let ((bot-1-relative-path (read-line nil nil))
-            (bot-2-relative-path (read-line nil nil)))
-        (start-game (cons bot-1-relative-path bot-2-relative-path) 
-                    (make-logging-config :turns *standard-output*
-                                         :moves *standard-output*
-                                         :states *standard-output*)))
+      (multiple-value-bind (options free-args) (opts:get-opts)
+        (declare (ignore free-args))
+       (let ((bot-1-relative-path (or (getf options :bot-dir-1) "~/bot1/"))
+             (bot-2-relative-path (or (getf options :bot-dir-2) "~/bot2/")))
+         (if (getf options :help)
+             (opts:describe 
+              :prefix "Footsoldiers game runner"
+              :suffix "Hope you enjoy!"
+              :usage-of "footsoldiers-runner"
+              :args     "[FREE-ARGS]")
+             (progn 
+               (start-game (cons bot-1-relative-path bot-2-relative-path) 
+                           (make-logging-config :turns *standard-output*
+                                                :moves *standard-output*
+                                                :states *standard-output*))))))
     (sb-sys:interactive-interrupt () (progn (format t "User interrupt. Exiting.~%") (sb-ext:exit :code 0)))
     (error (e) (progn (format t "Error occurred: ~%~a~%" e) (sb-ext:exit :code 1)))))
