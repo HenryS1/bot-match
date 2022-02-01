@@ -760,6 +760,14 @@
       (ok (equalp (move-result-updated-game step-result)
                   (game-turn-result-game advance-turn-result))))))
 
+(deftest construct-bot-paths
+  (testing "ensures that user provided bot directories are treated as directories"
+    (let ((bot-dir-1 "/bot1")
+          (bot-dir-2 "/bot2"))
+      (bind (((bot1-path . bot2-path) (construct-bot-paths (cons bot-dir-1 bot-dir-2))))
+        (ok (string= (format nil "~a" bot1-path) "/bot1/"))
+        (ok (string= (format nil "~a" bot2-path) "/bot2/"))))))
+
 (deftest start-game
   (testing "runs bots and plays game until it is finished"
     (let ((result (start-game (cons "bot1/" "bot2/")

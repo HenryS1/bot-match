@@ -58,7 +58,8 @@
            :make-rock
            :*default-game-config*
            :game-config
-           :game-config-money-per-turn))
+           :game-config-money-per-turn
+           :construct-bot-paths))
 
 (in-package :footsoldiers)
 
@@ -528,10 +529,12 @@
   (bind (((bot-1-relative-path . bot-2-relative-path) bot-relative-paths))
     (labels ((bot-absolute-path (bot-relative-path)
                (if current-directory 
-                   (merge-pathnames bot-relative-path current-directory)
-                   (merge-pathnames bot-relative-path))))
+                   (merge-pathnames (cl-fad:pathname-as-directory bot-relative-path)
+                                    (cl-fad:pathname-as-directory current-directory))
+                   (merge-pathnames (cl-fad:pathname-as-directory bot-relative-path)))))
       (cons (bot-absolute-path bot-1-relative-path)
             (bot-absolute-path bot-2-relative-path)))))
+
 
 (defun run-bots (bot-absolute-paths turns-log-stream)
   (bind (((bot1-path . bot2-path) bot-absolute-paths)
@@ -581,7 +584,7 @@
            :arg-parser #'identity
            :meta-var "DIR")
     (:name :bot-dir-2
-           :description "The director where the second bot can be found"
+           :description "The directory where the second bot can be found"
            :long "bot-dir-2"
            :arg-parser #'identity
            :meta-var "DIR"))

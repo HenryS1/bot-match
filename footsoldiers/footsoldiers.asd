@@ -10,6 +10,7 @@
                "salmon"
                "trivia"
                "unix-opts"
+               "cl-fad"
                "trivia.ppcre"
                "runtime"
                "game-runner")
