@@ -629,10 +629,10 @@
                                                                :destination (cons 3 3)))) 
                                      :test 'equal))
            (new-player1 (make-player :team "player1" 
-                                     :money (+ 10 (game-config-money-per-turn *default-game-config*)) 
+                                     :money (+ 10 (money-per-turn *default-game-config*)) 
                                      :base (cons 4 3) :health 20))
            (new-player2 (make-player :team "player2" 
-                                     :money (+ 1 (game-config-money-per-turn *default-game-config*)) 
+                                     :money (+ 1 (money-per-turn *default-game-config*)) 
                                      :base (cons 5 4) :health 22))
            (new-gm (make-game :map new-mp :turns-remaining 19
                               :player1 new-player1
@@ -789,5 +789,5 @@
                               (make-logging-config :turns nil 
                                                    :moves *standard-output*
                                                    :states nil)
-                              (directory-namestring #.*compile-file-truename*))))
+                              :current-directory (directory-namestring #.*compile-file-truename*))))
       (ok (equalp (determine-result result) (cons :winner "player2"))))))

@@ -58,7 +58,7 @@
            :make-rock
            :*default-game-config*
            :game-config
-           :game-config-money-per-turn
+           :money-per-turn
            :construct-bot-paths))
 
 (in-package :footsoldiers)
@@ -119,36 +119,48 @@
 
 (defstruct move-result errors updated-game)
 
-(defstruct speed-config scout assassin tank)
-(defstruct damage-config scout assassin tank)
-(defstruct cost-config scout assassin tank)
-(defstruct health-config scout assassin tank)
+(define-json-model speed-config (scout assassin tank) :kebab-case)
+(define-json-model damage-config (scout assassin tank) :kebab-case)
+(define-json-model cost-config (scout assassin tank) :kebab-case)
+(define-json-model health-config (scout assassin tank) :kebab-case)
 
-(defstruct game-config 
-  initial-money
-  money-per-turn
-  max-distance-from-base
-  health
-  speed
-  damage
-  cost)
+(define-json-model game-config 
+    ((initial-money)
+     (money-per-turn)
+     (max-distance-from-base)
+     (health health-config)
+     (speed-config speed-config)
+     (damage damage-config)
+     (cost cost-config))
+  :kebab-case)
 
 (defparameter *soldier-types* '(:scout :tank :assassin))
 (defparameter *default-health-config* 
-  (make-health-config :scout 6 :assassin 6 :tank 6))
+  (make-instance 'health-config :scout 6 
+                 :assassin 6 
+                 :tank 6))
 (defparameter *default-speed-config*
-  (make-speed-config :scout 3 :assassin 5 :tank 2))
+  (make-instance 'speed-config 
+                 :scout 3 
+                 :assassin 5 
+                 :tank 2))
 (defparameter *default-damage-config* 
-  (make-damage-config :scout 2 :assassin 5 :tank 2))
+  (make-instance 'damage-config 
+                 :scout 2 
+                 :assassin 5 
+                 :tank 2))
 (defparameter *default-cost-config*
-  (make-cost-config :scout 10 :tank 12 :assassin 14))
+  (make-instance 'cost-config 
+                 :scout 10 
+                 :tank 12 
+                 :assassin 14))
 (defparameter *default-game-config*
-  (make-game-config 
+  (make-instance 'game-config 
    :initial-money 10
    :money-per-turn 3 
    :max-distance-from-base 5 
    :health *default-health-config*
-   :speed *default-speed-config*
+   :speed-config *default-speed-config*
    :damage *default-damage-config*
    :cost *default-cost-config*))
 
@@ -162,32 +174,32 @@
    (cons "player2" (player-alist (game-player2 game)))))
 
 (defmethod initial-health (soldier-type (game-config game-config))
-  (let ((config (game-config-health game-config)))
+  (let ((config (health game-config)))
     (case soldier-type
-      (:scout (health-config-scout config))
-      (:assassin (health-config-assassin config))
-      (:tank (health-config-tank config)))))
+      (:scout (scout config))
+      (:assassin (assassin config))
+      (:tank (tank config)))))
 
 (defmethod soldier-speed (soldier-type (game-config game-config))
-  (let ((config (game-config-speed game-config)))
+  (let ((config (speed-config game-config)))
     (case soldier-type
-      (:scout (speed-config-scout config))
-      (:assassin (speed-config-assassin config))
-      (:tank (speed-config-tank config)))))
+      (:scout (scout config))
+      (:assassin (assassin config))
+      (:tank (tank config)))))
 
-(defmethod damage (soldier-type (game-config game-config))
-  (let ((config (game-config-damage game-config)))
+(defmethod soldier-damage (soldier-type (game-config game-config))
+  (let ((config (damage game-config)))
     (case soldier-type
-      (:scout (damage-config-scout config))
-      (:assassin (damage-config-assassin config))
-      (:tank (damage-config-tank config)))))
+      (:scout (scout config))
+      (:assassin (assassin config))
+      (:tank (tank config)))))
 
-(defmethod cost (soldier-type (game-config game-config))
-  (let ((config (game-config-cost game-config)))
+(defmethod soldier-cost (soldier-type (game-config game-config))
+  (let ((config (cost game-config)))
     (case soldier-type
-      (:scout (cost-config-scout config))
-      (:assassin (cost-config-assassin config))
-      (:tank (cost-config-tank config)))))
+      (:scout (scout config))
+      (:assassin (assassin config))
+      (:tank (tank config)))))
 
 (defun sqr (x) (* x x))
 
@@ -270,7 +282,7 @@
       (gethash it mp))))
 
 (defmethod attack-soldier ((s1 soldier) (s2 soldier) mp config)
-  (let ((new-health (max 0 (- (soldier-health s2) (damage (soldier-type s1) config)))))
+  (let ((new-health (max 0 (- (soldier-health s2) (soldier-damage (soldier-type s1) config)))))
     (if (= new-health 0)
         (remhash (soldier-pos s2) mp)
         (setf (gethash (soldier-pos s2) mp)
@@ -284,7 +296,7 @@
                         (copy-structure (game-player1 gm))
                         (copy-structure (game-player2 gm)))))
     (setf (player-health new-player) (max 0 (- (player-health new-player)
-                                               (damage (soldier-type s) (game-config gm)))))
+                                               (soldier-damage (soldier-type s) (game-config gm)))))
     (if (equalp (base-team b) (player-team (game-player1 gm)))
         (setf (game-player1 gm) new-player)
         (setf (game-player2 gm) new-player))
@@ -324,7 +336,7 @@
 
 (defmethod close-enough-to-base (pos (player player) (game-config game-config))
   (<= (distance pos (player-base player))
-      (game-config-max-distance-from-base game-config)))
+      (max-distance-from-base game-config)))
 
 (defun format-position (pos)
   (format nil "(~a, ~a)" (car pos) (cdr pos)))
@@ -333,9 +345,9 @@
   (let ((player (copy-structure (if (equalp team (player-team (game-player1 new-gm)))
                                     (game-player1 new-gm)
                                     (game-player2 new-gm)))))
-    (if (< (player-money player) (cost soldier-type (game-config new-gm)))
+    (if (< (player-money player) (soldier-cost soldier-type (game-config new-gm)))
         (left (format nil "Player ~a with money ~a doesn't have enough money for ~a with cost ~a" 
-                      (player-team player) (player-money player) soldier-type (cost soldier-type (game-config new-gm))))
+                      (player-team player) (player-money player) soldier-type (soldier-cost soldier-type (game-config new-gm))))
         (if (not (close-enough-to-base start player (game-config new-gm)))
             (left (format nil "Player ~a tried to build ~a at position ~a, too far from base ~a"
                           (player-team player) soldier-type 
@@ -349,7 +361,7 @@
                                         :type soldier-type
                                         :destination destination
                                         :team (player-team player))))
-                  (setf (player-money player) (- (player-money player) (cost soldier-type (game-config new-gm))))
+                  (setf (player-money player) (- (player-money player) (soldier-cost soldier-type (game-config new-gm))))
                   (setf (gethash start (game-map new-gm)) s)
                   (if (equalp team (player-team (game-player1 new-gm)))
                       (setf (game-player1 new-gm) player)
@@ -442,8 +454,8 @@
       (let* ((ticked-game (copy-structure after-attack))
              (player1 (copy-structure (game-player1 ticked-game)))
              (player2 (copy-structure (game-player2 ticked-game))))
-        (incf (player-money player1) (game-config-money-per-turn (game-config gm)))
-        (incf (player-money player2) (game-config-money-per-turn (game-config gm)))
+        (incf (player-money player1) (money-per-turn (game-config gm)))
+        (incf (player-money player2) (money-per-turn (game-config gm)))
         (setf (game-turns-remaining ticked-game)
               (- (game-turns-remaining ticked-game) 1))
         (setf (game-player1 ticked-game) player1)
@@ -535,7 +547,6 @@
       (cons (bot-absolute-path bot-1-relative-path)
             (bot-absolute-path bot-2-relative-path)))))
 
-
 (defun run-bots (bot-absolute-paths turns-log-stream)
   (bind (((bot1-path . bot2-path) bot-absolute-paths)
          (bot-1-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot1-path)))
@@ -544,7 +555,7 @@
           (runtime:start-bot-from-definition bot-2-def (format nil "~a" bot2-path) turns-log-stream))))
 
 (defun start-game (bot-relative-paths logging-config 
-                   &optional (current-directory nil)
+                   &key (current-directory nil)
                      (game-config *default-game-config*))
   (format t "Running footsoldiers~%")
   (let* ((runtime:*bot-initialisation-time* 15)
@@ -563,14 +574,14 @@
                                 :test 'equal)
                           :turns-remaining 100
                           :player1 (make-player :team "player1" 
-                                                :money (game-config-initial-money game-config)
+                                                :money (initial-money game-config)
                                                 :base (cons 0 0)
                                                 :health 40)
                           :player2 (make-player :team "player2"
-                                                :money (game-config-initial-money game-config)
+                                                :money (initial-money game-config)
                                                 :base (cons 20 0)
                                                 :health 40)
-                          :config *default-game-config*)))
+                          :config game-config)))
     (n-player-game bots game logging-config)))
 
 (opts:define-opts 
@@ -587,24 +598,38 @@
            :description "The directory where the second bot can be found"
            :long "bot-dir-2"
            :arg-parser #'identity
-           :meta-var "DIR"))
+           :meta-var "DIR")
+    (:name :config-file-path
+           :description "The path of the game runner config file"
+           :long "config-file-path"
+           :arg-parser #'identity
+           :meta-var "CONF-FILE"))
+
+(defun normalise-path (path-string)
+  (merge-pathnames (parse-namestring path-string)))
 
 (defun run-footsoldiers ()
   (handler-case 
       (multiple-value-bind (options free-args) (opts:get-opts)
         (declare (ignore free-args))
        (let ((bot-1-relative-path (or (getf options :bot-dir-1) "~/bot1/"))
-             (bot-2-relative-path (or (getf options :bot-dir-2) "~/bot2/")))
+             (bot-2-relative-path (or (getf options :bot-dir-2) "~/bot2/"))
+             (config-file-path (normalise-path 
+                                (or (getf options :config-file-path) "./game-config.json"))))
          (if (getf options :help)
              (opts:describe 
               :prefix "Footsoldiers game runner"
               :suffix "Hope you enjoy!"
               :usage-of "footsoldiers-runner"
               :args     "[FREE-ARGS]")
-             (progn 
+             (let ((config (if (probe-file config-file-path)
+                               (with-open-file (f config-file-path)
+                                 (game-config-json:from-json f))
+                               *default-game-config*)))
                (start-game (cons bot-1-relative-path bot-2-relative-path) 
                            (make-logging-config :turns *standard-output*
                                                 :moves *standard-output*
-                                                :states *standard-output*))))))
+                                                :states *standard-output*)
+                           :game-config config)))))
     (sb-sys:interactive-interrupt () (progn (format t "User interrupt. Exiting.~%") (sb-ext:exit :code 0)))
     (error (e) (progn (format t "Error occurred: ~%~a~%" e) (sb-ext:exit :code 1)))))

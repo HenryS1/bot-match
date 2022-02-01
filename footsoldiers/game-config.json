@@ -1,0 +1,25 @@
+{
+    "initial-money": 10,
+    "money-per-turn": 3,
+    "max-distance-from-base": 5,
+    "health": {
+        "scout": 6,
+        "assassin": 6,
+        "tank": 6
+    },
+    "speed-config": {
+        "scout": 3,
+        "assassin": 5,
+        "tank": 2
+    },
+    "damage": {
+        "scout": 2,
+        "assassin": 5,
+        "tank": 2
+    },
+    "cost": {
+        "scout": 10,
+        "tank": 12,
+        "assassin": 14
+    }
+}
