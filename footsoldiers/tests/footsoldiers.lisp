@@ -760,13 +760,28 @@
       (ok (equalp (move-result-updated-game step-result)
                   (game-turn-result-game advance-turn-result))))))
 
+(defparameter *test-base-path* (directory-namestring #.*compile-file-truename*))
+
 (deftest construct-bot-paths
   (testing "ensures that user provided bot directories are treated as directories"
     (let ((bot-dir-1 "/bot1")
           (bot-dir-2 "/bot2"))
       (bind (((bot1-path . bot2-path) (construct-bot-paths (cons bot-dir-1 bot-dir-2))))
         (ok (string= (format nil "~a" bot1-path) "/bot1/"))
-        (ok (string= (format nil "~a" bot2-path) "/bot2/"))))))
+        (ok (string= (format nil "~a" bot2-path) "/bot2/")))))
+  (testing "prepends the current directory when provided"
+    (let ((bot-dir-1 "bot1/")
+          (bot-dir-2 "bot2/"))
+      (bind (((bot1-path . bot2-path) (construct-bot-paths (cons bot-dir-1 bot-dir-2) "/bots")))
+        (ok (string= (format nil "~a" bot1-path) "/bots/bot1/"))
+        (ok (string= (format nil "~a" bot2-path) "/bots/bot2/")))))
+  (testing "resolves a relative path to an absolute path"
+    (let ((bot-dir-1 "bot1")
+          (bot-dir-2 "bot2"))
+      (bind (((bot1-path . bot2-path) (construct-bot-paths (cons bot-dir-1 bot-dir-2) *test-base-path*)))
+        (ok (string= (format nil "~a" bot1-path) (format nil "~abot1/" *test-base-path*)))
+        (ok (string= (format nil "~a" bot2-path) (format nil "~abot2/" *test-base-path*))))))
+  ())
 
 (deftest start-game
   (testing "runs bots and plays game until it is finished"

@@ -530,7 +530,7 @@
     (labels ((bot-absolute-path (bot-relative-path)
                (if current-directory 
                    (merge-pathnames (cl-fad:pathname-as-directory bot-relative-path)
-                                    (cl-fad:pathname-as-directory current-directory))
+                                    (cl-fad:pathname-as-directory (parse-namestring current-directory)))
                    (merge-pathnames (cl-fad:pathname-as-directory bot-relative-path)))))
       (cons (bot-absolute-path bot-1-relative-path)
             (bot-absolute-path bot-2-relative-path)))))
