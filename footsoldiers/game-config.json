@@ -7,7 +7,7 @@
         "assassin": 6,
         "tank": 6
     },
-    "speed-config": {
+    "speed": {
         "scout": 3,
         "assassin": 5,
         "tank": 2

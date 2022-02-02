@@ -129,7 +129,7 @@
      (money-per-turn)
      (max-distance-from-base)
      (health health-config)
-     (speed-config speed-config)
+     (speed-config speed-config "speed")
      (damage damage-config)
      (cost cost-config))
   :kebab-case)
