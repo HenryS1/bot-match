@@ -17,6 +17,8 @@
   :author "Henry and Ed"
   :license "MIT"
   :depends-on ("game-runner"
+               "trivia"
+               "salmon"
                "rove")
   :components ((:module "tests"
                 :components

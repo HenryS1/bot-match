@@ -1,5 +1,5 @@
 (defpackage :guessing-game
-  (:use :cl :runtime :n-player-game :alexandria :rove))
+  (:use :cl :runtime :n-player-game :alexandria :rove :trivia :monad :either))
 
 (in-package :guessing-game)
 
@@ -63,16 +63,28 @@
                                         (format nil "~a" bot-base-path)
                                         (logging-config-turns logging-config))))
 
+(defun rights (results)
+  (mapcar #'right-value (remove-if-not (lambda (r) (match r ((type right) t)
+                                                          (otherwise nil))) results)))
+
+(defun lefts (results)
+  (mapcar #'left-err (remove-if-not (lambda (r) (match r ((type left) t) 
+                                                       (otherwise nil))) results)))
+
 (defun run-guessing-game ()
   (format t "running guessing game~%")
-  (let ((*bot-initialisation-time* 1))
-   (let* ((logging-config (make-logging-config :turns nil
-                                               :moves nil
-                                               :states nil))
-          (bots (alist-hash-table (pairlis '("player1" "player2") 
-                                           (run-bots logging-config)) :test 'equal))
-          (game (make-instance 'guessing-game)))
-     (n-player-game bots game logging-config))))
+  (let* ((*bot-initialisation-time* 10)
+         (logging-config (make-logging-config :turns nil
+                                              :moves nil
+                                              :states nil))
+         (bot-initialisation (run-bots logging-config))
+         (errors (lefts bot-initialisation))
+         (started-bots (rights bot-initialisation)))
+    (if (not (null errors))
+        (fail (format nil "~{~a~}" errors))
+        (let ((player-bots (alist-hash-table (pairlis '("player1" "player2") started-bots) :test 'equal))
+              (game (make-instance 'guessing-game)))
+          (n-player-game player-bots game logging-config)))))
 
 (deftest guessing-game 
   (testing "should produce scores for bots"

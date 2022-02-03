@@ -2,6 +2,10 @@
     "initial-money": 10,
     "money-per-turn": 3,
     "max-distance-from-base": 5,
+    "allowed-commands": {
+        "lisp-ros": "ros +Q -- <bot-file>",
+        "lisp-ros-herodotus": "ros -Q -s herodotus -- <bot-file>"
+    },
     "health": {
         "scout": 6,
         "assassin": 6,

@@ -59,7 +59,11 @@
            :*default-game-config*
            :game-config
            :money-per-turn
-           :construct-bot-paths))
+           :construct-bot-paths
+           :*default-health-config*
+           :*default-speed-config*
+           :*default-damage-config*
+           :*default-cost-config*))
 
 (in-package :footsoldiers)
 
@@ -128,6 +132,7 @@
     ((initial-money)
      (money-per-turn)
      (max-distance-from-base)
+     (allowed-commands)
      (health health-config)
      (speed-config speed-config "speed")
      (damage damage-config)
@@ -158,6 +163,9 @@
   (make-instance 'game-config 
    :initial-money 10
    :money-per-turn 3 
+   :allowed-commands (alist-hash-table 
+                      (list (cons "lisp-ros" "ros +Q -- <bot-file>"))
+                      :test 'equal)
    :max-distance-from-base 5 
    :health *default-health-config*
    :speed-config *default-speed-config*
@@ -547,42 +555,58 @@
       (cons (bot-absolute-path bot-1-relative-path)
             (bot-absolute-path bot-2-relative-path)))))
 
-(defun run-bots (bot-absolute-paths turns-log-stream)
+(defun run-bots (bot-absolute-paths turns-log-stream allowed-commands)
   (bind (((bot1-path . bot2-path) bot-absolute-paths)
          (bot-1-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot1-path)))
          (bot-2-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot2-path))))
-    (list (runtime:start-bot-from-definition bot-1-def (format nil "~a" bot1-path) turns-log-stream)
-          (runtime:start-bot-from-definition bot-2-def (format nil "~a" bot2-path) turns-log-stream))))
+    (let* ((bots (list (runtime:start-bot-from-definition
+                        bot-1-def
+                        (format nil "~a" bot1-path) 
+                        turns-log-stream
+                        :allowed-commands allowed-commands)
+                       (runtime:start-bot-from-definition
+                        bot-2-def
+                        (format nil "~a" bot2-path)
+                        turns-log-stream
+                        :allowed-commands allowed-commands)))
+           (errors (lefts bots))
+           (successes (rights bots)))
+      (if (null errors)
+          (right successes)
+          (left errors)))))
 
 (defun start-game (bot-relative-paths logging-config 
                    &key (current-directory nil)
                      (game-config *default-game-config*))
   (format t "Running footsoldiers~%")
-  (let* ((runtime:*bot-initialisation-time* 15)
-         (bots (alist-hash-table 
-                (pairlis '("player1" "player2") 
-                         (run-bots (construct-bot-paths bot-relative-paths current-directory)
-                                   (logging-config-turns logging-config)))))
-         (game (make-game :map (alist-hash-table 
-                                (list (cons (cons 0 0) (make-base :team "player1"))
-                                      (cons (cons 20 0) (make-base :team "player2"))
-                                      (cons (cons 10 0) (make-rock))
-                                      (cons (cons 10 -1) (make-rock))
-                                      (cons (cons 10 -2) (make-rock))
-                                      (cons (cons 10 1) (make-rock))
-                                      (cons (cons 10 2) (make-rock))) 
-                                :test 'equal)
-                          :turns-remaining 100
-                          :player1 (make-player :team "player1" 
-                                                :money (initial-money game-config)
-                                                :base (cons 0 0)
-                                                :health 40)
-                          :player2 (make-player :team "player2"
-                                                :money (initial-money game-config)
-                                                :base (cons 20 0)
-                                                :health 40)
-                          :config game-config)))
-    (n-player-game bots game logging-config)))
+  (let ((runtime:*bot-initialisation-time* 15))
+    (fmap (lambda (bs)
+                  (let* ((bots (alist-hash-table (pairlis '("player1" "player2") bs) :test 'equal))
+                         (game (make-game :map (alist-hash-table 
+                                                (list (cons (cons 0 0)
+                                                            (make-base :team "player1"))
+                                                      (cons (cons 20 0) 
+                                                            (make-base :team "player2"))
+                                                      (cons (cons 10 0) (make-rock))
+                                                      (cons (cons 10 -1) (make-rock))
+                                                      (cons (cons 10 -2) (make-rock))
+                                                      (cons (cons 10 1) (make-rock))
+                                                      (cons (cons 10 2) (make-rock))) 
+                                                :test 'equal)
+                                          :turns-remaining 100
+                                          :player1 (make-player :team "player1" 
+                                                                :money (initial-money game-config)
+                                                                :base (cons 0 0)
+                                                                :health 40)
+                                          :player2 (make-player :team "player2"
+                                                                :money (initial-money game-config)
+                                                                :base (cons 20 0)
+                                                                :health 40)
+                                          :config game-config)))
+                    (n-player-game bots game logging-config))) 
+          (run-bots (construct-bot-paths bot-relative-paths current-directory)
+                    (logging-config-turns logging-config)
+                    (allowed-commands game-config)))))
 
 (opts:define-opts 
     (:name :help
@@ -626,10 +650,12 @@
                                (with-open-file (f config-file-path)
                                  (game-config-json:from-json f))
                                *default-game-config*)))
-               (start-game (cons bot-1-relative-path bot-2-relative-path) 
-                           (make-logging-config :turns *standard-output*
-                                                :moves *standard-output*
-                                                :states *standard-output*)
-                           :game-config config)))))
+               (match (start-game (cons bot-1-relative-path bot-2-relative-path) 
+                            (make-logging-config :turns *standard-output*
+                                                 :moves *standard-output*
+                                                 :states *standard-output*)
+                            :game-config config)
+                 ((left (left-err errs)) (mapc (lambda (e) (format t "~a~%" e)) errs))
+                 ((right (right-value game-result)) game-result))))))
     (sb-sys:interactive-interrupt () (progn (format t "User interrupt. Exiting.~%") (sb-ext:exit :code 0)))
     (error (e) (progn (format t "Error occurred: ~%~a~%" e) (sb-ext:exit :code 1)))))

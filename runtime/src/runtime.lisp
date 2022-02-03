@@ -1,11 +1,14 @@
 (defpackage runtime
-  (:use :cl :uiop :arrow-macros :trivial-timeout
+  (:use :cl :arrow-macros :trivial-timeout
         :cl-ppcre
+        :monad
+        :either
+        :alexandria
         :bind
         :herodotus)
   (:export :run-bot
            :bot-output
-           :relative-filepath
+           :filename
            :stop-bot
            :continue-bot
            :name
@@ -44,7 +47,7 @@
    (command :accessor command :initarg :command :initform (error "command must be provided"))
    (bot-restarts :accessor bot-restarts :initarg :bot-restarts :initform 0)))
 
-(define-json-model bot-definition (name command relative-filepath) :kebab-case)
+(define-json-model bot-definition (name command filename) :kebab-case)
 
 (defun read-bot-definition (path)
   (with-open-file (f path)
@@ -84,29 +87,40 @@
       (format log-stream "Timed out waiting for bot ~a to signal readiness" (bot-name bot))
       bot)))
 
+(defparameter *default-allowed-commands* 
+  (alist-hash-table (list (cons "lisp-ros" "ros +Q -- <bot-file>")) :test 'equal))
+
 (defmethod start-bot-from-definition ((bot-definition bot-definition) base-path 
                                       log-stream
-                                      &optional (memory-limit *memory-limit*))
-  (let* ((templated-command
-          (regex-replace "<bot-file>" 
-                         (command bot-definition)
-                         (concatenate 'string base-path (relative-filepath bot-definition))))
-         (memory-limited-command (format nil "ulimit -f 0 -v ~a; ~a" 
-                                         memory-limit
-                                         templated-command)))
-    (format log-stream "starting bot ~a using command ~a~%" 
-            (name bot-definition)
-            templated-command)
-    (let ((bot (make-instance 
-                'concrete-bot
-                :bot-process (run-bot "bash" (list "-c" memory-limited-command))
-                :bot-id (random-id 10)
-                :bot-name (name bot-definition)
-                :bot-definition bot-definition
-                :command memory-limited-command)))
-      (wait-for-bot-to-be-ready bot log-stream)
-      (stop-bot bot)
-      bot)))
+                                      &key (memory-limit *memory-limit*)
+                                        (allowed-commands *default-allowed-commands*))
+  (if (not (gethash (command bot-definition) allowed-commands))
+      (left (format nil "Failed to start bot ~a. Unrecognised command ~a." 
+                    (name bot-definition) (command bot-definition)))
+      (let* ((templated-command
+              (regex-replace "<bot-file>" 
+                             (gethash (command bot-definition) allowed-commands)
+                             (format nil "~a" (merge-pathnames
+                                               (file-namestring
+                                                (parse-namestring (filename bot-definition)))
+                                               (cl-fad:pathname-as-directory 
+                                                (parse-namestring base-path))))))
+             (memory-limited-command (format nil "ulimit -f 0 -v ~a; ~a" 
+                                             memory-limit
+                                             templated-command)))
+        (format log-stream "starting bot ~a using command ~a~%" 
+                (name bot-definition)
+                templated-command)
+        (let ((bot (make-instance 
+                    'concrete-bot
+                    :bot-process (run-bot "bash" (list "-c" memory-limited-command))
+                    :bot-id (random-id 10)
+                    :bot-name (name bot-definition)
+                    :bot-definition bot-definition
+                    :command memory-limited-command)))
+          (wait-for-bot-to-be-ready bot log-stream)
+          (stop-bot bot)
+          (right bot)))))
 
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit &optional log-stream parser))

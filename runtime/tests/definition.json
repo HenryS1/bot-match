@@ -1,5 +1,5 @@
 {
     "name": "bot",
-    "relative-filepath": "./turn-bot.lisp",
-    "command": "ros +Q -- <bot-file>"
+    "filename": "turn-bot.lisp",
+    "command": "lisp-ros"
 }

@@ -780,14 +780,27 @@
           (bot-dir-2 "bot2"))
       (bind (((bot1-path . bot2-path) (construct-bot-paths (cons bot-dir-1 bot-dir-2) *test-base-path*)))
         (ok (string= (format nil "~a" bot1-path) (format nil "~abot1/" *test-base-path*)))
-        (ok (string= (format nil "~a" bot2-path) (format nil "~abot2/" *test-base-path*))))))
-  ())
+        (ok (string= (format nil "~a" bot2-path) (format nil "~abot2/" *test-base-path*)))))))
 
 (deftest start-game
   (testing "runs bots and plays game until it is finished"
     (let ((result (start-game (cons "bot1/" "bot2/")
-                              (make-logging-config :turns nil 
+                              (make-logging-config :turns nil
                                                    :moves *standard-output*
                                                    :states nil)
-                              :current-directory (directory-namestring #.*compile-file-truename*))))
-      (ok (equalp (determine-result result) (cons :winner "player2"))))))
+                              :current-directory (directory-namestring #.*compile-file-truename*)
+                              :game-config 
+                              (make-instance 'game-config
+                                             :initial-money 10
+                                             :money-per-turn 3
+                                             :allowed-commands 
+                                             (alist-hash-table
+                                              (list (cons "lisp-ros-herodotus"
+                                                          "ros -Q -s herodotus -- <bot-file>"))
+                                              :test 'equal)
+                                             :max-distance-from-base 5
+                                             :health *default-health-config*
+                                             :speed-config *default-speed-config*
+                                             :damage *default-damage-config*
+                                             :cost *default-cost-config*))))
+      (ok (equalp (fmap #'determine-result result) (right (cons :winner "player2")))))))
