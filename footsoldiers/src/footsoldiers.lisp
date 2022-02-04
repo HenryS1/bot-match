@@ -613,6 +613,26 @@
            :description "Print this help dialogue"
            :long "help"
            :short #\h)
+    (:name :result-file
+           :description "File to write the game result to"
+           :long "result-file"
+           :arg-parser #'identity
+           :meta-var "RESULT-FILE")
+    (:name :turn-logs
+           :description "File to write the game turns to"
+           :long "turn-logs"
+           :arg-parser #'identity
+           :meta-var "TURN-LOGS")
+    (:name :move-logs
+           :description "File to write the game moves to"
+           :long "move-logs"
+           :arg-parser #'identity
+           :meta-var "MOVE-LOGS")
+    (:name :state-logs
+           :description "File to write game states to"
+           :long "state-logs"
+           :arg-parser #'identity
+           :meta-var "STATE-LOGS")
     (:name :bot-dir-1
            :description "The directory where the first bot can be found"
            :long "bot-dir-1"
@@ -639,23 +659,36 @@
        (let ((bot-1-relative-path (or (getf options :bot-dir-1) "~/bot1/"))
              (bot-2-relative-path (or (getf options :bot-dir-2) "~/bot2/"))
              (config-file-path (normalise-path 
-                                (or (getf options :config-file-path) "./game-config.json"))))
+                                (or (getf options :config-file-path) "./game-config.json")))
+             (result-filepath (or (getf options :result-file) "./game-result"))
+             (turns-filepath (or (getf options :turn-logs) "./turn-logs"))
+             (moves-filepath (or (getf options :move-logs) "./move-logs"))
+             (states-filepath (or (getf options :state-logs) "./state-logs")))
          (if (getf options :help)
              (opts:describe 
               :prefix "Footsoldiers game runner"
               :suffix "Hope you enjoy!"
               :usage-of "footsoldiers-runner"
               :args     "[FREE-ARGS]")
-             (let ((config (if (probe-file config-file-path)
+             (let ((config (if (and config-file-path (probe-file config-file-path))
                                (with-open-file (f config-file-path)
                                  (game-config-json:from-json f))
                                *default-game-config*)))
-               (match (start-game (cons bot-1-relative-path bot-2-relative-path) 
-                            (make-logging-config :turns *standard-output*
-                                                 :moves *standard-output*
-                                                 :states *standard-output*)
-                            :game-config config)
-                 ((left (left-err errs)) (mapc (lambda (e) (format t "~a~%" e)) errs))
-                 ((right (right-value game-result)) game-result))))))
+               (with-open-file (turns turns-filepath :if-does-not-exist 
+                                      :create :if-exists :supersede :direction :output)
+                 (with-open-file (moves moves-filepath :if-does-not-exist
+                                        :create :if-exists :supersede :direction :output)
+                   (with-open-file (states states-filepath :if-does-not-exist
+                                           :create :if-exists :supersede :direction :output)
+                     (match (start-game (cons bot-1-relative-path bot-2-relative-path) 
+                                        (make-logging-config :turns turns
+                                                             :moves moves
+                                                             :states states)
+                                        :game-config config)
+                       ((left (left-err errs)) (mapc (lambda (e) (format t "~a~%" e)) errs))
+                       ((right (right-value end-game)) 
+                        (with-open-file (result result-filepath :if-does-not-exist
+                                                :create :if-exists :supersede :direction :output)
+                          (format result "~a~%" (game-result end-game))))))))))))
     (sb-sys:interactive-interrupt () (progn (format t "User interrupt. Exiting.~%") (sb-ext:exit :code 0)))
     (error (e) (progn (format t "Error occurred: ~%~a~%" e) (sb-ext:exit :code 1)))))
