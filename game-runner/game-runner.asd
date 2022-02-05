@@ -4,6 +4,7 @@
   :license "MIT"
   :depends-on ("arrow-macros"
                "anaphora"
+               "metabang-bind"
                "cl-ppcre"
                "runtime")
   :components ((:module "src"
@@ -16,6 +17,8 @@
   :author "Henry and Ed"
   :license "MIT"
   :depends-on ("game-runner"
+               "trivia"
+               "salmon"
                "rove")
   :components ((:module "tests"
                 :components

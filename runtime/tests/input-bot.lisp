@@ -5,12 +5,11 @@
 
 (defun run ()
   (let ((result (with-output-to-string (s)
-                  (loop for line = (read-line t nil nil)
-                     while (and line (> (length line) 0))
-                     do (write-line line s)))))
-                    (format t "~a~%" result)
-                    (format t "~%")
-                    (finish-output)
-                    (sleep 2)))
+                  (loop for line = (read-line t nil nil)              
+                     do (write-line line s)
+                     while (listen)))))
+    (format t "~a" result)
+    (finish-output)
+    (sleep 2)))
 
 (run)

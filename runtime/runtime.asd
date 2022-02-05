@@ -5,6 +5,10 @@
   :depends-on ("arrow-macros"
                "anaphora"
                "herodotus"
+               "metabang-bind"
+               "alexandria"
+               "cl-fad"
+               "salmon"
                "cl-ppcre"
                "trivial-timeout")
   :components ((:module "src"
@@ -17,6 +21,7 @@
   :author "Henry and Ed"
   :license "MIT"
   :depends-on ("runtime"
+               "trivia"
                "rove")
   :components ((:module "tests"
                 :components

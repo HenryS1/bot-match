@@ -4,7 +4,8 @@
 (in-package :dummy-bot)
 
 (defun run ()
+  (sleep 0.5)
   (format t "bot output~%")
-  (format t "~%"))
+  (finish-output))
 
 (run)

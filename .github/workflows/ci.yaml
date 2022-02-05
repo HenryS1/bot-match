@@ -37,3 +37,7 @@ jobs:
         run: |
           PATH="~/.roswell/bin:$PATH"
           rove runtime/runtime.asd
+      - name: Run footsoldiers tests
+        run: |
+          PATH="~/.roswell/bin:$PATH"
+          rove footsoldiers/footsoldiers.asd

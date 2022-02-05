@@ -4,12 +4,13 @@
 (in-package :turn-bot)
 
 (defun run ()
+  (format t "READY~%")
   (let ((input (with-output-to-string (s)
                  (loop for line = (read-line t nil nil)
-                    while (and line (> (length line) 0))
-                    do (write-line line s)))))
+                    do (write-line line s)
+                    while (listen)))))
     (format t "~a" input)
-    (format t "~%")
+    (finish-output)
     (sleep 20)))
 
 (run)

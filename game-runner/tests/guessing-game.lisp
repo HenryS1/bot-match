@@ -1,14 +1,17 @@
 (defpackage :guessing-game
-  (:use :cl :runtime :n-player-game :alexandria :rove))
+  (:use :cl :runtime :n-player-game :alexandria :rove :trivia :monad :either))
 
 (in-package :guessing-game)
 
-(defclass guessing-game (game)
+(defclass guessing-game ()
   ((numbers :accessor numbers :initarg :numbers :initform (list 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20))
    (player-guesses :accessor player-guesses :initarg :player-guesses :initform nil)
    (current-player-id :accessor current-player-id :initarg :current-player-id :initform "player1")
    (other-player-id :accessor other-player-id :initarg :other-player-id :initform "player2")
    (player-scores :accessor player-scores :initarg :player-scores :initform nil)))
+
+(defmethod game-state ((game guessing-game))
+  (format nil "Player scores ~a, Player guesses ~a" (player-scores game) (player-guesses game)))
 
 (defmethod is-finished? ((game guessing-game))
   (null (numbers game)))
@@ -17,7 +20,7 @@
   (player-scores game))
 
 (defmethod get-players-input-for-turn ((game guessing-game))
-  (list (cons (current-player-id game) (format nil "~a" (car (numbers game))))))
+  (list (cons (current-player-id game) (format nil "~a~%" (car (numbers game))))))
 
 (defmethod turn-time-limit ((game guessing-game)) 1)
 
@@ -36,29 +39,55 @@
       (cons (cons (car player-move) new-score) 
             (remove (car player-move) old-scores :key #'car :test 'equal)))))
 
+(defmethod input-parser ((game guessing-game)) #'read-output)
+
 (defmethod advance-turn (player-moves game)
-  (make-instance 'guessing-game 
-                 :numbers (cdr (numbers game))
-                 :player-guesses (reduce #'add-guess player-moves :initial-value (player-guesses game))
-                 :current-player-id (other-player-id game)
-                 :other-player-id (current-player-id game)
-                 :player-scores (reduce (update-score game) player-moves :initial-value (player-scores game))))
+  (make-game-turn-result 
+   :game (make-instance 'guessing-game 
+                        :numbers (cdr (numbers game))
+                        :player-guesses (reduce #'add-guess player-moves :initial-value (player-guesses game))
+                        :current-player-id (other-player-id game)
+                        :other-player-id (current-player-id game)
+                        :player-scores (reduce (update-score game) player-moves :initial-value (player-scores game)))
+   :move-log (mapcar (lambda (m) (format nil "Player ~a, Move ~a" (car m) (cdr m))) 
+                     player-moves)))
 
 (defparameter *base-path* (directory-namestring #.*compile-file-truename*))
 
-(defun run-bots ()
+(defun run-bots (logging-config)
   (loop for i from 1 to 2
      for bot-base-path in (mapcar (lambda (dir) (merge-pathnames dir *base-path* ))
                                   '("bot1/" "bot2/"))
      for definition = (read-bot-definition (merge-pathnames "definition.json" bot-base-path))
-     collect (start-bot-from-definition definition (format nil "~a" bot-base-path))))
+     collect (start-bot-from-definition definition 
+                                        (format nil "~a" bot-base-path)
+                                        (logging-config-turns logging-config))))
+
+(defun rights (results)
+  (mapcar #'right-value (remove-if-not (lambda (r) (match r ((type right) t)
+                                                          (otherwise nil))) results)))
+
+(defun lefts (results)
+  (mapcar #'left-err (remove-if-not (lambda (r) (match r ((type left) t) 
+                                                       (otherwise nil))) results)))
+
+(defmethod game-visualisation ((game guessing-game)) "Guessing game")
 
 (defun run-guessing-game ()
   (format t "running guessing game~%")
-  (let ((*bot-initialisation-time* 0.2))
-   (let* ((bots (alist-hash-table (pairlis '("player1" "player2") (run-bots)) :test 'equal))
-          (game (make-instance 'guessing-game)))
-     (n-player-game bots game 1))))
+  (let* ((*bot-initialisation-time* 10)
+         (logging-config (make-logging-config :turns nil
+                                              :moves nil
+                                              :states nil
+                                              :visualisation nil))
+         (bot-initialisation (run-bots logging-config))
+         (errors (lefts bot-initialisation))
+         (started-bots (rights bot-initialisation)))
+    (if (not (null errors))
+        (fail (format nil "~{~a~}" errors))
+        (let ((player-bots (alist-hash-table (pairlis '("player1" "player2") started-bots) :test 'equal))
+              (game (make-instance 'guessing-game)))
+          (n-player-game player-bots game logging-config)))))
 
 (deftest guessing-game 
   (testing "should produce scores for bots"

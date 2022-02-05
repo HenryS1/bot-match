@@ -14,6 +14,26 @@
  (:class qlot/source/ql:source-ql
   :initargs (:%version "2020-03-25")
   :version "ql-2020-03-25"))
+("local-time" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2020-03-25")
+  :version "ql-2020-03-25"))
+("cl-fad" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2020-03-25")
+  :version "ql-2020-03-25"))
+("unix-opts" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2020-03-25")
+  :version "ql-2020-03-25"))
+("rove" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2020-03-25")
+  :version "ql-2020-03-25"))
+("dissect" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2020-03-25")
+  :version "ql-2020-03-25"))
 ("trivial-timeout" .
  (:class qlot/source/ql:source-ql
   :initargs (:%version "2020-03-25")
@@ -24,5 +44,5 @@
   :version "git-f580fbac47cdb23128e0531ebec6a1e1ae80ac5b"))
 ("salmon" .
  (:class qlot/source/git:source-git
-  :initargs (:remote-url "https://github.com/HenryS1/salmon.git" :branch "master")
-  :version "git-00096e1eb776b2c86a2100dc3f6e0a28ccd4621a"))
+  :initargs (:remote-url "https://github.com/HenryS1/salmon.git" :tag "v1.1.0")
+  :version "git-a542170ca11ec6fe2579a353b3766e80f7e8e783"))
