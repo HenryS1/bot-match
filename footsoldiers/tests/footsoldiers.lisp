@@ -591,14 +591,14 @@
            (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 0))
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2)))
-      (ok (equalp (determine-result gm) (cons :winner "player2")))))
+      (ok (equalp (determine-result gm) "Winner player2"))))
   (testing "returns draw otherwise"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
            (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 0 :player1 player1 :player2 player2)))
-      (ok (equalp (determine-result gm) :draw)))))
+      (ok (equalp (determine-result gm) "Draw")))))
 
 (deftest step-game
   (testing "applies moves, increments available money and reduces available turns"
@@ -873,19 +873,22 @@
                    (cons "bot1/" "bot2/")
                    (make-logging-config :turns nil
                                         :moves *standard-output*
-                                        :states nil)
+                                        :states nil
+                                        :visualisation nil)
                    :current-directory (directory-namestring #.*compile-file-truename*)
-                   :game-config (make-instance 'game-config
-                                               :initial-money 10
-                                               :money-per-turn 3
-                                               :allowed-commands 
-                                               (alist-hash-table
-                                                (list (cons "lisp-ros-herodotus"
-                                                            "ros -Q -s herodotus -- <bot-file>"))
-                                                :test 'equal)
-                                               :max-distance-from-base 5
-                                               :health *default-health-config*
-                                               :speed-config *default-speed-config*
-                                               :damage *default-damage-config*
-                                               :cost *default-cost-config*))))
-      (ok (equalp (fmap #'determine-result result) (right (cons :winner "player2")))))))
+                   :game-config (make-instance 
+                                 'game-config
+                                 :initial-money 10
+                                 :money-per-turn 3
+                                 :allowed-commands 
+                                 (alist-hash-table
+                                  (list (cons "lisp-ros-herodotus"
+                                              "ros -Q -s herodotus -- <bot-file>"))
+                                  :test 'equal)
+                                 :max-distance-from-base 5
+                                 :bot-memory-limit-kib (bot-memory-limit-kib *default-game-config*)
+                                 :health *default-health-config*
+                                 :speed-config *default-speed-config*
+                                 :damage *default-damage-config*
+                                 :cost *default-cost-config*))))
+      (ok (equalp (fmap #'determine-result result) (right "Winner player2"))))))

@@ -6,6 +6,7 @@
         "lisp-ros": "ros +Q -- <bot-file>",
         "lisp-ros-herodotus": "ros -Q -s herodotus -- <bot-file>"
     },
+    "bot-memory-limit-kib": 1048576,
     "health": {
         "scout": 6,
         "assassin": 6,

@@ -67,7 +67,8 @@
            :map-from-lines
            :map-from-file
            :make-map-details
-           :map-details-map))
+           :map-details-map
+           :bot-memory-limit-kib))
 
 (in-package :footsoldiers)
 
@@ -136,6 +137,7 @@
     ((initial-money)
      (money-per-turn)
      (max-distance-from-base)
+     (bot-memory-limit-kib)
      (allowed-commands)
      (health health-config)
      (speed-config speed-config "speed")
@@ -170,6 +172,7 @@
    :allowed-commands (alist-hash-table 
                       (list (cons "lisp-ros" "ros +Q -- <bot-file>"))
                       :test 'equal)
+   :bot-memory-limit-kib 2000000
    :max-distance-from-base 5 
    :health *default-health-config*
    :speed-config *default-speed-config*
@@ -449,11 +452,11 @@
 (defmethod determine-result ((game game))
   (if (and (= (player-health (game-player1 game)) 0)
            (> (player-health (game-player2 game)) 0)) 
-      (cons :winner (player-team (game-player2 game)))
+      (format nil "Winner ~a" (player-team (game-player2 game)))
       (if (and (= (player-health (game-player2 game)) 0)
                (> (player-health (game-player1 game)) 0))
           (cons :winner (player-team (game-player1 game)))
-          :draw)))
+          "Draw")))
 
 (defmethod step-game (moves (gm game))
   (let ((new-mp (copy-hash-table (game-map gm)))
@@ -559,7 +562,7 @@
       (cons (bot-absolute-path bot-1-relative-path)
             (bot-absolute-path bot-2-relative-path)))))
 
-(defun run-bots (bot-absolute-paths turns-log-stream allowed-commands)
+(defun run-bots (bot-absolute-paths turns-log-stream allowed-commands memory-limit)
   (bind (((bot1-path . bot2-path) bot-absolute-paths)
          (bot-1-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot1-path)))
          (bot-2-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot2-path))))
@@ -567,12 +570,14 @@
                         bot-1-def
                         (format nil "~a" bot1-path) 
                         turns-log-stream
-                        :allowed-commands allowed-commands)
+                        :allowed-commands allowed-commands
+                        :memory-limit memory-limit)
                        (runtime:start-bot-from-definition
                         bot-2-def
                         (format nil "~a" bot2-path)
                         turns-log-stream
-                        :allowed-commands allowed-commands)))
+                        :allowed-commands allowed-commands
+                        :memory-limit memory-limit)))
            (errors (lefts bots))
            (successes (rights bots)))
       (if (null errors)
@@ -626,7 +631,8 @@
                        (n-player-game bots game logging-config))) 
                    (run-bots (construct-bot-paths bot-relative-paths current-directory)
                              (logging-config-turns logging-config)
-                             (allowed-commands game-config)))))))
+                             (allowed-commands game-config)
+                             (bot-memory-limit-kib game-config)))))))
 
 (opts:define-opts 
     (:name :help
@@ -755,14 +761,16 @@
            (format s "~%")))))
 
 (defmethod game-visualisation ((game game))
-  (with-output-to-string (s)
-    (format s "Player 1: health ~a, money ~a~%" 
-            (player-health (game-player1 game))
-            (player-money (game-player1 game)))
-    (format s "Player 2: health ~a, money ~a~%"
-            (player-health (game-player2 game))
-            (player-money (game-player2 game)))
-    (format s (draw-map (game-map game)))))
+  (if (is-finished? game)
+      (format nil "~a~%" (game-result game))
+      (with-output-to-string (s)
+           (format s "Player 1: health ~a, money ~a~%" 
+                   (player-health (game-player1 game))
+                   (player-money (game-player1 game)))
+           (format s "Player 2: health ~a, money ~a~%"
+                   (player-health (game-player2 game))
+                   (player-money (game-player2 game)))
+           (format s (draw-map (game-map game))))))
 
 (defun run-footsoldiers ()
   (handler-case 
@@ -784,9 +792,9 @@
               :usage-of "footsoldiers-runner"
               :args     "[FREE-ARGS]")
              (bind ((config (if (and config-file-path (probe-file config-file-path))
-                               (with-open-file (f config-file-path)
-                                 (game-config-json:from-json f))
-                               *default-game-config*))
+                                (with-open-file (f config-file-path)
+                                  (game-config-json:from-json f))
+                                *default-game-config*))
                     (parsed-map (map-from-file map-filepath)))
                (match parsed-map 
                  ((left (left-err e)) (format t "~a" e))
