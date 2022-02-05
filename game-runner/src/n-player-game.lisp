@@ -11,16 +11,18 @@
            :make-logging-config
            :game-state
            :game-turn-result-game
-           :logging-config-turns))
+           :logging-config-turns
+           :game-visualisation))
 
 (in-package :n-player-game)
 
 (defstruct game-turn-result game move-log)
-(defstruct logging-config turns moves states)
+(defstruct logging-config turns moves states visualisation)
 
 (defgeneric is-finished? (game))
 (defgeneric game-result (game))
 (defgeneric game-state (game))
+(defgeneric game-visualisation (game))
 (defgeneric get-players-input-for-turn (game))
 (defgeneric advance-turn (player-moves game))
 (defgeneric input-parser (game))
@@ -55,6 +57,8 @@
             (game-turn-result-move-log turn-result))
       (format (logging-config-states logging-config) "~a~%" 
               (game-state (game-turn-result-game turn-result)))
+      (format (logging-config-visualisation logging-config) "~a~%"
+              (game-visualisation (game-turn-result-game turn-result)))
       (cons new-bots (game-turn-result-game turn-result)))))
 
 (defparameter *termination-timeout* 0.5)

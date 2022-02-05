@@ -718,6 +718,52 @@
                       while line collect line)))))
     (map-from-lines lines)))
 
+(defun determine-map-bounds (map)
+  (loop for (x . y) being the hash-keys of map
+     using (hash-value v) 
+     minimizing x into x-min
+     minimizing y into y-min
+     maximizing x into x-max
+     maximizing y into y-max
+     finally (return (list x-min y-min x-max y-max))))
+
+(defun draw-map (map)
+  (bind (((x-min y-min x-max y-max) (determine-map-bounds map)))
+    (with-output-to-string (s)
+      (loop for r from y-min to y-max
+         do (loop for c from x-min to x-max
+               do (let ((entry (gethash (cons c r) map)))
+                    (match entry
+                      ((type soldier)
+                       (case (soldier-type entry)
+                         (:scout (if (string= (soldier-team entry) "player1")
+                                     (format s "]")
+                                     (format s "[")))
+                         (:assassin (if (string= (soldier-team entry) "player1")
+                                        (format s ">")
+                                        (format s "<")))
+                         (:tank (if (string= (soldier-team entry) "player1")
+                                    (format s "}")
+                                    (format s "{")))))
+                      ((type base)
+                       (if (string= (base-team entry) "player1")
+                           (format s "1")
+                           (format s "2")))
+                      ((type rock)
+                       (format s "X"))
+                      (nil (format s " ")))))
+           (format s "~%")))))
+
+(defmethod game-visualisation ((game game))
+  (with-output-to-string (s)
+    (format s "Player 1: health ~a, money ~a~%" 
+            (player-health (game-player1 game))
+            (player-money (game-player1 game)))
+    (format s "Player 2: health ~a, money ~a~%"
+            (player-health (game-player2 game))
+            (player-money (game-player2 game)))
+    (format s (draw-map (game-map game)))))
+
 (defun run-footsoldiers ()
   (handler-case 
       (multiple-value-bind (options free-args) (opts:get-opts)
@@ -754,7 +800,8 @@
                         (match (start-game (cons bot-1-relative-path bot-2-relative-path) 
                                            (make-logging-config :turns turns
                                                                 :moves moves
-                                                                :states states)
+                                                                :states states
+                                                                :visualisation *standard-output*)
                                            :game-map map-details
                                            :game-config config)
                           ((left (left-err errs)) (mapc (lambda (e) (format t "~a~%" e)) errs))

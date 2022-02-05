@@ -23,6 +23,8 @@
 (defmethod game-state ((game test-game))
   (format nil "Turns remaining ~a" (turns-remaining game)))
 
+(defmethod game-visualisation ((game test-game)) "Test game")
+
 (defmethod get-players-input-for-turn ((game test-game))
   (list (cons "player1" (format nil "~a" (turns-remaining game)))))
 
@@ -85,7 +87,8 @@
           (bots (initialise-bots))
           (logging-config (make-logging-config :turns *standard-output*
                                                :moves *standard-output*
-                                               :states *standard-output*)))
+                                               :states *standard-output*
+                                               :visualisation *standard-output*)))
       (bind (((_ . next-game) (tick bots game logging-config)))
         (ok (equal (moves next-game) (list (cons "player1" "output 1"))))
         (ok (equal (turns-remaining next-game) 1)))))
@@ -99,7 +102,8 @@
                   :test 'equal))
            (logging-config (make-logging-config :turns *standard-output*
                                                 :moves *standard-output*
-                                                :states *standard-output*)))
+                                                :states *standard-output*
+                                                :visualisation *standard-output*)))
       (setf (bot-status bot) :exited)
       (bind (((next-bots . _) (tick bots game logging-config)))
         (ok (equal (bot-status (gethash "player1" next-bots)) :stopped))))))
@@ -110,7 +114,8 @@
           (bots (initialise-bots))
           (logging-config (make-logging-config :turns *standard-output*
                                                :moves *standard-output*
-                                               :states *standard-output*)))
+                                               :states *standard-output*
+                                               :visualisation *standard-output*)))
       (let ((end-game (n-player-game bots game logging-config)))
         (ok (is-finished? end-game)))))
   (testing "should log the game state at each turn"
@@ -119,7 +124,8 @@
                    (bots (initialise-bots))
                    (logging-config (make-logging-config :turns nil
                                                         :moves nil
-                                                        :states turn-log)))
+                                                        :states turn-log
+                                                        :visualisation *standard-output*)))
                (n-player-game bots game logging-config)))))
       (ok (equalp state-logs (format nil "Turns remaining 1~%Turns remaining 0~%")))))
   (testing "should log the moves at each turn"
@@ -128,7 +134,8 @@
                    (bots (initialise-bots))
                    (logging-config (make-logging-config :turns nil
                                                         :moves move-log
-                                                        :states nil)))
+                                                        :states nil
+                                                        :visualisation *standard-output*)))
                (n-player-game bots game logging-config)))))
       (ok (equalp move-logs (format nil "(player1 . output 1)~%(player1 . output 2)~%")))))
   (testing "should log output from bot turns"
@@ -137,6 +144,7 @@
                    (bots (initialise-bots))
                    (logging-config (make-logging-config :turns turn-log
                                                         :moves nil
-                                                        :states nil)))
+                                                        :states nil
+                                                        :visualisation *standard-output*)))
                (n-player-game bots game logging-config)))))
       (ok (equalp turn-logs (format nil "bot turn 1~%bot turn 2~%"))))))

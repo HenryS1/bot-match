@@ -71,12 +71,15 @@
   (mapcar #'left-err (remove-if-not (lambda (r) (match r ((type left) t) 
                                                        (otherwise nil))) results)))
 
+(defmethod game-visualisation ((game guessing-game)) "Guessing game")
+
 (defun run-guessing-game ()
   (format t "running guessing game~%")
   (let* ((*bot-initialisation-time* 10)
          (logging-config (make-logging-config :turns nil
                                               :moves nil
-                                              :states nil))
+                                              :states nil
+                                              :visualisation nil))
          (bot-initialisation (run-bots logging-config))
          (errors (lefts bot-initialisation))
          (started-bots (rights bot-initialisation)))
