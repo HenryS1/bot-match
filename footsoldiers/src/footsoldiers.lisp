@@ -63,7 +63,11 @@
            :*default-health-config*
            :*default-speed-config*
            :*default-damage-config*
-           :*default-cost-config*))
+           :*default-cost-config*
+           :map-from-lines
+           :map-from-file
+           :make-map-details
+           :map-details-map))
 
 (in-package :footsoldiers)
 
@@ -575,38 +579,54 @@
           (right successes)
           (left errors)))))
 
+(defstruct map-details base1 base2 map)
+
+(defparameter *default-game-map* 
+  (make-map-details :base1 (cons 0 0) :base2 (cons 20 0)
+                    :map (alist-hash-table 
+                          (list (cons (cons 0 0)
+                                      (make-base :team "player1"))
+                                (cons (cons 20 0) 
+                                      (make-base :team "player2"))
+                                (cons (cons 10 0) (make-rock))
+                                (cons (cons 10 -1) (make-rock))
+                                (cons (cons 10 -2) (make-rock))
+                                (cons (cons 10 1) (make-rock))
+                                (cons (cons 10 2) (make-rock))) 
+                          :test 'equal)))
+
 (defun start-game (bot-relative-paths logging-config 
                    &key (current-directory nil)
-                     (game-config *default-game-config*))
+                     (game-config *default-game-config*)
+                     (game-map *default-game-map*))
   (format t "Running footsoldiers~%")
-  (let ((runtime:*bot-initialisation-time* 15))
-    (fmap (lambda (bs)
-                  (let* ((bots (alist-hash-table (pairlis '("player1" "player2") bs) :test 'equal))
-                         (game (make-game :map (alist-hash-table 
-                                                (list (cons (cons 0 0)
-                                                            (make-base :team "player1"))
-                                                      (cons (cons 20 0) 
-                                                            (make-base :team "player2"))
-                                                      (cons (cons 10 0) (make-rock))
-                                                      (cons (cons 10 -1) (make-rock))
-                                                      (cons (cons 10 -2) (make-rock))
-                                                      (cons (cons 10 1) (make-rock))
-                                                      (cons (cons 10 2) (make-rock))) 
-                                                :test 'equal)
-                                          :turns-remaining 100
-                                          :player1 (make-player :team "player1" 
-                                                                :money (initial-money game-config)
-                                                                :base (cons 0 0)
-                                                                :health 40)
-                                          :player2 (make-player :team "player2"
-                                                                :money (initial-money game-config)
-                                                                :base (cons 20 0)
-                                                                :health 40)
-                                          :config game-config)))
-                    (n-player-game bots game logging-config))) 
-          (run-bots (construct-bot-paths bot-relative-paths current-directory)
-                    (logging-config-turns logging-config)
-                    (allowed-commands game-config)))))
+  (let ((runtime:*bot-initialisation-time* 15)
+        (base1-lookup (gethash (map-details-base1 game-map) (map-details-map game-map)))
+        (base2-lookup (gethash (map-details-base2 game-map) (map-details-map game-map))))
+    (cond ((or (not base1-lookup) (not (equalp (base-team base1-lookup) "player1")))
+           (left "player1 base was not in the expected position"))
+          ((or (not base2-lookup) (not (equalp (base-team base2-lookup) "player2")))
+           (left "player2 base was not in the expected position"))
+          (t (fmap (lambda (bs)
+                     (let* ((bots (alist-hash-table (pairlis '("player1" "player2") bs)
+                                                    :test 'equal))
+                            (game (make-game :map (map-details-map game-map)
+                                             :turns-remaining 100
+                                             :player1 (make-player 
+                                                       :team "player1" 
+                                                       :money (initial-money game-config)
+                                                       :base (map-details-base1 game-map)
+                                                       :health 40)
+                                             :player2 (make-player 
+                                                       :team "player2"
+                                                       :money (initial-money game-config)
+                                                       :base (map-details-base2 game-map)
+                                                       :health 40)
+                                             :config game-config)))
+                       (n-player-game bots game logging-config))) 
+                   (run-bots (construct-bot-paths bot-relative-paths current-directory)
+                             (logging-config-turns logging-config)
+                             (allowed-commands game-config)))))))
 
 (opts:define-opts 
     (:name :help
@@ -647,10 +667,56 @@
            :description "The path of the game runner config file"
            :long "config-file-path"
            :arg-parser #'identity
-           :meta-var "CONF-FILE"))
+           :meta-var "CONF-FILE")
+    (:name :map-file-path
+           :description "The path of the file with the game map"
+           :long "map-file-path"
+           :arg-parser #'identity
+           :meta-var "MAP-FILE"))
 
 (defun normalise-path (path-string)
   (merge-pathnames (parse-namestring path-string)))
+
+(defun only-allowed-characters (lines)
+  (every (lambda (line) (every (lambda (c) (member c '(#\1 #\2 #\X #\space))) line)) lines))
+
+(defun map-from-lines (lines)
+  (if (not (only-allowed-characters lines))
+      (left "The provided map contains characters which are not allowed. Only '1', '2', 'X' and ' ' are allowed.")
+      (let ((map (make-hash-table :test 'equal))
+            base1 base2
+            (base1-seen-count 0) (base2-seen-count 0))
+        (loop for line in lines
+           for row from 0
+           do (loop for ch across line
+                 for col from 0
+                 if (char= ch #\1)
+                 do (setf (gethash (cons col row) map) 
+                          (make-base :team "player1"))
+                   (setf base1 (cons col row))
+                   (incf base1-seen-count)
+                 else if (char= ch #\2)
+                 do (setf (gethash (cons col row) map)
+                          (make-base :team "player2"))
+                   (setf base2 (cons col row))
+                   (incf base2-seen-count)
+                 else if (char= ch #\X)
+                 do (setf (gethash (cons col row) map)
+                          (make-rock))))
+        (cond ((null base1) (left "No base for player1 was found on the map"))
+              ((null base2) (left "No base for player2 was found on the map"))
+              ((> base1-seen-count 1)
+               (left "More than one base position was specified for player1"))
+              ((> base2-seen-count 1) 
+               (left "More than one base position was specified for player2"))
+              (t (right (make-map-details :base1 base1 :base2 base2 :map map)))))))
+
+(defun map-from-file (filepath)
+  (let ((lines (with-open-file (f filepath)
+                 (when f
+                   (loop for line = (read-line f nil nil)
+                      while line collect line)))))
+    (map-from-lines lines)))
 
 (defun run-footsoldiers ()
   (handler-case 
@@ -663,32 +729,40 @@
              (result-filepath (or (getf options :result-file) "./game-result"))
              (turns-filepath (or (getf options :turn-logs) "./turn-logs"))
              (moves-filepath (or (getf options :move-logs) "./move-logs"))
-             (states-filepath (or (getf options :state-logs) "./state-logs")))
+             (states-filepath (or (getf options :state-logs) "./state-logs"))
+             (map-filepath (or (getf options :map-filepath) "./game-map")))
          (if (getf options :help)
              (opts:describe 
               :prefix "Footsoldiers game runner"
               :suffix "Hope you enjoy!"
               :usage-of "footsoldiers-runner"
               :args     "[FREE-ARGS]")
-             (let ((config (if (and config-file-path (probe-file config-file-path))
+             (bind ((config (if (and config-file-path (probe-file config-file-path))
                                (with-open-file (f config-file-path)
                                  (game-config-json:from-json f))
-                               *default-game-config*)))
-               (with-open-file (turns turns-filepath :if-does-not-exist 
-                                      :create :if-exists :supersede :direction :output)
-                 (with-open-file (moves moves-filepath :if-does-not-exist
-                                        :create :if-exists :supersede :direction :output)
-                   (with-open-file (states states-filepath :if-does-not-exist
+                               *default-game-config*))
+                    (parsed-map (map-from-file map-filepath)))
+               (match parsed-map 
+                 ((left (left-err e)) (format t "~a" e))
+                 ((right (right-value map-details))
+                  (with-open-file (turns turns-filepath :if-does-not-exist 
+                                         :create :if-exists :supersede :direction :output)
+                    (with-open-file (moves moves-filepath :if-does-not-exist
                                            :create :if-exists :supersede :direction :output)
-                     (match (start-game (cons bot-1-relative-path bot-2-relative-path) 
-                                        (make-logging-config :turns turns
-                                                             :moves moves
-                                                             :states states)
-                                        :game-config config)
-                       ((left (left-err errs)) (mapc (lambda (e) (format t "~a~%" e)) errs))
-                       ((right (right-value end-game)) 
-                        (with-open-file (result result-filepath :if-does-not-exist
-                                                :create :if-exists :supersede :direction :output)
-                          (format result "~a~%" (game-result end-game))))))))))))
+                      (with-open-file (states states-filepath :if-does-not-exist
+                                              :create :if-exists :supersede :direction :output)
+                        (match (start-game (cons bot-1-relative-path bot-2-relative-path) 
+                                           (make-logging-config :turns turns
+                                                                :moves moves
+                                                                :states states)
+                                           :game-map map-details
+                                           :game-config config)
+                          ((left (left-err errs)) (mapc (lambda (e) (format t "~a~%" e)) errs))
+                          ((right (right-value end-game)) 
+                           (with-open-file (result result-filepath 
+                                                   :if-does-not-exist
+                                                   :create :if-exists
+                                                   :supersede :direction :output)
+                             (format result "~a~%" (game-result end-game))))))))))))))
     (sb-sys:interactive-interrupt () (progn (format t "User interrupt. Exiting.~%") (sb-ext:exit :code 0)))
     (error (e) (progn (format t "Error occurred: ~%~a~%" e) (sb-ext:exit :code 1)))))

@@ -782,25 +782,110 @@
         (ok (string= (format nil "~a" bot1-path) (format nil "~abot1/" *test-base-path*)))
         (ok (string= (format nil "~a" bot2-path) (format nil "~abot2/" *test-base-path*)))))))
 
+(deftest map-from-lines 
+  (testing "should fail to parse a map with disallowed characters"
+    (let ((lines (list "i")))
+      (ok (equalp (map-from-lines lines)
+                  (left "The provided map contains characters which are not allowed. Only '1', '2', 'X' and ' ' are allowed.")))))
+  (testing "should fail to parse a map when player1's base is missing"
+    (let ((lines (list "2")))
+      (ok (equalp (map-from-lines lines)
+                  (left "No base for player1 was found on the map")))))
+  (testing "should fail to parse a map when player2's base is missing"
+    (let ((lines (list "1")))
+      (ok (equalp (map-from-lines lines)
+                  (left "No base for player2 was found on the map")))))
+  (testing "should successfully read a map with two bases"
+    (let ((lines (list "1 2")))
+      (ok (equalp (map-from-lines lines)
+                  (right (make-map-details 
+                          :base1 (cons 0 0) :base2 (cons 2 0)
+                          :map (alist-hash-table (list (cons (cons 0 0)
+                                                             (make-base :team "player1"))
+                                                       (cons (cons 2 0) 
+                                                             (make-base :team "player2")))
+                                                 :test 'equal)))))))
+  (testing "should fail to parse a map when there is more than one position for player1's base"
+    (let ((lines (list "1 1 2")))
+      (ok (equalp (map-from-lines lines)
+                  (left "More than one base position was specified for player1")))))
+  (testing "should fail to parse a map when there is more than one position for player2's base"
+    (let ((lines (list "1 2 2")))
+      (ok (equalp (map-from-lines lines)
+                  (left "More than one base position was specified for player2")))))
+  (testing "should read a map with rocks"
+    (let ((lines (list "X 1 2 X")))
+      (ok (equalp (map-from-lines lines)
+                  (right (make-map-details 
+                          :base1 (cons 2 0) :base2 (cons 4 0)
+                          :map (alist-hash-table (list (cons (cons 0 0) (make-rock))
+                                                       (cons (cons 2 0) 
+                                                             (make-base :team "player1"))
+                                                       (cons (cons 4 0)
+                                                             (make-base :team "player2"))
+                                                       (cons (cons 6 0) (make-rock))) 
+                                                 :test 'equal)))))))
+  (testing "should read a map with multiple rows"
+    (let ((lines (list "X   X"
+                       "1 X 2"
+                       "X   X")))
+      (ok (equalp (map-from-lines lines)
+                  (right (make-map-details 
+                          :base1 (cons 0 1) :base2 (cons 4 1)
+                          :map (alist-hash-table (list (cons (cons 0 0) (make-rock))
+                                                       (cons (cons 4 0) (make-rock))
+                                                       (cons (cons 0 1) 
+                                                             (make-base :team "player1"))
+                                                       (cons (cons 2 1) (make-rock))
+                                                       (cons (cons 4 1)
+                                                             (make-base :team "player2"))
+                                                       (cons (cons 0 2) (make-rock))
+                                                       (cons (cons 4 2) (make-rock)))
+                                                 :test 'equal))))))))
+
+(deftest map-from-file 
+  (testing "should read a game-map from a file"
+    (format t "BLAH~%")
+    (let ((test-path (format nil "~atest.mp" *test-base-path*)))
+      (with-open-file (f test-path :if-does-not-exist :create
+                         :if-exists :supersede :direction :output)
+        (when f (format f "X   X~%1 X 2~%X   X")))
+      (let ((mp (with-open-file (f test-path) (when f (map-from-file f)))))
+        (ok (equalp mp
+                    (right (make-map-details 
+                          :base1 (cons 0 1) :base2 (cons 4 1)
+                          :map (alist-hash-table (list (cons (cons 0 0) (make-rock))
+                                                       (cons (cons 4 0) (make-rock))
+                                                       (cons (cons 0 1) 
+                                                             (make-base :team "player1"))
+                                                       (cons (cons 2 1) (make-rock))
+                                                       (cons (cons 4 1)
+                                                             (make-base :team "player2"))
+                                                       (cons (cons 0 2) (make-rock))
+                                                       (cons (cons 4 2) (make-rock)))
+                                                 :test 'equal))))))      
+      (let ((test-file (probe-file test-path)))
+        (when test-file (delete-file test-file))))))
+
 (deftest start-game
   (testing "runs bots and plays game until it is finished"
-    (let ((result (start-game (cons "bot1/" "bot2/")
-                              (make-logging-config :turns nil
-                                                   :moves *standard-output*
-                                                   :states nil)
-                              :current-directory (directory-namestring #.*compile-file-truename*)
-                              :game-config 
-                              (make-instance 'game-config
-                                             :initial-money 10
-                                             :money-per-turn 3
-                                             :allowed-commands 
-                                             (alist-hash-table
-                                              (list (cons "lisp-ros-herodotus"
-                                                          "ros -Q -s herodotus -- <bot-file>"))
-                                              :test 'equal)
-                                             :max-distance-from-base 5
-                                             :health *default-health-config*
-                                             :speed-config *default-speed-config*
-                                             :damage *default-damage-config*
-                                             :cost *default-cost-config*))))
+    (let ((result (start-game 
+                   (cons "bot1/" "bot2/")
+                   (make-logging-config :turns nil
+                                        :moves *standard-output*
+                                        :states nil)
+                   :current-directory (directory-namestring #.*compile-file-truename*)
+                   :game-config (make-instance 'game-config
+                                               :initial-money 10
+                                               :money-per-turn 3
+                                               :allowed-commands 
+                                               (alist-hash-table
+                                                (list (cons "lisp-ros-herodotus"
+                                                            "ros -Q -s herodotus -- <bot-file>"))
+                                                :test 'equal)
+                                               :max-distance-from-base 5
+                                               :health *default-health-config*
+                                               :speed-config *default-speed-config*
+                                               :damage *default-damage-config*
+                                               :cost *default-cost-config*))))
       (ok (equalp (fmap #'determine-result result) (right (cons :winner "player2")))))))
