@@ -20,7 +20,6 @@ USER footsoldiers
 RUN ros install sbcl-bin/2.2.0 && \
  ros install qlot && \
  /home/footsoldiers/.roswell/bin/qlot install && \
- mkdir -p /home/footsoldiers/.config/common-lisp && \
  ros run --load footsoldiers/build.lisp && \
  chmod +x /home/footsoldiers/bot-match/footsoldiers
 
