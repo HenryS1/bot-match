@@ -3,8 +3,8 @@
     "money-per-turn": 3,
     "max-distance-from-base": 5,
     "allowed-commands": {
-        "lisp-ros": "ros +Q -- <bot-file>",
-        "lisp-ros-herodotus": "ros -Q -s herodotus -- <bot-file>"
+        "lisp-ros": "ros dynamic-space-size=900 +Q -- <bot-file>",
+        "lisp-ros-herodotus": "ros dynamic-space-size=900 -Q -s herodotus -- <bot-file>"
     },
     "bot-memory-limit-kib": 1048576,
     "health": {

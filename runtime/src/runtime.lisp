@@ -105,7 +105,7 @@
                                                 (parse-namestring (filename bot-definition)))
                                                (cl-fad:pathname-as-directory 
                                                 (parse-namestring base-path))))))
-             (memory-limited-command (format nil "ulimit -f 0 -v ~a; ~a" 
+             (memory-limited-command (format nil "ulimit -v ~a; ~a" 
                                              memory-limit
                                              templated-command)))
         (format log-stream "starting bot ~a using command ~a~%" 

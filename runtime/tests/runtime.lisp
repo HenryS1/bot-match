@@ -82,19 +82,6 @@
         (sleep 0.1)
         (ok (equalp (fmap #'bot-status bot) (right :signaled)))))))
 
-(deftest file-access-limiting
-  (testing "should prevent a bot from writing to a file"
-    (with-open-file (f *filesystem-bot-definition*)
-      (let* ((definition (bot-definition-json:from-json f))
-             (bot (fmap (lambda (b) (continue-bot b *standard-output*)) 
-                        (start-bot-from-definition 
-                         definition
-                         *test-base-path* *standard-output*))))
-        (sleep 0.6)
-        (let ((f (probe-file "./test-file")))
-          (when f (delete-file f)))
-        (ok (equalp (fmap #'bot-status bot) (right :exited)))))))
-
 (deftest continue-bot
   (testing "should continue execution of a bot"
     (let ((bot (run-test-bot *slow-bot*)))
