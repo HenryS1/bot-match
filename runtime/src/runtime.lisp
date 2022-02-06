@@ -110,7 +110,7 @@
                                              templated-command)))
         (format log-stream "starting bot ~a using command ~a~%" 
                 (name bot-definition)
-                templated-command)
+                memory-limited-command)
         (let ((bot (make-instance 
                     'concrete-bot
                     :bot-process (run-bot "bash" (list "-c" memory-limited-command))
@@ -209,10 +209,21 @@
 
 (defstruct bot-turn-result updated-bot output)
 
-(defmethod bot-turn ((bot concrete-bot) turn-input time-limit &optional (log-stream *standard-output*) (parser #'read-output))
-  (let ((running-bot (continue-bot bot log-stream)))
-    (send-input-to-bot running-bot turn-input)
-    (bind ((output (bot-output running-bot time-limit log-stream parser)))
-      (end-bot-turn running-bot log-stream)
-      (make-bot-turn-result :updated-bot running-bot
-                            :output output))))
+(defun not-exited (bot)
+  (not (or (equalp (bot-status bot) :exited)
+           (equalp (bot-status bot) :signaled))))
+
+(defmethod bot-turn ((bot concrete-bot) turn-input time-limit 
+                     &optional (log-stream *standard-output*) 
+                       (parser #'read-output))
+  (handler-case (let ((running-bot (continue-bot bot log-stream)))
+                  (if (not-exited running-bot)
+                      (progn 
+                        (send-input-to-bot running-bot turn-input)
+                        (bind ((output (bot-output running-bot time-limit log-stream parser)))
+                          (end-bot-turn running-bot log-stream)
+                          (make-bot-turn-result :updated-bot running-bot
+                                                :output output)))
+                      (make-bot-turn-result :updated-bot running-bot :output nil)))
+    (error (e) (progn (format t "Error while handling turn for bot ~a: ~a~%" (bot-name bot) e)
+                      (make-bot-turn-result :updated-bot bot :output nil)))))
