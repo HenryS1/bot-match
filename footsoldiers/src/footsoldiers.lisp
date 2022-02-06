@@ -784,7 +784,7 @@
              (turns-filepath (or (getf options :turn-logs) "./turn-logs"))
              (moves-filepath (or (getf options :move-logs) "./move-logs"))
              (states-filepath (or (getf options :state-logs) "./state-logs"))
-             (map-filepath (or (getf options :map-filepath) "./game-map")))
+             (map-filepath (or (getf options :map-file-path) "./game-map")))
          (if (getf options :help)
              (opts:describe 
               :prefix "Footsoldiers game runner"

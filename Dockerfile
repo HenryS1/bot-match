@@ -21,8 +21,7 @@ RUN ros install sbcl-bin/2.2.0 && \
  ros install qlot && \
  /home/footsoldiers/.roswell/bin/qlot install && \
  mkdir -p /home/footsoldiers/.config/common-lisp && \
- echo "(:source-registry (:tree (:home \"bot-match\")) :inherit-configuration)" > /home/footsoldiers/.config/common-lisp/source-registry.conf && \
  ros run --load footsoldiers/build.lisp && \
  chmod +x /home/footsoldiers/bot-match/footsoldiers
 
-CMD /home/footsoldiers/bot-match/footsoldiers-runner
+ENTRYPOINT ["/home/footsoldiers/bot-match/footsoldiers-runner"]
