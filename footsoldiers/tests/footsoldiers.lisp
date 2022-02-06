@@ -880,6 +880,7 @@
                                  'game-config
                                  :initial-money 10
                                  :money-per-turn 3
+                                 :total-turns 100
                                  :allowed-commands 
                                  (alist-hash-table
                                   (list (cons "lisp-ros-herodotus"

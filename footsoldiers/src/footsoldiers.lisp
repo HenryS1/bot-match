@@ -137,6 +137,7 @@
     ((initial-money)
      (money-per-turn)
      (max-distance-from-base)
+     (total-turns)
      (bot-memory-limit-kib)
      (allowed-commands)
      (health health-config)
@@ -169,6 +170,7 @@
   (make-instance 'game-config 
    :initial-money 10
    :money-per-turn 3 
+   :total-turns 100
    :allowed-commands (alist-hash-table 
                       (list (cons "lisp-ros" "ros +Q -- <bot-file>"))
                       :test 'equal)
@@ -616,7 +618,7 @@
                      (let* ((bots (alist-hash-table (pairlis '("player1" "player2") bs)
                                                     :test 'equal))
                             (game (make-game :map (map-details-map game-map)
-                                             :turns-remaining 100
+                                             :turns-remaining (total-turns game-config)
                                              :player1 (make-player 
                                                        :team "player1" 
                                                        :money (initial-money game-config)
