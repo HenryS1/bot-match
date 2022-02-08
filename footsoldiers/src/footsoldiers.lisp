@@ -236,16 +236,33 @@
 (defun close-enough (range p1 p2)
   (<= (distance p1 p2) range))
 
+(defun make-queue () (cons nil nil))
+
+(defun add-to-front (e q) (cons (cons e (car q)) (cdr q)))
+
+(defun remove-from-back (q) 
+  (if (not (null (cdr q)))
+      (values (cadr q) (cons (car q) (cddr q)))
+      (let ((reversed-front (reverse (car q))))
+        (values (car reversed-front) (cons nil (cdr reversed-front))))))
+
+(defun add-all (es q)
+  (cons (append (reverse es) (car q)) (cdr q)))
+
 (defun reachable-positions (range p1 mp)
   (let ((seen (make-hash-table :test 'equal)))
-    (setf (gethash p1 seen) t)
-    (labels ((rec (current)
-               (let ((nbrs (remove-if-not (lambda (nbr) (and (not (gethash nbr seen))
-                                                             (close-enough range nbr p1)))
-                                          (neighbours current mp))))
-                 (mapc (lambda (nbr) (setf (gethash nbr seen) t)) nbrs)
-                 (mapc #'rec nbrs))))
-      (rec p1)
+    (setf (gethash p1 seen) 0)
+    (labels ((rec (q)
+               (bind (((:values current next-q) (remove-from-back q)))
+                 (when current 
+                   (let* ((distance-to (gethash current seen)))
+                     (when (< distance-to range)
+                      (let ((nbrs (remove-if (lambda (nbr) (gethash nbr seen)) 
+                                             (neighbours current mp))))
+                        
+                        (mapc (lambda (nbr) (setf (gethash nbr seen) (+ 1 distance-to))) nbrs)
+                        (rec (add-all nbrs next-q)))))))))
+      (rec (add-to-front p1 (make-queue)))
       seen)))
 
 (defmethod closest-reachable-position ((s soldier) mp (game-config game-config))

@@ -62,35 +62,49 @@
   (testing "finds all positions within range of soldier when none are obstructed"
     (let ((mp (alist-hash-table (list (cons (soldier-pos *test-soldier1*) *test-soldier1*)) 
                                 :test 'equal)))
-      (bind (((x . y) (soldier-pos *test-soldier1*)))
-        (ok (equalp (reachable-positions 3 (soldier-pos *test-soldier1*) mp)
-                    (alist-hash-table (mapcar (lambda (p) (cons p t))
-                                              (list 
-                                               (cons (- x 3) y)
-                                               (cons (- x 2) y)
-                                               (cons (- x 2) (- y 1))
-                                               (cons (- x 2) (+ y 1))
-                                               (cons (- x 1) y)
-                                               (cons (- x 1) (- y 1))
-                                               (cons (- x 1) (- y 2))
-                                               (cons (- x 1) (+ y 1))
-                                               (cons (- x 1) (+ y 2))
-                                               (cons x y)
-                                               (cons x (- y 1))
-                                               (cons x (- y 2))
-                                               (cons x (- y 3))
-                                               (cons x (+ y 1))
-                                               (cons x (+ y 2))
-                                               (cons x (+ y 3))
-                                               (cons (+ x 1) y)
-                                               (cons (+ x 1) (- y 1))
-                                               (cons (+ x 1) (- y 2))
-                                               (cons (+ x 1) (+ y 1))
-                                               (cons (+ x 1) (+ y 2))
-                                               (cons (+ x 2) y)
-                                               (cons (+ x 2) (- y 1))
-                                               (cons (+ x 2) (+ y 1))
-                                               (cons (+ x 3) y))) :test 'equal))))))
+      (bind (((x . y) (soldier-pos *test-soldier1*))
+             (reachable (reachable-positions 3 (soldier-pos *test-soldier1*) mp)))
+        (loop for k being the hash-keys of reachable do (setf (gethash k reachable) t))
+        (ok (equalp 
+             reachable
+             (alist-hash-table (mapcar (lambda (p) (cons p t))
+                                       (list 
+                                        (cons (- x 3) y)
+                                        (cons (- x 2) y)
+                                        (cons (- x 2) (- y 1))
+                                        (cons (- x 2) (+ y 1))
+                                        (cons (- x 1) y)
+                                        (cons (- x 1) (- y 1))
+                                        (cons (- x 1) (- y 2))
+                                        (cons (- x 1) (+ y 1))
+                                        (cons (- x 1) (+ y 2))
+                                        (cons x y)
+                                        (cons x (- y 1))
+                                        (cons x (- y 2))
+                                        (cons x (- y 3))
+                                        (cons x (+ y 1))
+                                        (cons x (+ y 2))
+                                        (cons x (+ y 3))
+                                        (cons (+ x 1) y)
+                                        (cons (+ x 1) (- y 1))
+                                        (cons (+ x 1) (- y 2))
+                                        (cons (+ x 1) (+ y 1))
+                                        (cons (+ x 1) (+ y 2))
+                                        (cons (+ x 2) y)
+                                        (cons (+ x 2) (- y 1))
+                                        (cons (+ x 2) (+ y 1))
+                                        (cons (+ x 3) y))) :test 'equal))))))
+  (testing "doesn't find positions that are too far away based on distance travelled"
+    (let* ((soldier (make-soldier :pos (cons 0 1) 
+                                  :health 4
+                                  :type :scout
+                                  :team "player1"
+                                  :destination (cons -3 0)))
+           (mp (alist-hash-table (list (cons (cons 0 0) (make-rock))
+                                       (cons (cons 1 0) soldier)) :test 'equal))
+           (reachable (reachable-positions 3 (cons 1 0) mp)))
+      (ok (not (gethash (cons -1 0) reachable)))
+      (ok (not (gethash (cons -2 0) reachable)))))
   (testing "doesn't find nearby positions that are blocked"
     (let ((mp (alist-hash-table (append
                                  (list (cons (cons 1 1) (make-rock))
@@ -99,8 +113,10 @@
                                          (list *test-soldier1* *test-soldier2*
                                                *test-soldier3* *test-soldier4*
                                                *test-soldier5*))) :test 'equal)))
-      (bind (((x . y) (soldier-pos *test-soldier1*)))
-        (ok (equalp (reachable-positions 3 (soldier-pos *test-soldier1*) mp)
+      (bind (((x . y) (soldier-pos *test-soldier1*))
+             (reachable (reachable-positions 3 (soldier-pos *test-soldier1*) mp)))
+        (loop for k being the hash-keys of reachable do (setf (gethash k reachable) t))
+        (ok (equalp reachable
                     (alist-hash-table (mapcar (lambda (p) (cons p t))
                                               (list 
                                                (cons (- x 3) y)
@@ -128,9 +144,20 @@
                                         (list *test-soldier1* *test-soldier2*
                                               *test-soldier3* *test-soldier4*
                                               *test-soldier5*))
-                                 :test 'equal)))
+                                 :test 'equal)))     
       (ok (equal (closest-reachable-position *test-soldier1* mp *default-game-config*)
                  (cons 2 5)))))
+  (testing "finds the closest position within the travel distance of a soldier"
+    (let* ((soldier (make-soldier :pos (cons 5 0)
+                                 :health 4
+                                 :type :scout
+                                 :team "player1"
+                                 :destination (cons 0 0)))
+           (mp (alist-hash-table (list (cons (cons 5 0) soldier)
+                                       (cons (cons 4 0) (make-rock)))
+                                :test 'equal)))
+      (ok (equal (closest-reachable-position soldier mp *default-game-config*)
+                 (cons 3 -1)))))
   (testing "chooses the least lexicographic position when multiple closest positions exist"
     (let ((new-soldier1 (copy-structure *test-soldier1*)))
       (setf (soldier-destination new-soldier1) (cons 2 1))
@@ -845,7 +872,6 @@
 
 (deftest map-from-file 
   (testing "should read a game-map from a file"
-    (format t "BLAH~%")
     (let ((test-path (format nil "~atest.mp" *test-base-path*)))
       (with-open-file (f test-path :if-does-not-exist :create
                          :if-exists :supersede :direction :output)
