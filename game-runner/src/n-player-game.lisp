@@ -59,6 +59,9 @@
               (game-state (game-turn-result-game turn-result)))
       (format (logging-config-visualisation logging-config) "~a~%"
               (game-visualisation (game-turn-result-game turn-result)))
+      (force-output (logging-config-moves logging-config))
+      (force-output (logging-config-turns logging-config))
+      (force-output (logging-config-states logging-config))
       (cons new-bots (game-turn-result-game turn-result)))))
 
 (defparameter *termination-timeout* 0.5)
