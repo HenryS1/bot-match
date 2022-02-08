@@ -661,16 +661,28 @@
            :long "state-logs"
            :arg-parser #'identity
            :meta-var "STATE-LOGS")
+    (:name :print-turns
+           :description "Write bot turn logs to stdout"
+           :long "print-turns"
+           :meta-var "PRINT-TURNS")
+    (:name :print-moves
+           :description "Write player moves to stdout"
+           :long "print-moves"
+           :meta-var "PRINT-MOVES")
+    (:name :print-states
+           :description "Write the game state to stdout"
+           :long "print-states"
+           :meta-var "PRINT-STATES")
     (:name :bot-dir-1
            :description "The directory where the first bot can be found"
            :long "bot-dir-1"
            :arg-parser #'identity
-           :meta-var "DIR")
+           :meta-var "DIR1")
     (:name :bot-dir-2
            :description "The directory where the second bot can be found"
            :long "bot-dir-2"
            :arg-parser #'identity
-           :meta-var "DIR")
+           :meta-var "DIR2")
     (:name :config-file-path
            :description "The path of the game runner config file"
            :long "config-file-path"
@@ -774,6 +786,26 @@
                    (player-money (game-player2 game)))
            (format s (draw-map (game-map game))))))
 
+(defclass wrapped-stream (sb-gray:fundamental-stream)
+  ((stream :initarg :stream :reader stream-of)))
+
+(defmethod stream-element-type ((stream wrapped-stream))
+  (stream-element-type (stream-of stream)))
+
+(defmethod close ((stream wrapped-stream) &key abort)
+  (close (stream-of stream) :abort abort))
+
+(defclass with-stdout (wrapped-stream sb-gray:fundamental-character-output-stream) ())
+
+(defmethod sb-gray:stream-write-char ((stream with-stdout) char)
+  (write-char char (stream-of stream))
+  (write-char char *standard-output*))
+
+(defmethod sb-gray:stream-write-string ((stream with-stdout)
+                                string &optional (start 0) end)
+  (write-string string (stream-of stream) :start start :end end)
+  (write-string string *standard-output* :start start :end end))
+
 (defun run-footsoldiers ()
   (handler-case 
       (multiple-value-bind (options free-args) (opts:get-opts)
@@ -808,9 +840,15 @@
                       (with-open-file (states states-filepath :if-does-not-exist
                                               :create :if-exists :supersede :direction :output)
                         (match (start-game (cons bot-1-relative-path bot-2-relative-path) 
-                                           (make-logging-config :turns turns
-                                                                :moves moves
-                                                                :states states
+                                           (make-logging-config :turns (if (getf options :print-turns)
+                                                                           (make-instance 'with-stdout :stream turns)
+                                                                           turns)
+                                                                :moves (if (getf options :print-moves)
+                                                                           (make-instance 'with-stdout :stream moves)
+                                                                           moves)
+                                                                :states (if (getf options :print-states)
+                                                                            (make-instance 'with-stdout :stream states)
+                                                                            states)
                                                                 :visualisation *standard-output*)
                                            :game-map map-details
                                            :game-config config)

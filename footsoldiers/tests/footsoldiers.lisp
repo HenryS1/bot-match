@@ -871,8 +871,8 @@
   (testing "runs bots and plays game until it is finished"
     (let ((result (start-game 
                    (cons "bot1/" "bot2/")
-                   (make-logging-config :turns nil
-                                        :moves *standard-output*
+                   (make-logging-config :turns *standard-output*
+                                        :moves nil
                                         :states nil
                                         :visualisation nil)
                    :current-directory (directory-namestring #.*compile-file-truename*)
