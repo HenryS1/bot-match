@@ -9,9 +9,9 @@
     },
     "bot-memory-limit-kib": 1048576,
     "health": {
-        "scout": 6,
+        "scout": 10,
         "assassin": 6,
-        "tank": 6
+        "tank": 12
     },
     "speed": {
         "scout": 3,
@@ -19,7 +19,7 @@
         "tank": 2
     },
     "damage": {
-        "scout": 2,
+        "scout": 3,
         "assassin": 5,
         "tank": 2
     },
