@@ -72,7 +72,8 @@
                                                      *test-base-path* *standard-output*
                                                      :memory-limit 10)))
         (sleep 0.01)
-        (ok (equalp (fmap #'bot-status initial-bot) (right :exited)))))))
+        (ok (or (equalp (fmap #'bot-status initial-bot) (right :exited))
+                (equalp (fmap #'bot-status initial-bot) (right :signaled))))))))
 
 (deftest readiness-check
   (testing "should kill a bot if it fails to respond with ready within the time limit"
