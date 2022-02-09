@@ -12,32 +12,21 @@ jobs:
         os: [ubuntu-18.04]
 
     steps:
-      - uses: actions/checkout@v1
-      - name: Install Roswell
-        env:
-          LISP: ${{ matrix.lisp }}
-          ROSWELL_INSTALL_DIR: /usr
+      - name: Checkout code
+        uses: actions/checkout@v1
+
+      - name: Build docker container
         run: |
-          wget https://raw.githubusercontent.com/roswell/roswell/master/scripts/install-for-ci.sh
-          chmod +x ./install-for-ci.sh
-          ./install-for-ci.sh
-      - name: Install Rove
-        run: ros install rove
-      - name: Install qlot
-        run: ros install qlot
-      - name: Install dependencies
-        run: |
-          PATH="~/.roswell/bin:$PATH"
-          qlot install
+          docker build . --tag footsoldiers-runner
+
       - name: Run game runner tests      
         run: |
-          PATH="~/.roswell/bin:$PATH"
-          rove game-runner/game-runner.asd
+          docker run --entrypoint /home/footsoldiers/.roswell/bin/rove footsoldiers-runner game-runner/game-runner.asd
+
       - name: Run runtime tests
         run: |
-          PATH="~/.roswell/bin:$PATH"
-          rove runtime/runtime.asd
+          docker run --entrypoint /home/footsoldiers/.roswell/bin/rove footsoldiers-runner runtime/runtime.asd
+
       - name: Run footsoldiers tests
         run: |
-          PATH="~/.roswell/bin:$PATH"
-          rove footsoldiers/footsoldiers.asd
+          docker run --entrypoint /home/footsoldiers/.roswell/bin/rove footsoldiers-runner footsoldiers/footsoldiers.asd
