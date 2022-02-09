@@ -137,6 +137,7 @@
     ((initial-money)
      (money-per-turn)
      (max-distance-from-base)
+     (total-turns)
      (bot-memory-limit-kib)
      (allowed-commands)
      (health health-config)
@@ -169,6 +170,7 @@
   (make-instance 'game-config 
    :initial-money 10
    :money-per-turn 3 
+   :total-turns 100
    :allowed-commands (alist-hash-table 
                       (list (cons "lisp-ros" "ros +Q -- <bot-file>"))
                       :test 'equal)
@@ -234,16 +236,33 @@
 (defun close-enough (range p1 p2)
   (<= (distance p1 p2) range))
 
+(defun make-queue () (cons nil nil))
+
+(defun add-to-front (e q) (cons (cons e (car q)) (cdr q)))
+
+(defun remove-from-back (q) 
+  (if (not (null (cdr q)))
+      (values (cadr q) (cons (car q) (cddr q)))
+      (let ((reversed-front (reverse (car q))))
+        (values (car reversed-front) (cons nil (cdr reversed-front))))))
+
+(defun add-all (es q)
+  (cons (append (reverse es) (car q)) (cdr q)))
+
 (defun reachable-positions (range p1 mp)
   (let ((seen (make-hash-table :test 'equal)))
-    (setf (gethash p1 seen) t)
-    (labels ((rec (current)
-               (let ((nbrs (remove-if-not (lambda (nbr) (and (not (gethash nbr seen))
-                                                             (close-enough range nbr p1)))
-                                          (neighbours current mp))))
-                 (mapc (lambda (nbr) (setf (gethash nbr seen) t)) nbrs)
-                 (mapc #'rec nbrs))))
-      (rec p1)
+    (setf (gethash p1 seen) 0)
+    (labels ((rec (q)
+               (bind (((:values current next-q) (remove-from-back q)))
+                 (when current 
+                   (let* ((distance-to (gethash current seen)))
+                     (when (< distance-to range)
+                      (let ((nbrs (remove-if (lambda (nbr) (gethash nbr seen)) 
+                                             (neighbours current mp))))
+                        
+                        (mapc (lambda (nbr) (setf (gethash nbr seen) (+ 1 distance-to))) nbrs)
+                        (rec (add-all nbrs next-q)))))))))
+      (rec (add-to-front p1 (make-queue)))
       seen)))
 
 (defmethod closest-reachable-position ((s soldier) mp (game-config game-config))
@@ -616,7 +635,7 @@
                      (let* ((bots (alist-hash-table (pairlis '("player1" "player2") bs)
                                                     :test 'equal))
                             (game (make-game :map (map-details-map game-map)
-                                             :turns-remaining 100
+                                             :turns-remaining (total-turns game-config)
                                              :player1 (make-player 
                                                        :team "player1" 
                                                        :money (initial-money game-config)
@@ -659,16 +678,28 @@
            :long "state-logs"
            :arg-parser #'identity
            :meta-var "STATE-LOGS")
+    (:name :print-turns
+           :description "Write bot turn logs to stdout"
+           :long "print-turns"
+           :meta-var "PRINT-TURNS")
+    (:name :print-moves
+           :description "Write player moves to stdout"
+           :long "print-moves"
+           :meta-var "PRINT-MOVES")
+    (:name :print-states
+           :description "Write the game state to stdout"
+           :long "print-states"
+           :meta-var "PRINT-STATES")
     (:name :bot-dir-1
            :description "The directory where the first bot can be found"
            :long "bot-dir-1"
            :arg-parser #'identity
-           :meta-var "DIR")
+           :meta-var "DIR1")
     (:name :bot-dir-2
            :description "The directory where the second bot can be found"
            :long "bot-dir-2"
            :arg-parser #'identity
-           :meta-var "DIR")
+           :meta-var "DIR2")
     (:name :config-file-path
            :description "The path of the game runner config file"
            :long "config-file-path"
@@ -772,6 +803,26 @@
                    (player-money (game-player2 game)))
            (format s (draw-map (game-map game))))))
 
+(defclass wrapped-stream (sb-gray:fundamental-stream)
+  ((stream :initarg :stream :reader stream-of)))
+
+(defmethod stream-element-type ((stream wrapped-stream))
+  (stream-element-type (stream-of stream)))
+
+(defmethod close ((stream wrapped-stream) &key abort)
+  (close (stream-of stream) :abort abort))
+
+(defclass with-stdout (wrapped-stream sb-gray:fundamental-character-output-stream) ())
+
+(defmethod sb-gray:stream-write-char ((stream with-stdout) char)
+  (write-char char (stream-of stream))
+  (write-char char *standard-output*))
+
+(defmethod sb-gray:stream-write-string ((stream with-stdout)
+                                string &optional (start 0) end)
+  (write-string string (stream-of stream) :start start :end end)
+  (write-string string *standard-output* :start start :end end))
+
 (defun run-footsoldiers ()
   (handler-case 
       (multiple-value-bind (options free-args) (opts:get-opts)
@@ -806,9 +857,15 @@
                       (with-open-file (states states-filepath :if-does-not-exist
                                               :create :if-exists :supersede :direction :output)
                         (match (start-game (cons bot-1-relative-path bot-2-relative-path) 
-                                           (make-logging-config :turns turns
-                                                                :moves moves
-                                                                :states states
+                                           (make-logging-config :turns (if (getf options :print-turns)
+                                                                           (make-instance 'with-stdout :stream turns)
+                                                                           turns)
+                                                                :moves (if (getf options :print-moves)
+                                                                           (make-instance 'with-stdout :stream moves)
+                                                                           moves)
+                                                                :states (if (getf options :print-states)
+                                                                            (make-instance 'with-stdout :stream states)
+                                                                            states)
                                                                 :visualisation *standard-output*)
                                            :game-map map-details
                                            :game-config config)

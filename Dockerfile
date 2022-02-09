@@ -19,6 +19,9 @@ RUN apt-get update && \
 USER footsoldiers
 RUN ros install sbcl-bin/2.2.0 && \
  ros install qlot && \
+ ros install rove && \
+ mkdir -p /home/footsoldiers/.config/common-lisp && \
+ echo "(:source-registry (:tree (:home \"bot-match\")) :inherit-configuration)" > /home/footsoldiers/.config/common-lisp/source-registry.conf && \
  /home/footsoldiers/.roswell/bin/qlot install && \
  ros run --load footsoldiers/build.lisp && \
  chmod +x /home/footsoldiers/bot-match/footsoldiers
