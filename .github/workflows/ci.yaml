@@ -18,13 +18,29 @@ jobs:
       - name: Set up docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Cache Docker layers
+      - name: Cache docker layers
         uses: actions/cache@v2
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ github.branch }}
           restore-keys: |
             ${{ runner.os }}-buildx-
+
+      - name: Cache qlot
+        uses: actions/cache@v2
+        with:
+          path: .qlot
+          key: ${{ runner.os }}-qlot-${{ github.branch }}
+          restore-keys: |
+            ${{ runner.os }}-qlot-
+
+      - name: Cache common lisp build
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache
+          key: ${{ runner.os }}-clcache-${{ github.branch }}
+          restore-keys: |
+            ${{ runner.os }}-clcache-
 
       - name: Build base docker container
         uses: docker/build-push-action@v2
@@ -36,7 +52,20 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
 
+      - name: Make output directory
+        run: mkdir build-output
+
       - name: Build game runner container
+        run: |
+          DOCKER_BUILDKIT=1 docker build . --tag footsoldiers-runner -o ./build-output
+          
+      - name: Move build dependencies to cache dir
+        run: |
+          mv ./build-output/home/footsoldiers/bot-match/.qlot .qlot
+          mv ./build-output/home/footsoldiers/.cache ~/.cache
+          rm -rf build-output
+
+      - name: Build again
         run: |
           docker build . --tag footsoldiers-runner
 
