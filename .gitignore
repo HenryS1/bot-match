@@ -7,3 +7,9 @@
 *~
 .#*
 .qlot
+footsoldiers-runner
+game-result
+move-logs
+state-logs
+system-index.txt
+turn-logs

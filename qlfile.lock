@@ -38,6 +38,10 @@
  (:class qlot/source/ql:source-ql
   :initargs (:%version "2020-03-25")
   :version "ql-2020-03-25"))
+("metabang-bind" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2020-03-25")
+  :version "ql-2020-03-25"))
 ("herodotus" .
  (:class qlot/source/git:source-git
   :initargs (:remote-url "https://github.com/HenryS1/herodotus.git" :tag "v1.0.0")
