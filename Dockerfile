@@ -9,8 +9,12 @@ RUN chown -R footsoldiers .
 
 USER footsoldiers
 
-RUN /home/footsoldiers/.roswell/bin/qlot install && \
-    ros run --load footsoldiers/build.lisp && \
-    chmod +x /home/footsoldiers/bot-match/footsoldiers
+ARG QLHASH=none
+
+RUN /home/footsoldiers/.roswell/bin/qlot install
+
+ARG GITSHA=none
+RUN ros run --load footsoldiers/build.lisp
+RUN chmod +x /home/footsoldiers/bot-match/footsoldiers
 
 ENTRYPOINT ["/home/footsoldiers/bot-match/footsoldiers-runner"]

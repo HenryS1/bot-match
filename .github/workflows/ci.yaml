@@ -26,22 +26,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      - name: Cache qlot
-        uses: actions/cache@v2
-        with:
-          path: .qlot
-          key: ${{ runner.os }}-qlot-${{ github.branch }}
-          restore-keys: |
-            ${{ runner.os }}-qlot-
-
-      - name: Cache common lisp build
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache
-          key: ${{ runner.os }}-clcache-${{ github.branch }}
-          restore-keys: |
-            ${{ runner.os }}-clcache-
-
       - name: Build base docker container
         uses: docker/build-push-action@v2
         with:
@@ -52,23 +36,19 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
 
-      - name: Make output directory
-        run: mkdir build-output
-
       - name: Build game runner container
-        run: |
-          DOCKER_BUILDKIT=1 docker build . --tag footsoldiers-runner -o ./build-output
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: false
+          load: true
+          build-args: |
+            QLHASH=${{ hashFiles('./qlfile') }}
+            GITSHA=${{ github.sha }}
+          tags: footsoldiers-runner
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
           
-      - name: Move build dependencies to cache dir
-        run: |
-          mv ./build-output/home/footsoldiers/bot-match/.qlot .qlot
-          mv ./build-output/home/footsoldiers/.cache ~/.cache
-          rm -rf build-output
-
-      - name: Build again
-        run: |
-          docker build . --tag footsoldiers-runner
-
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
