@@ -6,6 +6,13 @@ jobs:
   test:
     name: ${{ matrix.lisp }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+
     strategy:
       matrix:
         lisp: [sbcl-bin]
@@ -30,9 +37,8 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: base-container
-          push: false
-          load: true
-          tags: game-runner-base
+          push: true
+          tags: localhost:5000/game-runner-base
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
 
