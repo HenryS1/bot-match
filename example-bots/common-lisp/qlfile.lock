@@ -1,0 +1,16 @@
+("quicklisp" .
+ (:class qlot/source/dist:source-dist
+  :initargs (:distribution "http://beta.quicklisp.org/dist/quicklisp.txt" :%version :latest)
+  :version "2021-12-30"))
+("herodotus" .
+ (:class qlot/source/github:source-github
+  :initargs (:repos "HenryS1/herodotus" :ref nil :branch nil :tag nil)
+  :version "github-dcb46456cb2632e3fb69d21e88b2b476e5a0edd4"))
+("cl-ppcre" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version :latest)
+  :version "ql-2021-12-30"))
+("yason" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version :latest)
+  :version "ql-2021-12-30"))
