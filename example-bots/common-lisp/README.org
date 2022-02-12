@@ -1,0 +1,17 @@
+* Bot-Match-Bot 
+
+** Dependencies
+This project requires that [[https://github.com/roswell/roswell][Roswell]] and [[https://github.com/fukamachi/qlot][Qlot]] are installed and
+available on your PATH.
+
+** Usage
+
+This project includes a make file with the following commands:
+ - ~install-deps~,
+ - ~compile~,
+ - ~run~, and
+ - ~help~.
+
+The last of which simply echos the available commands.
+
+** Installation
