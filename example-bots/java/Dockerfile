@@ -22,8 +22,13 @@ RUN apt-get update
 # Install openjdk 17
 RUN apt-get install -y zulu17-jdk
 
-USER compiler
+ADD ./entrypoint.sh /home/compiler/entrypoint.sh
 
 WORKDIR /home/compiler
 
-ENTRYPOINT ["./gradlew", "clean", "build"]
+RUN chmod +x entrypoint.sh
+RUN chown compiler entrypoint.sh
+
+USER compiler
+
+ENTRYPOINT ["/bin/bash", "/home/compiler/entrypoint.sh"]
