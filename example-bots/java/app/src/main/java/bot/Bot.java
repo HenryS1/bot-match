@@ -47,7 +47,7 @@ public class Bot {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println(e.getMessage());
+            System.out.println("NO-OP");
         }
     }
 
