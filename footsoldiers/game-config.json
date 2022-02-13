@@ -6,7 +6,8 @@
     "allowed-commands": {
         "lisp-ros": "ros dynamic-space-size=800 +Q -- <bot-file>",
         "lisp-ros-herodotus": "ros dynamic-space-size=800 -Q -s herodotus -- <bot-file>",
-        "execute-binary": "<bot-file>"
+        "execute-binary": "<bot-file>",
+        "java-jar": "java -jar <bot-file> -Xmx800m"
     },
     "bot-memory-limit-kib": 1048576,
     "health": {
