@@ -25,7 +25,6 @@ public class Bot {
                     input = mapper.readValue(System.in, Input.class);
                 }
 
-
                 Player me;
                 Player enemy;
                 if (input.you.equals("player1")) {
@@ -36,16 +35,12 @@ public class Bot {
                     enemy = input.player1;
                 }
 
-                // System.out.println("" + me.money);
-                // System.out.println(me.team);
-
                 if (me.money > 10) {
-                    System.out.println("BUILDING A SCOUT");
-                    // Coord myBaseCoord = me.base;
-                    // Coord enemyBaseCoord = enemy.base;
-                    // System.out.println(String.format("BUILD SCOUT (%d, %d) (%d, %d)", 
-                    //                                  myBaseCoord.x, myBaseCoord.y + 1,
-                    //                                  enemyBaseCoord.x, enemyBaseCoord.y));
+                    Coord myBaseCoord = me.base;
+                    Coord enemyBaseCoord = enemy.base;
+                    System.out.println(String.format("BUILD SCOUT (%d, %d) (%d, %d)", 
+                                                     myBaseCoord.x, myBaseCoord.y + 1,
+                                                     enemyBaseCoord.x, enemyBaseCoord.y));
                 } else {
                     System.out.println("NO-OP");
                 }

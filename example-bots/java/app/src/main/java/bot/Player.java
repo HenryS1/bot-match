@@ -1,8 +1,8 @@
 package bot;
 
 public class Player {
-    String team;
-    int money;
-    Coord base;
-    int health;
+    public String team;
+    public int money;
+    public Coord base;
+    public int health;
 }

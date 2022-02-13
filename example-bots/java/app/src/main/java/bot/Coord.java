@@ -1,6 +1,6 @@
 package bot;
 
 public class Coord {
-    int x;
-    int y;
+    public int x;
+    public int y;
 }
