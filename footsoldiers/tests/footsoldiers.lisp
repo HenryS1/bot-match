@@ -193,21 +193,53 @@
              (new-soldier2 (copy-structure *test-soldier2*)))
         (setf (soldier-pos new-soldier1) (cons 3 5))
         (setf (soldier-pos new-soldier2) (cons 3 1))
-        (move-soldiers mp *default-game-config*)
+        (move-soldiers mp *default-game-config* 10)
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                               (list new-soldier1 new-soldier2)) :test 'equal))))))
-  (testing "moves soldiers in lexicographical order of their starting coordinate"
+  (testing "moves soldiers in lexicographical order of their starting coordinate when they are on the same team"
+    (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
+                                        (list *test-soldier2* *test-soldier4*)) :test 'equal)))
+      (let* ((new-soldier2 (copy-structure *test-soldier2*))
+             (new-soldier4 (copy-structure *test-soldier4*)))
+        (setf (soldier-pos new-soldier2) (cons 2 1))
+        (setf (soldier-pos new-soldier4) (cons 3 1))
+        (move-soldiers mp *default-game-config* 10)
+        (ok (equalp mp
+                    (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
+                                              (list new-soldier2 new-soldier4)) :test 'equal))))))
+  (testing "moves soldiers from player1 first when there are an even number of turns remaining"
     (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                         (list *test-soldier2* *test-soldier3*)) :test 'equal)))
       (let* ((new-soldier2 (copy-structure *test-soldier2*))
              (new-soldier3 (copy-structure *test-soldier3*)))
-        (setf (soldier-pos new-soldier2) (cons 3 1))
-        (setf (soldier-pos new-soldier3) (cons 2 1))
-        (move-soldiers mp *default-game-config*)
+        (setf (soldier-pos new-soldier2) (cons 2 1))
+        (setf (soldier-pos new-soldier3) (cons 3 1))
+        (move-soldiers mp *default-game-config* 10)
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                               (list new-soldier2 new-soldier3)) :test 'equal))))))
+  (testing "moves soldiers from player2 first when there are an odd number of turns remaining"
+    (let* ((player1-soldier (make-soldier :pos (cons 1 4)
+                                          :health 4
+                                          :type :assassin
+                                          :team "player1"
+                                          :destination (cons 1 5)))
+           (player2-soldier (make-soldier :pos (cons 2 6)
+                                          :health 4
+                                          :type :assassin
+                                          :team "player2"
+                                          :destination (cons 1 5)))
+           (mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
+                                         (list player1-soldier player2-soldier)) :test 'equal)))
+      (let* ((new-soldier1 (copy-structure player1-soldier))
+             (new-soldier2 (copy-structure player2-soldier)))
+        (setf (soldier-pos new-soldier1) (cons 1 4))
+        (setf (soldier-pos new-soldier2) (cons 1 5))
+        (move-soldiers mp *default-game-config* 11)
+        (ok (equalp mp
+                    (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
+                                              (list new-soldier1 new-soldier2)) :test 'equal))))))
   (testing "does nothing when there are no soldiers to move"
     (let ((mp (alist-hash-table (list (cons (cons 1 2) (make-rock)) 
                                       (cons (cons 3 4) *test-base1*)
@@ -215,7 +247,7 @@
           (expected (alist-hash-table (list (cons (cons 1 2) (make-rock)) 
                                       (cons (cons 3 4) *test-base1*)
                                       (cons (cons 6 9) *test-base2*)) :test 'equal)))
-      (move-soldiers mp *default-game-config*)
+      (move-soldiers mp *default-game-config* 10)
       (ok (equalp mp expected)))))
 
 (deftest eligible-target 
@@ -362,7 +394,29 @@
                                        (cons (soldier-pos *test-soldier4*) *test-soldier4*)
                                        (cons (cons 4 3) *test-base1*)
                                        (cons (cons 10 10) (make-rock))
-                                       (cons (cons 5 4) *test-base2*)) :test 'equal)))))))
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))))))
+  (testing "makes soldiers attack simultaneously"
+    (let* ((soldier1 (make-soldier :pos (cons 2 4)
+                                   :health 4
+                                   :type :assassin
+                                   :team "player1"
+                                   :destination (cons 2 4)))
+           (soldier2 (make-soldier :pos (cons 1 4)
+                                   :health 4
+                                   :type :assassin
+                                   :team "player2"
+                                   :destination (cons 1 4)))
+           (mp (alist-hash-table (list (cons (soldier-pos soldier1) soldier1)
+                                       (cons (soldier-pos soldier2) soldier2)
+                                       (cons (cons 10 1) *test-base1*)
+                                       (cons (cons 10 5) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 20))
+           (player2 (make-player :team "player2" :money 7 :base (cons 5 4) :health 10))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (new-gm (make-soldiers-attack gm)))
+      (ok (equalp (game-map new-gm)
+                  (alist-hash-table (list (cons (cons 10 1) *test-base1*)
+                                          (cons (cons 10 5) *test-base2*)) :test 'equal))))))
 
 (deftest close-enough-to-base 
   (let ((player (make-player :team "player1" :money 10 :base (cons 4 3) :health 20)))
@@ -611,7 +665,7 @@
            (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 0))
            (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2)))
-      (ok (equalp (determine-result gm) (cons :winner "player1")))))
+      (ok (equalp (determine-result gm) "Winner player1"))))
   (testing "returns win for player2 when player1 has no health and player2 has non-zero health"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
