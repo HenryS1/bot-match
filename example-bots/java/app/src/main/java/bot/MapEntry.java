@@ -12,7 +12,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @Type(value = Rock.class, name = "ROCK"),
     @Type(value = Assassin.class, name = "ASSASSIN"),
     @Type(value = Scout.class, name = "SCOUT"),
-    @Type(value = Tank.class, name = "TANK") })
+    @Type(value = Tank.class, name = "TANK"),
+    @Type(value = Tank.class, name = "BASE") })
 public abstract class MapEntry {
     public String type;
     public Coord position;
