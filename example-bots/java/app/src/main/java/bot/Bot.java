@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.core.JsonParser;
 
 public class Bot {
 
@@ -16,12 +17,14 @@ public class Bot {
             System.out.println("READY");
             while (true) {
                 ObjectMapper mapper = new ObjectMapper()
+                    .configure(JsonParser.Feature.AUTO_CLOSE_SOURCE, false)
                     .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
             
                 Input input = mapper.readValue(System.in, Input.class);
                 while (System.in.available() > 0) {
                     input = mapper.readValue(System.in, Input.class);
                 }
+
 
                 Player me;
                 Player enemy;
@@ -33,8 +36,8 @@ public class Bot {
                     enemy = input.player1;
                 }
 
-                System.out.println("" + me.money);
-                System.out.println(me.team);
+                // System.out.println("" + me.money);
+                // System.out.println(me.team);
 
                 if (me.money > 10) {
                     System.out.println("BUILDING A SCOUT");
@@ -48,6 +51,7 @@ public class Bot {
                 }
             }
         } catch (Exception e) {
+            e.printStackTrace();
             System.out.println(e.getMessage());
         }
     }
