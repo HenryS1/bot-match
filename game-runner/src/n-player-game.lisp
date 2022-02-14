@@ -24,9 +24,14 @@
 (defgeneric game-state (game))
 (defgeneric game-visualisation (game))
 (defgeneric get-players-input-for-turn (game))
-(defgeneric advance-turn (player-moves game))
+(defgeneric advance-turn (player-moves game disqualified-players))
 (defgeneric input-parser (game))
 (defgeneric turn-time-limit (game))
+
+(defun find-disqualified-players (bot-mapping)
+  (loop for player being the hash-keys of bot-mapping using (hash-value bot)
+     when (disqualified bot)
+     collect player))
 
 (defmethod tick (bots game logging-config)
   (let* ((player-input-for-turn (get-players-input-for-turn game))
@@ -52,7 +57,7 @@
           turn-results)
     (maphash (lambda (p b) (when (not (gethash p new-bots)) (setf (gethash p new-bots) b))) bots)
     (let ((turn-result (advance-turn (mapcar (lambda (res) (cons (car res) (bot-turn-result-output (cdr res)))) 
-                                 turn-results) game)))
+                                 turn-results) game (find-disqualified-players new-bots))))
       (mapc (lambda (l) (format (logging-config-moves logging-config) "~a~%" l)) 
             (game-turn-result-move-log turn-result))
       (format (logging-config-states logging-config) "~a~%" 

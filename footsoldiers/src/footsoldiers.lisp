@@ -68,7 +68,8 @@
            :map-from-file
            :make-map-details
            :map-details-map
-           :bot-memory-limit-kib))
+           :bot-memory-limit-kib
+           :game-disqualified-players))
 
 (in-package :footsoldiers)
 
@@ -195,7 +196,8 @@
    :damage *default-damage-config*
    :cost *default-cost-config*))
 
-(defstruct game map turns-remaining player1 player2 (config *default-game-config*))
+(defstruct game map turns-remaining player1 player2 
+           (config *default-game-config*) (disqualified-players nil))
 
 (defun game-alist (game)
   (list
@@ -479,18 +481,24 @@
                              (apply-moves (cdr moves) new-gm)))))))
 
 (defmethod game-over ((game game))
-  (or (= (game-turns-remaining game) 0) 
+  (or (not (null (game-disqualified-players game)))
+      (= (game-turns-remaining game) 0) 
       (= (player-health (game-player1 game)) 0)
       (= (player-health (game-player2 game)) 0)))
 
 (defmethod determine-result ((game game))
-  (if (and (= (player-health (game-player1 game)) 0)
-           (> (player-health (game-player2 game)) 0)) 
-      (format nil "Winner ~a" (player-team (game-player2 game)))
-      (if (and (= (player-health (game-player2 game)) 0)
+  (cond ((= (length (game-disqualified-players game)) 2) "Draw")
+        ((member (player-team (game-player1 game)) (game-disqualified-players game)) 
+         (format nil "Winner ~a" (player-team (game-player2 game))))
+        ((member (player-team (game-player2 game)) (game-disqualified-players game))
+         (format nil "Winner ~a" (player-team (game-player1 game))))
+        ((and (= (player-health (game-player1 game)) 0)
+              (> (player-health (game-player2 game)) 0)) 
+         (format nil "Winner ~a" (player-team (game-player2 game))))
+        ((and (= (player-health (game-player2 game)) 0)
                (> (player-health (game-player1 game)) 0))
-          (format nil "Winner ~a" (player-team (game-player1 game)))
-          "Draw")))
+          (format nil "Winner ~a" (player-team (game-player1 game))))
+        (t "Draw")))
 
 (defmethod step-game (moves (gm game))
   (let ((new-mp (copy-hash-table (game-map gm)))
@@ -573,12 +581,17 @@
      (format nil "Player ~a, Move ~a" (car right-value) 
              (format-command (cdr right-value))))))
 
-(defmethod advance-turn (player-moves (game game))
-  (bind ((parsed-moves (mapcar #'parse-move player-moves))
-         (valid-moves (rights parsed-moves))
-         (move-result (step-game valid-moves game)))
-    (make-game-turn-result :game (move-result-updated-game move-result)
-                           :move-log (mapcar #'format-parsed-move parsed-moves))))
+(defmethod advance-turn (player-moves (game game) disqualified-players)
+  (if (not (null disqualified-players))
+      (let ((updated-game (copy-structure game)))
+        (setf (game-disqualified-players updated-game) disqualified-players)
+        (make-game-turn-result :game updated-game
+                               :move-log nil))
+      (bind ((parsed-moves (mapcar #'parse-move player-moves))
+                (valid-moves (rights parsed-moves))
+                (move-result (step-game valid-moves game)))
+           (make-game-turn-result :game (move-result-updated-game move-result)
+                                  :move-log (mapcar #'format-parsed-move parsed-moves)))))
 
 (defmethod game-state ((game game)) 
   (let ((yason:*list-encoder* #'yason:encode-alist))

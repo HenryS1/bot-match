@@ -41,14 +41,17 @@
 
 (defmethod input-parser ((game guessing-game)) #'read-output)
 
-(defmethod advance-turn (player-moves game)
+(defmethod advance-turn (player-moves game disqualified-players)
+  (declare (ignore disqualified-players))
   (make-game-turn-result 
    :game (make-instance 'guessing-game 
                         :numbers (cdr (numbers game))
-                        :player-guesses (reduce #'add-guess player-moves :initial-value (player-guesses game))
+                        :player-guesses (reduce #'add-guess
+                                                player-moves :initial-value (player-guesses game))
                         :current-player-id (other-player-id game)
                         :other-player-id (current-player-id game)
-                        :player-scores (reduce (update-score game) player-moves :initial-value (player-scores game)))
+                        :player-scores (reduce (update-score game) player-moves 
+                                               :initial-value (player-scores game)))
    :move-log (mapcar (lambda (m) (format nil "Player ~a, Move ~a" (car m) (cdr m))) 
                      player-moves)))
 
