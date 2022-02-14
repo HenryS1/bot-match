@@ -60,17 +60,29 @@
 (defun random-id (len)
   (map 'string #'code-char (loop for i from 1 to len collecting (+ 97 (random 26)))))
 
-(defun run-bot (command args)
-  (sb-ext:run-program command args :wait nil :input :stream :output :stream :search t))
+(defun run-bot (command args error-stream)
+  (sb-ext:run-program command args
+                      :wait nil
+                      :input :stream
+                      :output :stream
+                      :error error-stream
+                      :search t))
 
 (defmethod initialise-bot ((bot concrete-bot) log-stream)
-  (let ((initialised-bot (make-instance 'concrete-bot
-                                        :bot-process (run-bot "bash" (list "-c" (command bot)))
-                                        :bot-id (bot-id bot)
-                                        :bot-name (bot-name bot)
-                                        :bot-definition (bot-definition bot)
-                                        :command (command bot)
-                                        :bot-restarts (+ (bot-restarts bot) 1))))
+  (let* ((bot-id (random-id 10))
+         (bot-name (-> (bot-definition bot) name))
+         (initialised-bot (make-instance 'concrete-bot
+                                         :bot-process (run-bot "bash"
+                                                               (list "-c" (command bot))
+                                                               (open (format nil "~a-~a.err" bot-name bot-id)
+                                                                     :if-does-not-exist :create
+                                                                     :if-exists :append
+                                                                     :direction :output))
+                                         :bot-id bot-id
+                                         :bot-name bot-name
+                                         :bot-definition (bot-definition bot)
+                                         :command (command bot)
+                                         :bot-restarts (+ (bot-restarts bot) 1))))
     (wait-for-bot-to-be-ready initialised-bot log-stream)))
 
 (defmethod wait-for-bot-to-be-ready ((bot concrete-bot) log-stream)
@@ -111,13 +123,20 @@
         (format log-stream "starting bot ~a using command ~a~%" 
                 (name bot-definition)
                 memory-limited-command)
-        (let ((bot (make-instance 
-                    'concrete-bot
-                    :bot-process (run-bot "bash" (list "-c" memory-limited-command))
-                    :bot-id (random-id 10)
-                    :bot-name (name bot-definition)
-                    :bot-definition bot-definition
-                    :command memory-limited-command)))
+        (let* ((bot-id (random-id 10))
+               (bot-name (name bot-definition))
+               (bot (make-instance
+                     'concrete-bot
+                     :bot-process (run-bot "bash"
+                                           (list "-c" memory-limited-command)
+                                           (open (format nil "~a-~a.err" bot-name bot-id)
+                                                 :if-does-not-exist :create
+                                                 :if-exists :append
+                                                 :direction :output))
+                     :bot-id bot-id
+                     :bot-name bot-name
+                     :bot-definition bot-definition
+                     :command memory-limited-command)))
           (wait-for-bot-to-be-ready bot log-stream)
           (stop-bot bot)
           (right bot)))))
