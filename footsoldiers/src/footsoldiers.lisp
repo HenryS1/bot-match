@@ -77,7 +77,7 @@
 (defun rock-alist (coord r)
   (declare (ignore r))
   (list (cons "position" (coord-alist coord))
-        (cons "type" "ROCK")))
+        (cons "type" "Rock")))
 
 (defstruct soldier pos health type team destination)
 
@@ -89,7 +89,7 @@
   (list
    (cons "position" (coord-alist (soldier-pos soldier)))
    (cons "health" (soldier-health soldier))
-   (cons "type" (format nil "~a" (soldier-type soldier)))
+   (cons "type" (format nil "~@(~a~)" (soldier-type soldier)))
    (cons "team" (soldier-team soldier))
    (cons "destination" (coord-alist (soldier-destination soldier)))))
 
@@ -97,7 +97,7 @@
 
 (defun base-alist (position base)
   (list
-   (cons "type" "BASE")
+   (cons "type" "Base")
    (cons "position" (coord-alist position))
    (cons "team" (base-team base))))
 
