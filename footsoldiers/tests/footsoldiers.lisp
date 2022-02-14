@@ -968,6 +968,7 @@
                                   :test 'equal)
                                  :max-distance-from-base 5
                                  :bot-memory-limit-kib (bot-memory-limit-kib *default-game-config*)
+                                 :bot-initialisation-time (bot-initialisation-time *default-game-config*)
                                  :health *default-health-config*
                                  :speed-config *default-speed-config*
                                  :damage *default-damage-config*

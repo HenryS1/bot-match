@@ -10,6 +10,7 @@
         "java-jar": "java -jar <bot-file>"
     },
     "bot-memory-limit-kib": 2621440,
+    "bot-initialisation-time": 15,
     "health": {
         "scout": 10,
         "assassin": 6,

@@ -68,7 +68,8 @@
            :map-from-file
            :make-map-details
            :map-details-map
-           :bot-memory-limit-kib))
+           :bot-memory-limit-kib
+           :bot-initialisation-time))
 
 (in-package :footsoldiers)
 
@@ -153,6 +154,7 @@
      (max-distance-from-base)
      (total-turns)
      (bot-memory-limit-kib)
+     (bot-initialisation-time)
      (allowed-commands)
      (health health-config)
      (speed-config speed-config "speed")
@@ -189,6 +191,7 @@
                       (list (cons "lisp-ros" "ros +Q -- <bot-file>"))
                       :test 'equal)
    :bot-memory-limit-kib 2000000
+   :bot-initialisation-time 15
    :max-distance-from-base 5 
    :health *default-health-config*
    :speed-config *default-speed-config*
@@ -640,7 +643,7 @@
                      (game-config *default-game-config*)
                      (game-map *default-game-map*))
   (format t "Running footsoldiers~%")
-  (let ((runtime:*bot-initialisation-time* 15)
+  (let ((runtime:*bot-initialisation-time* (bot-initialisation-time game-config))
         (base1-lookup (gethash (map-details-base1 game-map) (map-details-map game-map)))
         (base2-lookup (gethash (map-details-base2 game-map) (map-details-map game-map))))
     (cond ((or (not base1-lookup) (not (equalp (base-team base1-lookup) "player1")))
