@@ -69,7 +69,9 @@
            :make-map-details
            :map-details-map
            :bot-memory-limit-kib
+           :bot-initialisation-time
            :game-disqualified-players))
+
 
 (in-package :footsoldiers)
 
@@ -78,7 +80,7 @@
 (defun rock-alist (coord r)
   (declare (ignore r))
   (list (cons "position" (coord-alist coord))
-        (cons "type" "ROCK")))
+        (cons "type" "Rock")))
 
 (defstruct soldier pos health type team destination)
 
@@ -90,7 +92,7 @@
   (list
    (cons "position" (coord-alist (soldier-pos soldier)))
    (cons "health" (soldier-health soldier))
-   (cons "type" (format nil "~a" (soldier-type soldier)))
+   (cons "type" (format nil "~@(~a~)" (soldier-type soldier)))
    (cons "team" (soldier-team soldier))
    (cons "destination" (coord-alist (soldier-destination soldier)))))
 
@@ -98,7 +100,7 @@
 
 (defun base-alist (position base)
   (list
-   (cons "type" "BASE")
+   (cons "type" "Base")
    (cons "position" (coord-alist position))
    (cons "team" (base-team base))))
 
@@ -154,6 +156,7 @@
      (max-distance-from-base)
      (total-turns)
      (bot-memory-limit-kib)
+     (bot-initialisation-time)
      (allowed-commands)
      (health health-config)
      (speed-config speed-config "speed")
@@ -190,6 +193,7 @@
                       (list (cons "lisp-ros" "ros +Q -- <bot-file>"))
                       :test 'equal)
    :bot-memory-limit-kib 2000000
+   :bot-initialisation-time 15
    :max-distance-from-base 5 
    :health *default-health-config*
    :speed-config *default-speed-config*
@@ -653,7 +657,7 @@
                      (game-config *default-game-config*)
                      (game-map *default-game-map*))
   (format t "Running footsoldiers~%")
-  (let ((runtime:*bot-initialisation-time* 15)
+  (let ((runtime:*bot-initialisation-time* (bot-initialisation-time game-config))
         (base1-lookup (gethash (map-details-base1 game-map) (map-details-map game-map)))
         (base2-lookup (gethash (map-details-base2 game-map) (map-details-map game-map))))
     (cond ((or (not base1-lookup) (not (equalp (base-team base1-lookup) "player1")))

@@ -13,12 +13,13 @@ public class Bot {
 
     public static void main(String[] args) {
         try {
+            ObjectMapper mapper = new ObjectMapper()
+                .configure(JsonParser.Feature.AUTO_CLOSE_SOURCE, false)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
             
             System.out.println("READY");
             while (true) {
-                ObjectMapper mapper = new ObjectMapper()
-                    .configure(JsonParser.Feature.AUTO_CLOSE_SOURCE, false)
-                    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
             
                 Input input = mapper.readValue(System.in, Input.class);
                 while (System.in.available() > 0) {
