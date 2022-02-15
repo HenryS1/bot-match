@@ -33,7 +33,8 @@
            :bot-turn-result-updated-bot
            :*max-bot-restarts*
            :*memory-limit*
-           :bot-restarts))
+           :bot-restarts
+           :disqualified))
 
 (in-package :runtime)
 
@@ -124,6 +125,7 @@
 
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit &optional log-stream parser))
+(defgeneric disqualified (bot))
 
 (defun read-output (bot-stream)
   (loop for line = (read-line bot-stream nil nil)
@@ -209,15 +211,19 @@
 
 (defstruct bot-turn-result updated-bot output)
 
-(defun not-exited (bot)
-  (not (or (equalp (bot-status bot) :exited)
-           (equalp (bot-status bot) :signaled))))
+(defun has-exited (bot)
+  (or (equalp (bot-status bot) :exited)
+      (equalp (bot-status bot) :signaled)))
+
+(defmethod disqualified ((bot concrete-bot))
+  (and (has-exited bot)
+       (>= (bot-restarts bot) *max-bot-restarts*)))
 
 (defmethod bot-turn ((bot concrete-bot) turn-input time-limit 
                      &optional (log-stream *standard-output*) 
                        (parser #'read-output))
   (handler-case (let ((running-bot (continue-bot bot log-stream)))
-                  (if (not-exited running-bot)
+                  (if (not (has-exited running-bot))
                       (progn 
                         (send-input-to-bot running-bot turn-input)
                         (bind ((output (bot-output running-bot time-limit log-stream parser)))

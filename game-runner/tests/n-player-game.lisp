@@ -16,9 +16,16 @@
 
 (defclass recoverable-bot (test-bot) ())
 
+(defclass disqualified-bot (test-bot) ())
+
+(defmethod disqualified ((bot test-bot)) nil)
+
+(defmethod disqualified ((bot disqualified-bot)) t)
+
 (defclass test-game ()
   ((turns-remaining :accessor turns-remaining :initarg :turns-remaining :initform 1)
-   (moves :accessor moves :initarg :moves :initform nil)))
+   (moves :accessor moves :initarg :moves :initform nil)
+   (disqualified-players :accessor disqualified-players :initarg :disqualified-players)))
 
 (defmethod game-state ((game test-game))
   (format nil "Turns remaining ~a" (turns-remaining game)))
@@ -62,11 +69,12 @@
      :updated-bot new-bot
      :output (format nil "output"))))
 
-(defmethod advance-turn (player-moves (game test-game))
+(defmethod advance-turn (player-moves (game test-game) disqualified-players)
   (make-game-turn-result 
    :game (make-instance 'test-game 
                   :turns-remaining (- (turns-remaining game) 1)
-                  :moves (append player-moves (moves game)))
+                  :moves (append player-moves (moves game))
+                  :disqualified-players disqualified-players)
    :move-log player-moves))
 
 (defmethod turn-time-limit ((game test-game)) 1)
@@ -106,7 +114,24 @@
                                                 :visualisation *standard-output*)))
       (setf (bot-status bot) :exited)
       (bind (((next-bots . _) (tick bots game logging-config)))
-        (ok (equal (bot-status (gethash "player1" next-bots)) :stopped))))))
+        (ok (equal (bot-status (gethash "player1" next-bots)) :stopped)))))
+  (testing "should report disqualified bots"
+    (let* ((game (make-instance 'test-game :turns-remaining 2))
+           (bot1 (make-instance 'disqualified-bot
+                               :bot-id "test"
+                               :bot-name "test-name"))
+           (bot2 (make-instance 'test-bot
+                                :bot-id "test2"
+                                :bot-name "test-name2"))
+           (bots (alist-hash-table
+                  (list (cons "player1" bot1) (cons "player2" bot2))
+                  :test 'equal))
+           (logging-config (make-logging-config :turns *standard-output*
+                                                :moves *standard-output*
+                                                :states *standard-output*
+                                                :visualisation *standard-output*)))
+      (bind (((_ . updated-game) (tick bots game logging-config)))
+        (ok (equal (disqualified-players updated-game) (list "player1")))))))
 
 (deftest n-player-game
   (testing "should run the game until finished"
