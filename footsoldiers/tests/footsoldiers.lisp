@@ -731,13 +731,13 @@
            (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2))
            (map-repr (vector (list (cons "position" (coord-alist (cons 1 4)))
                                    (cons "health" 4)
-                                   (cons "type" "SCOUT")
+                                   (cons "type" "Scout")
                                    (cons "team" "player1")
                                  (cons "destination" (coord-alist (cons 5 5))))
-                             (list (cons "type" "BASE")
+                             (list (cons "type" "Base")
                                    (cons "position" (coord-alist (cons 4 3)))
                                    (cons "team" "player1"))
-                             (list (cons "type" "BASE")
+                             (list (cons "type" "Base")
                                    (cons "position" (coord-alist (cons 5 4)))
                                    (cons "team" "player2"))))
            (player1-repr (list (cons "team" "player1")
@@ -968,6 +968,7 @@
                                   :test 'equal)
                                  :max-distance-from-base 5
                                  :bot-memory-limit-kib (bot-memory-limit-kib *default-game-config*)
+                                 :bot-initialisation-time (bot-initialisation-time *default-game-config*)
                                  :health *default-health-config*
                                  :speed-config *default-speed-config*
                                  :damage *default-damage-config*
