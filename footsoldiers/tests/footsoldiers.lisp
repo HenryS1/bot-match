@@ -625,6 +625,24 @@
                   (make-move-result :errors nil :updated-game new-gm))))))
 
 (deftest game-over
+  (testing "is true when there is a disqualified bot"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (cons 1 4) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm1 (make-game :map mp :turns-remaining 10 
+                           :player1 player1 :player2 player2
+                           :disqualified-players (list "player1")))
+           (gm2 (make-game :map mp :turns-remaining 10
+                           :player1 player1 :player2 player2
+                           :disqualified-players (list "player2")))
+           (gm3 (make-game :map mp :turns-remaining 10
+                           :player1 player1 :player2 player2
+                           :disqualified-players (list "player1" "player2"))))
+      (ok (game-over gm1))
+      (ok (game-over gm2))
+      (ok (game-over gm3))))
   (testing "is true when there are no turns remaining"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)
@@ -659,6 +677,33 @@
       (ok (not (game-over gm)))))) 
 
 (deftest determine-result 
+  (testing "returns win for player1 when player2 has been disqualified"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 10))
+           (gm (make-game :map mp :turns-remaining 10 
+                          :player1 player1 :player2 player2
+                          :disqualified-players (list "player2"))))
+      (ok (equalp (determine-result gm) "Winner player1"))))
+  (testing "returns win for player2 when player1 has been disqualified"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 10))
+           (gm (make-game :map mp :turns-remaining 10 
+                          :player1 player1 :player2 player2
+                          :disqualified-players (list "player1"))))
+      (ok (equalp (determine-result gm) "Winner player2"))))
+  (testing "return draw when both players have been disqualified"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 10))
+           (gm (make-game :map mp :turns-remaining 10 
+                          :player1 player1 :player2 player2
+                          :disqualified-players (list "player1" "player2"))))
+      (ok (equalp (determine-result gm) "Draw"))))
   (testing "returns win for player1 when player2 has no health and player1 has non-zero health"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
@@ -731,13 +776,13 @@
            (gm (make-game :map mp :turns-remaining 10 :player1 player1 :player2 player2))
            (map-repr (vector (list (cons "position" (coord-alist (cons 1 4)))
                                    (cons "health" 4)
-                                   (cons "type" "SCOUT")
+                                   (cons "type" "Scout")
                                    (cons "team" "player1")
                                  (cons "destination" (coord-alist (cons 5 5))))
-                             (list (cons "type" "BASE")
+                             (list (cons "type" "Base")
                                    (cons "position" (coord-alist (cons 4 3)))
                                    (cons "team" "player1"))
-                             (list (cons "type" "BASE")
+                             (list (cons "type" "Base")
                                    (cons "position" (coord-alist (cons 5 4)))
                                    (cons "team" "player2"))))
            (player1-repr (list (cons "team" "player1")
@@ -819,7 +864,7 @@
            (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
                                  (cons "player2" "BUILD ASSASSIN (3, 2) (3, 3)")))
            (step-result (step-game moves gm))
-           (advance-turn-result (advance-turn unparsed-moves gm-copy)))
+           (advance-turn-result (advance-turn unparsed-moves gm-copy nil)))
       (ok (equalp (move-result-updated-game step-result) (game-turn-result-game advance-turn-result)))))
   (testing "discards moves which failed parsing"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
@@ -837,9 +882,20 @@
            (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
                                  (cons "player2" "BUILD  (3, 2) (3, 3)")))
            (step-result (step-game moves gm))
-           (advance-turn-result (advance-turn unparsed-moves gm-copy)))
+           (advance-turn-result (advance-turn unparsed-moves gm-copy nil)))
       (ok (equalp (move-result-updated-game step-result)
-                  (game-turn-result-game advance-turn-result))))))
+                  (game-turn-result-game advance-turn-result)))))
+  (testing "sets disqualified players in the game state"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 15 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (unparsed-moves (list (cons "player1" "NO-OP")
+                                 (cons "player2" nil)))
+           (updated-game (game-turn-result-game 
+                          (advance-turn unparsed-moves (copy-structure gm) (list "player2")))))
+      (ok (equalp (game-disqualified-players updated-game) (list "player2"))))))
 
 (defparameter *test-base-path* (directory-namestring #.*compile-file-truename*))
 
@@ -968,6 +1024,7 @@
                                   :test 'equal)
                                  :max-distance-from-base 5
                                  :bot-memory-limit-kib (bot-memory-limit-kib *default-game-config*)
+                                 :bot-initialisation-time (bot-initialisation-time *default-game-config*)
                                  :health *default-health-config*
                                  :speed-config *default-speed-config*
                                  :damage *default-damage-config*

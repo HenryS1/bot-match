@@ -9,11 +9,11 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     include = JsonTypeInfo.As.PROPERTY,
     property = "type")
 @JsonSubTypes({
-    @Type(value = Rock.class, name = "ROCK"),
-    @Type(value = Assassin.class, name = "ASSASSIN"),
-    @Type(value = Scout.class, name = "SCOUT"),
-    @Type(value = Tank.class, name = "TANK"),
-    @Type(value = Tank.class, name = "BASE") })
+    @Type(value = Rock.class, name = "Rock"),
+    @Type(value = Assassin.class, name = "Assassin"),
+    @Type(value = Scout.class, name = "Scout"),
+    @Type(value = Tank.class, name = "Tank"),
+    @Type(value = Tank.class, name = "Base") })
 public abstract class MapEntry {
     public String type;
     public Coord position;
