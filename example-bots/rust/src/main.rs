@@ -34,12 +34,12 @@ struct State {
 }
 
 fn compute_move(state: State) -> std::string::String {
-    let my_player = if "player1" == &*state.you {
+    let my_player = if "player1" == state.you.as_ref() {
         &state.player1
     } else {
         &state.player2
     };
-    let other_player = if "player1" == &*state.you {
+    let other_player = if "player1" == state.you.as_ref() {
         &state.player2
     } else {
         &state.player1
