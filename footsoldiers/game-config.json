@@ -12,12 +12,12 @@
     "bot-memory-limit-kib": 2621440,
     "bot-initialisation-time": 15,
     "health": {
-        "scout": 10,
+        "scout": 9,
         "assassin": 6,
         "tank": 12
     },
     "speed": {
-        "scout": 3,
+        "scout": 6,
         "assassin": 5,
         "tank": 2
     },
@@ -29,6 +29,6 @@
     "cost": {
         "scout": 10,
         "tank": 12,
-        "assassin": 14
+        "assassin": 11
     }
 }

@@ -1,17 +1,114 @@
 * Footsoldiers 
 
-** Usage
+A simultaneous move strategy game for two players.
 
-** Installation
+** Overview
 
-** Author
+The game has two players, player1 and player2. When the game starts
+the bot runner starts the bot processes of each player and waits for
+them to signal that they are ready. Bots signal readiness by printing
+READY to stdout. 
 
-+ Henry and Ed
+The aim of the game is to send soldiers to attack the enemy base until
+the enemy's health runs out. 
 
-** Copyright
+Each turn a player can either build a soldier (if they have enough
+money), change the destination of one of their current soldiers, or do
+nothing. To do nothing, a player prints NO-OP to stdout. There are
+three soldiers that a player can choose from:
 
-Copyright (c) 2021 Henry and Ed
+- The scout: moderate damage, high speed and moderate health
+- The assassin: high damage, moderate speed and low health
+- The tank: low damage, low speed and high health
 
-** License
+Soldiers are built by specifying the type of the soldier, the location
+to build it at and the soldier's destination. To build a scout the
+player must print
 
-Licensed under the MIT License.
+BUILD SCOUT (x1, y1) (x2, y2)
+
+where x1 is the x coordinate of the build location, y1 is the y
+coordinate of the build location, x2 is the x coordinate of the
+soldier destination and y2 is the y coordinate of the soldier
+destination. Similarly the commands to build an assassing or a tank
+look as follows:
+
+BUILD ASSASSIN (x1, y1) (x2, y2)
+BUILD TANK (x1, y1) (x2, y2)
+
+A build command fails if the player doesn't have enough money for the
+specified soldier, if the build location is occupied or if the build
+location is too far from the player's base.
+
+To change the destination of a soldier a player must print the
+following command to stdout:
+
+MOVE (x1, y1) (x2, y2)
+
+Here x1 and y1 are the x and y coordinates of a friendly soldier while
+x2 and y2 specify the new destination of this soldier.
+
+A move command fails if there is no soldier at the specified position
+or the the soldier at that position belongs to the enemy player.
+
+At the beginning of a turn bots get the current state of the game
+as a json object. An example state object is given below, a full
+schema is given at the end of this README. The ~you~ field indicates
+to the player receiving the state which player they are in the game.
+The ~map~ field indicates the entries in the game map. Map entries can
+be either soldiers, bases or rocks. Every map entry has a position
+indicating where it is in a two dimensional grid. The ~x~ coordinate
+gives the column in the grid and the ~y~ coordinate gives the row.
+There are two bases, one for each player. Rocks are indestructible
+obstacles that soldiers have to manoeuver around.
+
+#+begin_src json
+{
+  "you": "player1",
+  "map": [
+    {
+      "type": "BASE",
+      "position": {
+        "x": 1,
+        "y": 3
+      },
+      "team": "player1"
+    },
+    {
+      "type": "BASE",
+      "position": {
+        "x": 65,
+        "y": 3
+      },
+      "team": "player2"
+    },
+    {
+      "position": {
+        "x": 66,
+        "y": 1
+      },
+      "type": "ROCK"
+    }
+  ],
+  "turns-remaining": 99,
+  "player1": {
+    "team": "player1",
+    "money": 13,
+    "base": {
+      "x": 1,
+      "y": 3
+    },
+    "health": 40
+  },
+  "player2": {
+    "team": "player2",
+    "money": 13,
+    "base": {
+      "x": 65,
+      "y": 3
+    },
+    "health": 40
+  }
+}
+#+end_src
+
