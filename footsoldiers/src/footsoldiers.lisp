@@ -73,7 +73,8 @@
            :game-disqualified-players
            :attack-candidates
            :soldier-attack-direction
-           :change-soldier-attack-direction))
+           :change-soldier-attack-direction
+           :make-change-attack-direction))
 
 
 (in-package :footsoldiers)

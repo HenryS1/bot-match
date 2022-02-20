@@ -647,6 +647,24 @@
                               (make-change-destination :soldier-position (soldier-pos *test-soldier1*)
                                                        :new-destination (cons 10 10))
                               new-gm)
+                  (right new-gm)))))
+  (testing "changes a soldier's attack direction when the command is change attack direction"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (soldier-pos *test-soldier1*) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (new-map (copy-hash-table (game-map gm)))
+           (new-gm (copy-structure gm))
+           (new-soldier (copy-structure *test-soldier1*)))
+      (setf (game-map new-gm) new-map)
+      (setf (soldier-attack-direction new-soldier) :right)
+      (setf (gethash (soldier-pos new-soldier) new-map) new-soldier)
+      (ok (equalp (apply-move "player1"
+                              (make-change-attack-direction :soldier-position (soldier-pos *test-soldier1*)
+                                                            :new-direction :right)
+                              new-gm)
                   (right new-gm))))))
 
 (deftest apply-moves 
