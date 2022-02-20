@@ -271,8 +271,31 @@
   (testing "returns false for a rock"
     (ok (not (eligible-target *test-soldier1* (make-rock))))))
 
+(deftest attack-candidates
+  (testing "produces a list of positions clockwise from the soldier's attack direction"
+    (let* ((soldier-down (make-soldier :pos (cons 2 4)
+                                       :health 4
+                                       :type :assassin
+                                       :team "player1"
+                                       :destination (cons 2 4)
+                                       :attack-direction :down))
+           (soldier-left (copy-structure soldier-down))
+           (soldier-up (copy-structure soldier-down))
+           (soldier-right (copy-structure soldier-down)))
+      (setf (soldier-attack-direction soldier-left) :left)
+      (setf (soldier-attack-direction soldier-up) :up)
+      (setf (soldier-attack-direction soldier-right) :right)
+      (ok (equal (attack-candidates soldier-down)
+                 (list (cons 2 5) (cons 1 4) (cons 2 3) (cons 3 4))))
+      (ok (equal (attack-candidates soldier-left)
+                 (list (cons 1 4) (cons 2 3) (cons 3 4) (cons 2 5))))
+      (ok (equal (attack-candidates soldier-up)
+                 (list (cons 2 3) (cons 3 4) (cons 2 5) (cons 1 4))))
+      (ok (equal (attack-candidates soldier-right)
+                 (list (cons 3 4) (cons 2 5) (cons 1 4) (cons 2 3)))))))
+
 (deftest find-target
-  (testing "finds the first adjacent target clockwise starting from the bottom"
+  (testing "finds the first adjacent target clockwise starting from the soldiers attack direction"
     (let ((new-soldier4 (copy-structure *test-soldier4*))
           (new-soldier3 (copy-structure *test-soldier3*)))
       (setf (soldier-pos new-soldier3) (cons 1 5))

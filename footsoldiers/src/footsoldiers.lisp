@@ -70,7 +70,9 @@
            :map-details-map
            :bot-memory-limit-kib
            :bot-initialisation-time
-           :game-disqualified-players))
+           :game-disqualified-players
+           :attack-candidates
+           :soldier-attack-direction))
 
 
 (in-package :footsoldiers)
@@ -332,7 +334,7 @@
 (defun drop (n l) (loop for i from 0 to n
                      for new-l = l then (cdr new-l) finally (return new-l)))
 
-(defmethod search-candidates ((s soldier))
+(defmethod attack-candidates ((s soldier))
   (bind (((x . y) (soldier-pos s)))
     (let ((clockwise-around-soldier (make-circular (list (cons x (+ y 1))
                                                          (cons (- x 1) y)
@@ -347,7 +349,7 @@
 (defmethod find-target ((s soldier) mp)
   (awhen (find-if (lambda (p) 
                     (and (gethash p mp)
-                         (eligible-target s (gethash p mp)))) (search-candidates s))
+                         (eligible-target s (gethash p mp)))) (attack-candidates s))
     (gethash it mp)))
 
 (defmethod attack-soldier ((s1 soldier) (s2 soldier) mp config)
