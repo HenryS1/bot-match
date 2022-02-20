@@ -25,7 +25,7 @@
      if (and my-player other-player (>= (money my-player) 10))
      do (let ((my-base-coord (base my-player))
               (enemy-base-coord (base other-player)))
-          (format t "~a~%" (format nil "BUILD SCOUT (~a, ~a) (~a, ~a)" 
+          (format t "~a~%" (format nil "BUILD SCOUT (~a, ~a) (~a, ~a) DOWN" 
                                    (x my-base-coord)
                                    (+ (y my-base-coord) 1)
                                    (x enemy-base-coord)
