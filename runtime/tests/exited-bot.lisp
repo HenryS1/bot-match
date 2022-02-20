@@ -1,2 +1,2 @@
-(format t "READY~%")
+(format t "Ready~%")
 

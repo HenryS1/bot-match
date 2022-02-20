@@ -4,7 +4,7 @@
 (in-package :forever-bot)
 
 (defun run ()
-  (format t "READY~%")
+  (format t "Ready~%")
   (sleep 20))
 
 (run)

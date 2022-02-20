@@ -588,7 +588,7 @@
 
 (defun parse-move (player-move)
   (match (cdr player-move)
-    ((ppcre "BUILD (SCOUT|ASSASSIN|TANK) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\) (DOWN|LEFT|UP|RIGHT)" 
+    ((ppcre "Build (Scout|Assassin|Tank) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\) (Down|Left|Up|Right)" 
             name (read start-x) (read start-y) (read dest-x) (read dest-y) attack-direction) 
      (right (cons (car player-move)
                   (make-build :soldier-type (intern (string-upcase name) "KEYWORD") 
@@ -596,17 +596,17 @@
                               :destination (cons dest-x dest-y)
                               :attack-direction (intern
                                                  (string-upcase attack-direction) "KEYWORD")))))
-    ((ppcre "MOVE \\((\\d+), (\\d+)\\) TO \\((\\d+), (\\d+)\\)"
+    ((ppcre "Move \\((\\d+), (\\d+)\\) to \\((\\d+), (\\d+)\\)"
             (read position-x) (read position-y) (read dest-x) (read dest-y))
      (right (cons (car player-move)
                   (make-change-destination :soldier-position (cons position-x position-y)
                                 :new-destination (cons dest-x dest-y)))))
-    ((ppcre "CHANGE ATTACK DIRECTION \\((\\d+), (\\d+)\\) TO (DOWN|LEFT|UP|RIGHT)"
+    ((ppcre "Change attack direction \\((\\d+), (\\d+)\\) to (Down|Left|Up|Right)"
             (read position-x) (read position-y) new-direction)
      (right (cons (car player-move)
                   (make-change-attack-direction :soldier-position (cons position-x position-y)
                                                 :new-direction (intern (string-upcase new-direction) "KEYWORD")))))
-    ((ppcre "NO-OP") (right (cons (car player-move) :no-op)))
+    ((ppcre "No-op") (right (cons (car player-move) :no-op)))
     (nil (left (format nil "Player ~a didn't provide a move" (car player-move))))
     (otherwise (left (format nil "Player ~a provided invalid move '~a'" 
                      (car player-move) (cdr player-move))))))
@@ -622,20 +622,20 @@
 (defun format-command (command)
   (match command
     ((type change-destination)
-     (format nil "MOVE ~a TO ~a"
+     (format nil "Move ~a to ~a"
              (format-position (change-destination-soldier-position command))
              (format-position (change-destination-new-destination command))))
     ((type build)
-     (format nil "BUILD ~a ~a ~a ~a" 
+     (format nil "Build ~a ~a ~a ~a" 
              (build-soldier-type command) 
              (format-position (build-start command))
              (format-position (build-destination command))
              (build-attack-direction command)))
     ((type change-attack-direction)
-     (format nil "CHANGE ATTACK DIRECTION ~a TO ~a"
+     (format nil "Change attack direction ~a to ~a"
              (format-position (change-attack-direction-soldier-position command))
              (change-attack-direction-new-direction command)))
-    (:no-op (format nil "NO-OP"))))
+    (:no-op (format nil "No-op"))))
 
 (defun format-parsed-move (parsed-move)
   (match parsed-move

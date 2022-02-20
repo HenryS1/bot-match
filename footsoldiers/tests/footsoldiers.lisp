@@ -468,7 +468,7 @@
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))) 
       (ok (equalp (build-soldier "player1" :scout (cons 4 4) (cons 8 10) gm)
-                  (left "Player player1 with money 9 doesn't have enough money for SCOUT with cost 10")))))
+                  (left "Player player1 with money 9 doesn't have enough money for Scout with cost 10")))))
   (testing "fails when the build position is already occupied"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)
@@ -477,7 +477,7 @@
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
       (ok (equalp (build-soldier "player1" :scout (cons 4 4) (cons 8 10) gm)
-                  (left "Player player1 tried to build SCOUT at position (4, 4) which is occupied")))))
+                  (left "Player player1 tried to build Scout at position (4, 4) which is occupied")))))
   (testing "fails when the build position is too far from the player's base"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
@@ -485,7 +485,7 @@
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
       (ok (equalp (build-soldier "player1" :scout (cons 6 7) (cons 8 10) gm)
-                  (left "Player player1 tried to build SCOUT at position (6, 7), too far from base (4, 3)")))))
+                  (left "Player player1 tried to build Scout at position (6, 7), too far from base (4, 3)")))))
   (testing "adds a soldier to the map and reduces the player's money"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
@@ -592,20 +592,20 @@
 (deftest format-command
   (testing "formats a no-op the same way it was read in"
     (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
-                      (parse-move (cons "player1" "NO-OP")))
-                (right "NO-OP"))))
+                      (parse-move (cons "player1" "No-op")))
+                (right "No-op"))))
   (testing "formats a build command the same way it was read in"
     (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
-                      (parse-move (cons "player1" "BUILD ASSASSIN (1, 2) (5, 3) UP")))
-                (right "BUILD ASSASSIN (1, 2) (5, 3) UP"))))
+                      (parse-move (cons "player1" "Build Assassin (1, 2) (5, 3) Up")))
+                (right "Build Assassin (1, 2) (5, 3) Up"))))
   (testing "formats a change destination command the same way it was read in"
     (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
-                      (parse-move (cons "player1" "MOVE (1, 4) TO (6, 9)")))
-                (right "MOVE (1, 4) TO (6, 9)"))))
+                      (parse-move (cons "player1" "Move (1, 4) to (6, 9)")))
+                (right "Move (1, 4) to (6, 9)"))))
   (testing "formats a change attack direction command the same way it was read in"
     (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
-                      (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (4, 10) TO DOWN")))
-                (right "CHANGE ATTACK DIRECTION (4, 10) TO DOWN")))))
+                      (parse-move (cons "player1" "Change attack direction (4, 10) to Down")))
+                (right "Change attack direction (4, 10) to Down")))))
 
 (deftest apply-move 
   (testing "does nothing for no-op"
@@ -689,8 +689,8 @@
            (result (apply-moves moves gm)))
       (ok (equalp result
                   (make-move-result 
-                   :errors (list "Player player1 tried to build SCOUT at position (4, 4) which is occupied" 
-                                 "Player player2 with money 3 doesn't have enough money for ASSASSIN with cost 14")
+                   :errors (list "Player player1 tried to build Scout at position (4, 4) which is occupied" 
+                                 "Player player2 with money 3 doesn't have enough money for Assassin with cost 14")
                                     :updated-game gm)))))  
   (testing "applies moves for both players"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
@@ -925,49 +925,49 @@
 
 (deftest parse-move 
   (testing "parses a build move"
-    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6) UP"))
+    (ok (equalp (parse-move (cons "player1" "Build Scout (1, 3) (4, 6) Up"))
                 (right (cons "player1"
                              (make-build :soldier-type :scout
                                          :start (cons 1 3)
                                          :destination (cons 4 6)
                                          :attack-direction :up))))))
-  (testing "only accepts three SCOUT, TANK or ASSASSIN for soldier type"
-    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6) DOWN"))
+  (testing "only accepts Scout, Tank or Assassin for soldier type"
+    (ok (equalp (parse-move (cons "player1" "Build Scout (1, 3) (4, 6) Down"))
                 (right (cons "player1"
                              (make-build :soldier-type :scout
                                          :start (cons 1 3)
                                          :destination (cons 4 6)
                                          :attack-direction :down)))))
-    (ok (equalp (parse-move (cons "player1" "BUILD TANK (1, 3) (4, 6) LEFT"))
+    (ok (equalp (parse-move (cons "player1" "Build Tank (1, 3) (4, 6) Left"))
                 (right (cons "player1"
                              (make-build :soldier-type :tank
                                          :start (cons 1 3)
                                          :destination (cons 4 6)
                                          :attack-direction :left)))))
-    (ok (equalp (parse-move (cons "player1" "BUILD ASSASSIN (1, 3) (4, 6) RIGHT"))
+    (ok (equalp (parse-move (cons "player1" "Build Assassin (1, 3) (4, 6) Right"))
                 (right (cons "player1"
                              (make-build :soldier-type :assassin
                                          :start (cons 1 3)
                                          :destination (cons 4 6)
                                          :attack-direction :right)))))
-    (ok (equalp (parse-move (cons "player1" "BUILD INFANTRY (1, 3) (4, 6) DOWN"))
+    (ok (equalp (parse-move (cons "player1" "Build Infantry (1, 3) (4, 6) Down"))
                 (left 
-                 "Player player1 provided invalid move 'BUILD INFANTRY (1, 3) (4, 6) DOWN'"))))
+                 "Player player1 provided invalid move 'Build Infantry (1, 3) (4, 6) Down'"))))
   (testing "parses a change attack direction move"
-    (ok (equalp (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO UP"))
+    (ok (equalp (parse-move (cons "player1" "Change attack direction (1, 3) to Up"))
                 (right (cons "player1" (make-change-attack-direction 
                                         :soldier-position (cons 1 3)
                                         :new-direction :up))))))
-  (testing "only accepts DOWN, LEFT, UP or RIGHT as new attack directions"
-    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO DOWN"))))
-    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO LEFT"))))
-    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO UP"))))
-    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO RIGHT"))))
-    (ok (equalp (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO DIR"))
+  (testing "only accepts Down, Left, Up or Right as new attack directions"
+    (ok (is-right (parse-move (cons "player1" "Change attack direction (1, 3) to Down"))))
+    (ok (is-right (parse-move (cons "player1" "Change attack direction (1, 3) to Left"))))
+    (ok (is-right (parse-move (cons "player1" "Change attack direction (1, 3) to Up"))))
+    (ok (is-right (parse-move (cons "player1" "Change attack direction (1, 3) to Right"))))
+    (ok (equalp (parse-move (cons "player1" "Change attack direction (1, 3) to Dir"))
                 (left 
-                 "Player player1 provided invalid move 'CHANGE ATTACK DIRECTION (1, 3) TO DIR'"))))
+                 "Player player1 provided invalid move 'Change attack direction (1, 3) to Dir'"))))
   (testing "parses a no-op move"
-    (ok (equalp (parse-move (cons "player1" "NO-OP"))
+    (ok (equalp (parse-move (cons "player1" "No-op"))
                 (right (cons "player1" :no-op)))))
   (testing "returns an error when the player didn't provide a move"
     (ok (equalp (parse-move (cons "player1" nil))
@@ -993,8 +993,8 @@
            (player1-copy (copy-structure player1))
            (player2-copy (copy-structure player2))
            (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
-           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5) DOWN")
-                                 (cons "player2" "BUILD ASSASSIN (3, 2) (3, 3) DOWN")))
+           (unparsed-moves (list (cons "player1" "Build Scout (6, 5) (5, 5) Down")
+                                 (cons "player2" "Build Assassin (3, 2) (3, 3) Down")))
            (step-result (step-game moves gm))
            (advance-turn-result (advance-turn unparsed-moves gm-copy nil)))
       (ok (equalp (move-result-updated-game step-result) (game-turn-result-game advance-turn-result)))))
@@ -1011,8 +1011,8 @@
            (player1-copy (copy-structure player1))
            (player2-copy (copy-structure player2))
            (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
-           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5) DOWN")
-                                 (cons "player2" "BUILD  (3, 2) (3, 3)")))
+           (unparsed-moves (list (cons "player1" "Build Scout (6, 5) (5, 5) Down")
+                                 (cons "player2" "Build  (3, 2) (3, 3)")))
            (step-result (step-game moves gm))
            (advance-turn-result (advance-turn unparsed-moves gm-copy nil)))
       (ok (equalp (move-result-updated-game step-result)
@@ -1023,7 +1023,7 @@
            (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
            (player2 (make-player :team "player2" :money 15 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
-           (unparsed-moves (list (cons "player1" "NO-OP")
+           (unparsed-moves (list (cons "player1" "No-op")
                                  (cons "player2" nil)))
            (updated-game (game-turn-result-game 
                           (advance-turn unparsed-moves (copy-structure gm) (list "player2")))))

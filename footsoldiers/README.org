@@ -7,14 +7,14 @@ A simultaneous move strategy game for two players.
 The game has two players, player1 and player2. When the game starts
 the bot runner starts the bot processes of each player and waits for
 them to signal that they are ready. Bots signal readiness by printing
-READY to stdout. 
+Ready to stdout. 
 
 The aim of the game is to send soldiers to attack the enemy base until
 the enemy's health runs out. 
 
 Each turn a player can either build a soldier (if they have enough
 money), change the destination of one of their current soldiers, or do
-nothing. To do nothing, a player prints NO-OP to stdout. There are
+nothing. To do nothing, a player prints No-op to stdout. There are
 three soldiers that a player can choose from:
 
 - The scout: moderate damage, high speed and moderate health
