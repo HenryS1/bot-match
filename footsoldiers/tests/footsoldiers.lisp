@@ -1,6 +1,7 @@
 (defpackage footsoldiers/tests/footsoldiers
   (:use :cl
         :footsoldiers
+        :trivia
         :alexandria
         :metabang-bind
         :n-player-game
@@ -589,18 +590,22 @@
                   (right new-gm))))))
 
 (deftest format-command
-  (testing "prints a no-op the same way it was read in"
+  (testing "formats a no-op the same way it was read in"
     (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
                       (parse-move (cons "player1" "NO-OP")))
                 (right "NO-OP"))))
-  (testing "prints a build command the same way it was read in"
+  (testing "formats a build command the same way it was read in"
     (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
                       (parse-move (cons "player1" "BUILD ASSASSIN (1, 2) (5, 3) UP")))
                 (right "BUILD ASSASSIN (1, 2) (5, 3) UP"))))
-  (testing "prints a change destination command the same way it was read in"
+  (testing "formats a change destination command the same way it was read in"
     (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
                       (parse-move (cons "player1" "MOVE (1, 4) TO (6, 9)")))
-                (right "MOVE (1, 4) TO (6, 9)")))))
+                (right "MOVE (1, 4) TO (6, 9)"))))
+  (testing "formats a change attack direction command the same way it was read in"
+    (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
+                      (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (4, 10) TO DOWN")))
+                (right "CHANGE ATTACK DIRECTION (4, 10) TO DOWN")))))
 
 (deftest apply-move 
   (testing "does nothing for no-op"
@@ -912,6 +917,11 @@
                   (list (cons "player1" player-1-game-json)
                         (cons "player2" player-2-game-json)))))))
 
+(defun is-right (result)
+  (match result
+    ((type right) t)
+    (otherwise nil)))
+
 (deftest parse-move 
   (testing "parses a build move"
     (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6) UP"))
@@ -942,6 +952,19 @@
     (ok (equalp (parse-move (cons "player1" "BUILD INFANTRY (1, 3) (4, 6) DOWN"))
                 (left 
                  "Player player1 provided invalid move 'BUILD INFANTRY (1, 3) (4, 6) DOWN'"))))
+  (testing "parses a change attack direction move"
+    (ok (equalp (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO UP"))
+                (right (cons "player1" (make-change-attack-direction 
+                                        :soldier-position (cons 1 3)
+                                        :new-direction :up))))))
+  (testing "only accepts DOWN, LEFT, UP or RIGHT as new attack directions"
+    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO DOWN"))))
+    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO LEFT"))))
+    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO UP"))))
+    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO RIGHT"))))
+    (ok (equalp (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO DIR"))
+                (left 
+                 "Player player1 provided invalid move 'CHANGE ATTACK DIRECTION (1, 3) TO DIR'"))))
   (testing "parses a no-op move"
     (ok (equalp (parse-move (cons "player1" "NO-OP"))
                 (right (cons "player1" :no-op)))))

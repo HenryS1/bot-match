@@ -600,6 +600,11 @@
      (right (cons (car player-move)
                   (make-change-destination :soldier-position (cons position-x position-y)
                                 :new-destination (cons dest-x dest-y)))))
+    ((ppcre "CHANGE ATTACK DIRECTION \\((\\d+), (\\d+)\\) TO (DOWN|LEFT|UP|RIGHT)"
+            (read position-x) (read position-y) new-direction)
+     (right (cons (car player-move)
+                  (make-change-attack-direction :soldier-position (cons position-x position-y)
+                                                :new-direction (intern (string-upcase new-direction) "KEYWORD")))))
     ((ppcre "NO-OP") (right (cons (car player-move) :no-op)))
     (nil (left (format nil "Player ~a didn't provide a move" (car player-move))))
     (otherwise (left (format nil "Player ~a provided invalid move '~a'" 
@@ -625,6 +630,10 @@
              (format-position (build-start command))
              (format-position (build-destination command))
              (build-attack-direction command)))
+    ((type change-attack-direction)
+     (format nil "CHANGE ATTACK DIRECTION ~a TO ~a"
+             (format-position (change-attack-direction-soldier-position command))
+             (change-attack-direction-new-direction command)))
     (:no-op (format nil "NO-OP"))))
 
 (defun format-parsed-move (parsed-move)
