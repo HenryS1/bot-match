@@ -21,31 +21,36 @@
                                             :health 4 
                                             :type :scout
                                             :team "player1"
-                                            :destination (cons 5 5)))
+                                            :destination (cons 5 5)
+                                            :attack-direction :down))
 
 (defparameter *test-soldier2* (make-soldier :pos (cons 2 4)
                                             :health 3
                                             :type :assassin
                                             :team "player2"
-                                            :destination (cons 3 1)))
+                                            :destination (cons 3 1)
+                                            :attack-direction :down))
 
 (defparameter *test-soldier3* (make-soldier :pos (cons 4 4)
                                             :health 3
                                             :type :assassin
                                             :team "player1"
-                                            :destination (cons 3 1)))
+                                            :destination (cons 3 1)
+                                            :attack-direction :down))
 
 (defparameter *test-soldier4* (make-soldier :pos (cons 3 3)
                                             :health 3
                                             :type :assassin
                                             :team "player2"
-                                            :destination (cons 3 1)))
+                                            :destination (cons 3 1)
+                                            :attack-direction :down))
 
 (defparameter *test-soldier5* (make-soldier :pos (cons 3 5)
                                             :health 3
                                             :type :assassin
                                             :team "player2"
-                                            :destination (cons 3 1)))
+                                            :destination (cons 3 1)
+                                            :attack-direction :down))
 
 (deftest neighbours 
   (testing "finds all adjacent positions when none are occupied"
@@ -99,7 +104,8 @@
                                   :health 4
                                   :type :scout
                                   :team "player1"
-                                  :destination (cons -3 0)))
+                                  :destination (cons -3 0)
+                                  :attack-direction :down))
            (mp (alist-hash-table (list (cons (cons 0 0) (make-rock))
                                        (cons (cons 1 0) soldier)) :test 'equal))
            (reachable (reachable-positions 3 (cons 1 0) mp)))
@@ -152,7 +158,8 @@
                                  :health 4
                                  :type :scout
                                  :team "player1"
-                                 :destination (cons 0 0)))
+                                 :destination (cons 0 0)
+                                 :attack-direction :down))
            (mp (alist-hash-table (list (cons (cons 5 0) soldier)
                                        (cons (cons 4 0) (make-rock)))
                                 :test 'equal)))
@@ -224,12 +231,14 @@
                                           :health 4
                                           :type :assassin
                                           :team "player1"
-                                          :destination (cons 1 5)))
+                                          :destination (cons 1 5)
+                                          :attack-direction :down))
            (player2-soldier (make-soldier :pos (cons 2 6)
                                           :health 4
                                           :type :assassin
                                           :team "player2"
-                                          :destination (cons 1 5)))
+                                          :destination (cons 1 5)
+                                          :attack-direction :down))
            (mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                          (list player1-soldier player2-soldier)) :test 'equal)))
       (let* ((new-soldier1 (copy-structure player1-soldier))
@@ -400,12 +409,14 @@
                                    :health 4
                                    :type :assassin
                                    :team "player1"
-                                   :destination (cons 2 4)))
+                                   :destination (cons 2 4)
+                                   :attack-direction :down))
            (soldier2 (make-soldier :pos (cons 1 4)
                                    :health 4
                                    :type :assassin
                                    :team "player2"
-                                   :destination (cons 1 4)))
+                                   :destination (cons 1 4)
+                                   :attack-direction :down))
            (mp (alist-hash-table (list (cons (soldier-pos soldier1) soldier1)
                                        (cons (soldier-pos soldier2) soldier2)
                                        (cons (cons 10 1) *test-base1*)
@@ -459,7 +470,9 @@
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
            (result (build-soldier "player1" :scout (cons 5 6) (cons 8 10) gm))
            (new-soldier (make-soldier :pos (cons 5 6) :health 6 
-                                      :type :scout :team "player1" :destination (cons 8 10)))
+                                      :type :scout :team "player1"
+                                      :destination (cons 8 10)
+                                      :attack-direction :down))
            (new-player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 25))
            (new-mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                            (cons (cons 5 4) *test-base2*)
@@ -542,7 +555,9 @@
                                                      :start (cons 5 6)
                                                      :destination (cons 8 10)) gm))
            (new-soldier (make-soldier :pos (cons 5 6) :health 6 
-                                      :type :scout :team "player1" :destination (cons 8 10)))
+                                      :type :scout :team "player1"
+                                      :destination (cons 8 10)
+                                      :attack-direction :down))
            (new-player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 25))
            (new-mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                            (cons (cons 5 4) *test-base2*)
@@ -607,13 +622,15 @@
                                                                :health 6
                                                                :type :scout
                                                                :team "player1"
-                                                               :destination (cons 8 10)))
+                                                               :destination (cons 8 10)
+                                                               :attack-direction :down))
                                            (cons (cons 3 3) 
                                                  (make-soldier :pos (cons 3 3)
                                                                :health 6
                                                                :type :assassin
                                                                :team "player2"
-                                                               :destination (cons 9 6)))) 
+                                                               :destination (cons 9 6)
+                                                               :attack-direction :down))) 
                                      :test 'equal))
            (new-player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 25))
            (new-player2 (make-player :team "player2" :money 1 :base (cons 5 4) :health 24))
@@ -746,13 +763,15 @@
                                                                :health 6
                                                                :type :scout
                                                                :team "player1"
-                                                               :destination (cons 5 5)))
+                                                               :destination (cons 5 5)
+                                                               :attack-direction :down))
                                            (cons (cons 3 3) 
                                                  (make-soldier :pos (cons 3 3)
                                                                :health 6
                                                                :type :assassin
                                                                :team "player2"
-                                                               :destination (cons 3 3)))) 
+                                                               :destination (cons 3 3)
+                                                               :attack-direction :down))) 
                                      :test 'equal))
            (new-player1 (make-player :team "player1" 
                                      :money (+ 10 (money-per-turn *default-game-config*)) 

@@ -82,7 +82,7 @@
   (list (cons "position" (coord-alist coord))
         (cons "type" "Rock")))
 
-(defstruct soldier pos health type team destination)
+(defstruct soldier pos health type team destination attack-direction)
 
 (defun coord-alist (coord)
   (list (cons "x" (car coord))
@@ -415,7 +415,8 @@
                                         :health (initial-health soldier-type (game-config new-gm))
                                         :type soldier-type
                                         :destination destination
-                                        :team (player-team player))))
+                                        :team (player-team player)
+                                        :attack-direction :down)))
                   (setf (player-money player) (- (player-money player) (soldier-cost soldier-type (game-config new-gm))))
                   (setf (gethash start (game-map new-gm)) s)
                   (if (equalp team (player-team (game-player1 new-gm)))
