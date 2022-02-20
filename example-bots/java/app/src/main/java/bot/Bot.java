@@ -39,7 +39,7 @@ public class Bot {
                 if (me.money > 10) {
                     Coord myBaseCoord = me.base;
                     Coord enemyBaseCoord = enemy.base;
-                    System.out.println(String.format("BUILD SCOUT (%d, %d) (%d, %d)", 
+                    System.out.println(String.format("BUILD SCOUT (%d, %d) (%d, %d) DOWN", 
                                                      myBaseCoord.x, myBaseCoord.y + 1,
                                                      enemyBaseCoord.x, enemyBaseCoord.y));
                 } else {

@@ -1,6 +1,7 @@
 (defpackage footsoldiers/tests/footsoldiers
   (:use :cl
         :footsoldiers
+        :trivia
         :alexandria
         :metabang-bind
         :n-player-game
@@ -21,31 +22,36 @@
                                             :health 4 
                                             :type :scout
                                             :team "player1"
-                                            :destination (cons 5 5)))
+                                            :destination (cons 5 5)
+                                            :attack-direction :down))
 
 (defparameter *test-soldier2* (make-soldier :pos (cons 2 4)
                                             :health 3
                                             :type :assassin
                                             :team "player2"
-                                            :destination (cons 3 1)))
+                                            :destination (cons 3 1)
+                                            :attack-direction :down))
 
 (defparameter *test-soldier3* (make-soldier :pos (cons 4 4)
                                             :health 3
                                             :type :assassin
                                             :team "player1"
-                                            :destination (cons 3 1)))
+                                            :destination (cons 3 1)
+                                            :attack-direction :down))
 
 (defparameter *test-soldier4* (make-soldier :pos (cons 3 3)
                                             :health 3
                                             :type :assassin
                                             :team "player2"
-                                            :destination (cons 3 1)))
+                                            :destination (cons 3 1)
+                                            :attack-direction :down))
 
 (defparameter *test-soldier5* (make-soldier :pos (cons 3 5)
                                             :health 3
                                             :type :assassin
                                             :team "player2"
-                                            :destination (cons 3 1)))
+                                            :destination (cons 3 1)
+                                            :attack-direction :down))
 
 (deftest neighbours 
   (testing "finds all adjacent positions when none are occupied"
@@ -99,7 +105,8 @@
                                   :health 4
                                   :type :scout
                                   :team "player1"
-                                  :destination (cons -3 0)))
+                                  :destination (cons -3 0)
+                                  :attack-direction :down))
            (mp (alist-hash-table (list (cons (cons 0 0) (make-rock))
                                        (cons (cons 1 0) soldier)) :test 'equal))
            (reachable (reachable-positions 3 (cons 1 0) mp)))
@@ -152,7 +159,8 @@
                                  :health 4
                                  :type :scout
                                  :team "player1"
-                                 :destination (cons 0 0)))
+                                 :destination (cons 0 0)
+                                 :attack-direction :down))
            (mp (alist-hash-table (list (cons (cons 5 0) soldier)
                                        (cons (cons 4 0) (make-rock)))
                                 :test 'equal)))
@@ -224,12 +232,14 @@
                                           :health 4
                                           :type :assassin
                                           :team "player1"
-                                          :destination (cons 1 5)))
+                                          :destination (cons 1 5)
+                                          :attack-direction :down))
            (player2-soldier (make-soldier :pos (cons 2 6)
                                           :health 4
                                           :type :assassin
                                           :team "player2"
-                                          :destination (cons 1 5)))
+                                          :destination (cons 1 5)
+                                          :attack-direction :down))
            (mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                          (list player1-soldier player2-soldier)) :test 'equal)))
       (let* ((new-soldier1 (copy-structure player1-soldier))
@@ -262,8 +272,31 @@
   (testing "returns false for a rock"
     (ok (not (eligible-target *test-soldier1* (make-rock))))))
 
+(deftest attack-candidates
+  (testing "produces a list of positions clockwise from the soldier's attack direction"
+    (let* ((soldier-down (make-soldier :pos (cons 2 4)
+                                       :health 4
+                                       :type :assassin
+                                       :team "player1"
+                                       :destination (cons 2 4)
+                                       :attack-direction :down))
+           (soldier-left (copy-structure soldier-down))
+           (soldier-up (copy-structure soldier-down))
+           (soldier-right (copy-structure soldier-down)))
+      (setf (soldier-attack-direction soldier-left) :left)
+      (setf (soldier-attack-direction soldier-up) :up)
+      (setf (soldier-attack-direction soldier-right) :right)
+      (ok (equal (attack-candidates soldier-down)
+                 (list (cons 2 5) (cons 1 4) (cons 2 3) (cons 3 4))))
+      (ok (equal (attack-candidates soldier-left)
+                 (list (cons 1 4) (cons 2 3) (cons 3 4) (cons 2 5))))
+      (ok (equal (attack-candidates soldier-up)
+                 (list (cons 2 3) (cons 3 4) (cons 2 5) (cons 1 4))))
+      (ok (equal (attack-candidates soldier-right)
+                 (list (cons 3 4) (cons 2 5) (cons 1 4) (cons 2 3)))))))
+
 (deftest find-target
-  (testing "finds the first adjacent target clockwise starting from the bottom"
+  (testing "finds the first adjacent target clockwise starting from the soldiers attack direction"
     (let ((new-soldier4 (copy-structure *test-soldier4*))
           (new-soldier3 (copy-structure *test-soldier3*)))
       (setf (soldier-pos new-soldier3) (cons 1 5))
@@ -400,12 +433,14 @@
                                    :health 4
                                    :type :assassin
                                    :team "player1"
-                                   :destination (cons 2 4)))
+                                   :destination (cons 2 4)
+                                   :attack-direction :down))
            (soldier2 (make-soldier :pos (cons 1 4)
                                    :health 4
                                    :type :assassin
                                    :team "player2"
-                                   :destination (cons 1 4)))
+                                   :destination (cons 1 4)
+                                   :attack-direction :down))
            (mp (alist-hash-table (list (cons (soldier-pos soldier1) soldier1)
                                        (cons (soldier-pos soldier2) soldier2)
                                        (cons (cons 10 1) *test-base1*)
@@ -459,13 +494,58 @@
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
            (result (build-soldier "player1" :scout (cons 5 6) (cons 8 10) gm))
            (new-soldier (make-soldier :pos (cons 5 6) :health 6 
-                                      :type :scout :team "player1" :destination (cons 8 10)))
+                                      :type :scout :team "player1"
+                                      :destination (cons 8 10)
+                                      :attack-direction :down))
            (new-player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 25))
            (new-mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                            (cons (cons 5 4) *test-base2*)
                                            (cons (cons 5 6) new-soldier)) :test 'equal))
            (new-gm (make-game :map new-mp :turns-remaining 20 :player1 new-player1 :player2 player2)))
       (ok (equalp result (right new-gm))))))
+
+(deftest change-soldier-attack-direction
+  (testing "fails when the soldier position is not occupied"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*))))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
+      (ok (equalp (change-soldier-attack-direction "player1" (cons 1 2) :up gm)
+                  (left "Player player1 tried to change attack direction, but position (1, 2) is not occupied")))))
+  (testing "fails when the position is occupied by a base instead of a soldier"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
+      (ok (equalp (change-soldier-attack-direction "player1" (cons 4 3) :up gm)
+                  (left "Player player1 tried to change attack direction, but position (4, 3) has a base, not a soldier")))))
+  (testing "fails when the position is occupied by an enemy soldier"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (soldier-pos *test-soldier2*) *test-soldier2*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
+      (ok (equalp (change-soldier-attack-direction "player1" (soldier-pos *test-soldier2*) :up gm)
+                  (left (format nil "Player player1 tried to change attack direction, but position ~a has an enemy soldier" 
+                                (format-position (soldier-pos *test-soldier2*))))))))
+  (testing "succeeds when the position is occupied by a soldier from the player's team"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (soldier-pos *test-soldier1*) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (new-map (copy-hash-table (game-map gm)))
+           (new-gm (copy-structure gm))
+           (new-soldier (copy-structure *test-soldier1*)))
+      (setf (game-map new-gm) new-map)
+      (setf (soldier-attack-direction new-soldier) :up)
+      (setf (gethash (soldier-pos new-soldier) new-map) new-soldier)
+      (ok (equalp (change-soldier-attack-direction "player1" (soldier-pos *test-soldier1*) :up new-gm)
+                  (right new-gm))))))
 
 (deftest change-soldier-destination
   (testing "fails when the soldier position is not occupied"
@@ -510,18 +590,22 @@
                   (right new-gm))))))
 
 (deftest format-command
-  (testing "prints a no-op the same way it was read in"
+  (testing "formats a no-op the same way it was read in"
     (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
                       (parse-move (cons "player1" "NO-OP")))
                 (right "NO-OP"))))
-  (testing "prints a build command the same way it was read in"
+  (testing "formats a build command the same way it was read in"
     (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
-                      (parse-move (cons "player1" "BUILD ASSASSIN (1, 2) (5, 3)")))
-                (right "BUILD ASSASSIN (1, 2) (5, 3)"))))
-  (testing "prints a change destination command the same way it was read in"
+                      (parse-move (cons "player1" "BUILD ASSASSIN (1, 2) (5, 3) UP")))
+                (right "BUILD ASSASSIN (1, 2) (5, 3) UP"))))
+  (testing "formats a change destination command the same way it was read in"
     (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
                       (parse-move (cons "player1" "MOVE (1, 4) TO (6, 9)")))
-                (right "MOVE (1, 4) TO (6, 9)")))))
+                (right "MOVE (1, 4) TO (6, 9)"))))
+  (testing "formats a change attack direction command the same way it was read in"
+    (ok (equalp (fmap (lambda (res) (format-command (cdr res)))
+                      (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (4, 10) TO DOWN")))
+                (right "CHANGE ATTACK DIRECTION (4, 10) TO DOWN")))))
 
 (deftest apply-move 
   (testing "does nothing for no-op"
@@ -542,7 +626,9 @@
                                                      :start (cons 5 6)
                                                      :destination (cons 8 10)) gm))
            (new-soldier (make-soldier :pos (cons 5 6) :health 6 
-                                      :type :scout :team "player1" :destination (cons 8 10)))
+                                      :type :scout :team "player1"
+                                      :destination (cons 8 10)
+                                      :attack-direction :down))
            (new-player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 25))
            (new-mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                            (cons (cons 5 4) *test-base2*)
@@ -565,6 +651,24 @@
       (ok (equalp (apply-move "player1"
                               (make-change-destination :soldier-position (soldier-pos *test-soldier1*)
                                                        :new-destination (cons 10 10))
+                              new-gm)
+                  (right new-gm)))))
+  (testing "changes a soldier's attack direction when the command is change attack direction"
+    (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
+                                       (cons (cons 5 4) *test-base2*)
+                                       (cons (soldier-pos *test-soldier1*) *test-soldier1*)) :test 'equal))
+           (player1 (make-player :team "player1" :money 20 :base (cons 4 3) :health 25))
+           (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
+           (new-map (copy-hash-table (game-map gm)))
+           (new-gm (copy-structure gm))
+           (new-soldier (copy-structure *test-soldier1*)))
+      (setf (game-map new-gm) new-map)
+      (setf (soldier-attack-direction new-soldier) :right)
+      (setf (gethash (soldier-pos new-soldier) new-map) new-soldier)
+      (ok (equalp (apply-move "player1"
+                              (make-change-attack-direction :soldier-position (soldier-pos *test-soldier1*)
+                                                            :new-direction :right)
                               new-gm)
                   (right new-gm))))))
 
@@ -607,13 +711,15 @@
                                                                :health 6
                                                                :type :scout
                                                                :team "player1"
-                                                               :destination (cons 8 10)))
+                                                               :destination (cons 8 10)
+                                                               :attack-direction :down))
                                            (cons (cons 3 3) 
                                                  (make-soldier :pos (cons 3 3)
                                                                :health 6
                                                                :type :assassin
                                                                :team "player2"
-                                                               :destination (cons 9 6)))) 
+                                                               :destination (cons 9 6)
+                                                               :attack-direction :down))) 
                                      :test 'equal))
            (new-player1 (make-player :team "player1" :money 10 :base (cons 4 3) :health 25))
            (new-player2 (make-player :team "player2" :money 1 :base (cons 5 4) :health 24))
@@ -746,13 +852,15 @@
                                                                :health 6
                                                                :type :scout
                                                                :team "player1"
-                                                               :destination (cons 5 5)))
+                                                               :destination (cons 5 5)
+                                                               :attack-direction :down))
                                            (cons (cons 3 3) 
                                                  (make-soldier :pos (cons 3 3)
                                                                :health 6
                                                                :type :assassin
                                                                :team "player2"
-                                                               :destination (cons 3 3)))) 
+                                                               :destination (cons 3 3)
+                                                               :attack-direction :down))) 
                                      :test 'equal))
            (new-player1 (make-player :team "player1" 
                                      :money (+ 10 (money-per-turn *default-game-config*)) 
@@ -778,7 +886,8 @@
                                    (cons "health" 4)
                                    (cons "type" "Scout")
                                    (cons "team" "player1")
-                                 (cons "destination" (coord-alist (cons 5 5))))
+                                   (cons "destination" (coord-alist (cons 5 5)))
+                                   (cons "attack-direction" "Down"))
                              (list (cons "type" "Base")
                                    (cons "position" (coord-alist (cons 4 3)))
                                    (cons "team" "player1"))
@@ -809,31 +918,54 @@
                   (list (cons "player1" player-1-game-json)
                         (cons "player2" player-2-game-json)))))))
 
+(defun is-right (result)
+  (match result
+    ((type right) t)
+    (otherwise nil)))
+
 (deftest parse-move 
   (testing "parses a build move"
-    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6)"))
+    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6) UP"))
                 (right (cons "player1"
                              (make-build :soldier-type :scout
                                          :start (cons 1 3)
-                                         :destination (cons 4 6)))))))
+                                         :destination (cons 4 6)
+                                         :attack-direction :up))))))
   (testing "only accepts three SCOUT, TANK or ASSASSIN for soldier type"
-    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6)"))
+    (ok (equalp (parse-move (cons "player1" "BUILD SCOUT (1, 3) (4, 6) DOWN"))
                 (right (cons "player1"
                              (make-build :soldier-type :scout
                                          :start (cons 1 3)
-                                         :destination (cons 4 6))))))
-    (ok (equalp (parse-move (cons "player1" "BUILD TANK (1, 3) (4, 6)"))
+                                         :destination (cons 4 6)
+                                         :attack-direction :down)))))
+    (ok (equalp (parse-move (cons "player1" "BUILD TANK (1, 3) (4, 6) LEFT"))
                 (right (cons "player1"
                              (make-build :soldier-type :tank
                                          :start (cons 1 3)
-                                         :destination (cons 4 6))))))
-    (ok (equalp (parse-move (cons "player1" "BUILD ASSASSIN (1, 3) (4, 6)"))
+                                         :destination (cons 4 6)
+                                         :attack-direction :left)))))
+    (ok (equalp (parse-move (cons "player1" "BUILD ASSASSIN (1, 3) (4, 6) RIGHT"))
                 (right (cons "player1"
                              (make-build :soldier-type :assassin
                                          :start (cons 1 3)
-                                         :destination (cons 4 6))))))
-    (ok (equalp (parse-move (cons "player1" "BUILD INFANTRY (1, 3) (4, 6)"))
-                (left "Player player1 provided invalid move 'BUILD INFANTRY (1, 3) (4, 6)'"))))
+                                         :destination (cons 4 6)
+                                         :attack-direction :right)))))
+    (ok (equalp (parse-move (cons "player1" "BUILD INFANTRY (1, 3) (4, 6) DOWN"))
+                (left 
+                 "Player player1 provided invalid move 'BUILD INFANTRY (1, 3) (4, 6) DOWN'"))))
+  (testing "parses a change attack direction move"
+    (ok (equalp (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO UP"))
+                (right (cons "player1" (make-change-attack-direction 
+                                        :soldier-position (cons 1 3)
+                                        :new-direction :up))))))
+  (testing "only accepts DOWN, LEFT, UP or RIGHT as new attack directions"
+    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO DOWN"))))
+    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO LEFT"))))
+    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO UP"))))
+    (ok (is-right (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO RIGHT"))))
+    (ok (equalp (parse-move (cons "player1" "CHANGE ATTACK DIRECTION (1, 3) TO DIR"))
+                (left 
+                 "Player player1 provided invalid move 'CHANGE ATTACK DIRECTION (1, 3) TO DIR'"))))
   (testing "parses a no-op move"
     (ok (equalp (parse-move (cons "player1" "NO-OP"))
                 (right (cons "player1" :no-op)))))
@@ -861,8 +993,8 @@
            (player1-copy (copy-structure player1))
            (player2-copy (copy-structure player2))
            (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
-           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
-                                 (cons "player2" "BUILD ASSASSIN (3, 2) (3, 3)")))
+           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5) DOWN")
+                                 (cons "player2" "BUILD ASSASSIN (3, 2) (3, 3) DOWN")))
            (step-result (step-game moves gm))
            (advance-turn-result (advance-turn unparsed-moves gm-copy nil)))
       (ok (equalp (move-result-updated-game step-result) (game-turn-result-game advance-turn-result)))))
@@ -879,7 +1011,7 @@
            (player1-copy (copy-structure player1))
            (player2-copy (copy-structure player2))
            (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
-           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5)")
+           (unparsed-moves (list (cons "player1" "BUILD SCOUT (6, 5) (5, 5) DOWN")
                                  (cons "player2" "BUILD  (3, 2) (3, 3)")))
            (step-result (step-game moves gm))
            (advance-turn-result (advance-turn unparsed-moves gm-copy nil)))

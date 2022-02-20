@@ -48,7 +48,7 @@ fn compute_move(state: State) -> std::string::String {
         let my_base_coord = &my_player.base;
         let enemy_base_coord = &other_player.base;
         format!(
-            "BUILD SCOUT ({}, {}) ({}, {})",
+            "BUILD SCOUT ({}, {}) ({}, {}) DOWN",
             my_base_coord.x,
             my_base_coord.y + 1,
             enemy_base_coord.x,

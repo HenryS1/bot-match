@@ -70,7 +70,11 @@
            :map-details-map
            :bot-memory-limit-kib
            :bot-initialisation-time
-           :game-disqualified-players))
+           :game-disqualified-players
+           :attack-candidates
+           :soldier-attack-direction
+           :change-soldier-attack-direction
+           :make-change-attack-direction))
 
 
 (in-package :footsoldiers)
@@ -82,7 +86,7 @@
   (list (cons "position" (coord-alist coord))
         (cons "type" "Rock")))
 
-(defstruct soldier pos health type team destination)
+(defstruct soldier pos health type team destination attack-direction)
 
 (defun coord-alist (coord)
   (list (cons "x" (car coord))
@@ -94,7 +98,8 @@
    (cons "health" (soldier-health soldier))
    (cons "type" (format nil "~@(~a~)" (soldier-type soldier)))
    (cons "team" (soldier-team soldier))
-   (cons "destination" (coord-alist (soldier-destination soldier)))))
+   (cons "destination" (coord-alist (soldier-destination soldier)))
+   (cons "attack-direction" (format nil "~@(~a~)" (soldier-attack-direction soldier)))))
 
 (defstruct base team)
 
@@ -135,7 +140,7 @@
    (cons "base" (coord-alist (player-base player)))
    (cons "health" (player-health player))))
 
-(defstruct build soldier-type start destination)
+(defstruct build soldier-type start destination attack-direction)
 
 (defun build-alist (build)
   (list 
@@ -324,16 +329,31 @@
     ((base team)
      (not (equalp team (soldier-team s))))))
 
+(defun make-circular (l) 
+  (let ((cpy (copy-list l)))
+    (setf (cdr (last cpy)) cpy)))
+
+(defun take (n l) (loop for i from 1 to n for e in l collect e))
+(defun drop (n l) (loop for i from 0 to n
+                     for new-l = l then (cdr new-l) finally (return new-l)))
+
+(defmethod attack-candidates ((s soldier))
+  (bind (((x . y) (soldier-pos s)))
+    (let ((clockwise-around-soldier (make-circular (list (cons x (+ y 1))
+                                                         (cons (- x 1) y)
+                                                         (cons x (- y 1))
+                                                         (cons (+ x 1) y)))))
+      (case (soldier-attack-direction s)
+        (:down (take 4 clockwise-around-soldier))
+        (:left (take 4 (drop 1 clockwise-around-soldier)))
+        (:up (take 4 (drop 2 clockwise-around-soldier)))
+        (:right (take 4 (drop 3 clockwise-around-soldier)))))))
+
 (defmethod find-target ((s soldier) mp)
-  (bind (((x . y) (soldier-pos s))
-         (search-candidates (list (cons x (+ y 1))
-                                  (cons (- x 1) y)
-                                  (cons x (- y 1))
-                                  (cons (+ x 1) y))))
-    (awhen (find-if (lambda (p) 
-                (and (gethash p mp)
-                     (eligible-target s (gethash p mp)))) search-candidates)
-      (gethash it mp))))
+  (awhen (find-if (lambda (p) 
+                    (and (gethash p mp)
+                         (eligible-target s (gethash p mp)))) (attack-candidates s))
+    (gethash it mp)))
 
 (defmethod attack-soldier ((s1 soldier) (s2 soldier) mp config)
   (let ((new-health (max 0 (- (soldier-health s2) (soldier-damage (soldier-type s1) config)))))
@@ -415,7 +435,8 @@
                                         :health (initial-health soldier-type (game-config new-gm))
                                         :type soldier-type
                                         :destination destination
-                                        :team (player-team player))))
+                                        :team (player-team player)
+                                        :attack-direction :down)))
                   (setf (player-money player) (- (player-money player) (soldier-cost soldier-type (game-config new-gm))))
                   (setf (gethash start (game-map new-gm)) s)
                   (if (equalp team (player-team (game-player1 new-gm)))
@@ -444,6 +465,27 @@
                  (setf (gethash soldier-position (game-map new-gm)) new-soldier)
                  (right new-gm))))))))
 
+(defstruct change-attack-direction soldier-position new-direction)
+
+(defmethod change-soldier-attack-direction (team soldier-position new-attack-direction (new-gm game))
+  (let ((soldier-lookup (gethash soldier-position (game-map new-gm))))
+    (if (not soldier-lookup)
+        (left (format nil "Player ~a tried to change attack direction, but position ~a is not occupied"
+                      team (format-position soldier-position)))
+        (match soldier-lookup
+          ((type rock) (left (format nil "Player ~a tried to change attack direction, but position ~a has a rock, not a soldier" 
+                                     team (format-position soldier-position))))
+          ((type base) (left (format nil "Player ~a tried to change attack direction, but position ~a has a base, not a soldier"
+                                     team (format-position soldier-position))))
+          ((type soldier)
+           (if (not (equal (soldier-team soldier-lookup) team))
+               (left (format nil "Player ~a tried to change attack direction, but position ~a has an enemy soldier"
+                             team (format-position soldier-position)))
+               (let ((new-soldier (copy-structure soldier-lookup)))
+                 (setf (soldier-attack-direction new-soldier) new-attack-direction)
+                 (setf (gethash soldier-position (game-map new-gm)) new-soldier)
+                 (right new-gm))))))))
+
 (defmethod apply-move (team move (new-gm game))
   (match move
     ((type build) 
@@ -456,6 +498,11 @@
                                  (change-destination-soldier-position move)
                                  (change-destination-new-destination move)
                                  new-gm))
+    ((type change-attack-direction)
+     (change-soldier-attack-direction team
+                                      (change-attack-direction-soldier-position move)
+                                      (change-attack-direction-new-direction move)
+                                      new-gm))
     (:no-op (right new-gm))))
 
 (defun combine-results (one other)
@@ -541,17 +588,24 @@
 
 (defun parse-move (player-move)
   (match (cdr player-move)
-    ((ppcre "BUILD (SCOUT|ASSASSIN|TANK) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\)" name 
-            (read start-x) (read start-y) (read dest-x) (read dest-y))     
+    ((ppcre "BUILD (SCOUT|ASSASSIN|TANK) \\((\\d+), (\\d+)\\) \\((\\d+), (\\d+)\\) (DOWN|LEFT|UP|RIGHT)" 
+            name (read start-x) (read start-y) (read dest-x) (read dest-y) attack-direction) 
      (right (cons (car player-move)
                   (make-build :soldier-type (intern (string-upcase name) "KEYWORD") 
                               :start (cons start-x start-y)
-                              :destination (cons dest-x dest-y)))))
+                              :destination (cons dest-x dest-y)
+                              :attack-direction (intern
+                                                 (string-upcase attack-direction) "KEYWORD")))))
     ((ppcre "MOVE \\((\\d+), (\\d+)\\) TO \\((\\d+), (\\d+)\\)"
             (read position-x) (read position-y) (read dest-x) (read dest-y))
      (right (cons (car player-move)
                   (make-change-destination :soldier-position (cons position-x position-y)
                                 :new-destination (cons dest-x dest-y)))))
+    ((ppcre "CHANGE ATTACK DIRECTION \\((\\d+), (\\d+)\\) TO (DOWN|LEFT|UP|RIGHT)"
+            (read position-x) (read position-y) new-direction)
+     (right (cons (car player-move)
+                  (make-change-attack-direction :soldier-position (cons position-x position-y)
+                                                :new-direction (intern (string-upcase new-direction) "KEYWORD")))))
     ((ppcre "NO-OP") (right (cons (car player-move) :no-op)))
     (nil (left (format nil "Player ~a didn't provide a move" (car player-move))))
     (otherwise (left (format nil "Player ~a provided invalid move '~a'" 
@@ -572,10 +626,15 @@
              (format-position (change-destination-soldier-position command))
              (format-position (change-destination-new-destination command))))
     ((type build)
-     (format nil "BUILD ~a ~a ~a" 
+     (format nil "BUILD ~a ~a ~a ~a" 
              (build-soldier-type command) 
              (format-position (build-start command))
-             (format-position (build-destination command))))
+             (format-position (build-destination command))
+             (build-attack-direction command)))
+    ((type change-attack-direction)
+     (format nil "CHANGE ATTACK DIRECTION ~a TO ~a"
+             (format-position (change-attack-direction-soldier-position command))
+             (change-attack-direction-new-direction command)))
     (:no-op (format nil "NO-OP"))))
 
 (defun format-parsed-move (parsed-move)
