@@ -48,19 +48,19 @@ fn compute_move(state: State) -> std::string::String {
         let my_base_coord = &my_player.base;
         let enemy_base_coord = &other_player.base;
         format!(
-            "BUILD SCOUT ({}, {}) ({}, {}) DOWN",
+            "Build Scout ({}, {}) ({}, {}) Down",
             my_base_coord.x,
             my_base_coord.y + 1,
             enemy_base_coord.x,
             enemy_base_coord.y,
         )
     } else {
-        "NO-OP".to_string()
+        "No-op".to_string()
     }
 }
 
 fn main() {
-    println!("READY");
+    println!("Ready");
     let stdin = io::stdin();
     let all_states = Deserializer::from_reader(stdin.lock()).into_iter::<State>();
     for result in all_states {
@@ -68,7 +68,7 @@ fn main() {
             Ok(state) => println!("{}", compute_move(state)),
             Err(error) => {
                 eprintln!("{}", error);
-                println!("NO-OP");
+                println!("No-op");
             }
         }
     }

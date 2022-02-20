@@ -11,9 +11,9 @@
      finally (return input)))
 
 (defun run ()
-  (format t "READY~%")
+  (format t "Ready~%")
   (loop for input = (read-input)
-     do (format t "NO-OP~%")))
+     do (format t "No-op~%")))
 
 (defun main (&rest argv)
   (declare (ignorable argv))
