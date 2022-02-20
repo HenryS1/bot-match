@@ -98,7 +98,8 @@
    (cons "health" (soldier-health soldier))
    (cons "type" (format nil "~@(~a~)" (soldier-type soldier)))
    (cons "team" (soldier-team soldier))
-   (cons "destination" (coord-alist (soldier-destination soldier)))))
+   (cons "destination" (coord-alist (soldier-destination soldier)))
+   (cons "attack-direction" (format nil "~@(~a~)" (soldier-attack-direction soldier)))))
 
 (defstruct base team)
 
