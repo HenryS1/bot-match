@@ -22,19 +22,20 @@ three soldiers that a player can choose from:
 - The tank: low damage, low speed and high health
 
 Soldiers are built by specifying the type of the soldier, the location
-to build it at and the soldier's destination. To build a scout the
-player must print
+to build it at, the soldier's destination and the direction the
+soldier faces, which affects how it chooses a target to attack. To
+build a scout facing up the player must print
 
-BUILD SCOUT (x1, y1) (x2, y2)
+Build Scout (x1, y1) (x2, y2) Up
 
 where x1 is the x coordinate of the build location, y1 is the y
 coordinate of the build location, x2 is the x coordinate of the
 soldier destination and y2 is the y coordinate of the soldier
 destination. Similarly the commands to build an assassing or a tank
-look as follows:
+look as follows (in this case with directions down and left):
 
-BUILD ASSASSIN (x1, y1) (x2, y2)
-BUILD TANK (x1, y1) (x2, y2)
+Build Assassin (x1, y1) (x2, y2) Down
+Build Tank (x1, y1) (x2, y2) Left
 
 A build command fails if the player doesn't have enough money for the
 specified soldier, if the build location is occupied or if the build
@@ -43,13 +44,22 @@ location is too far from the player's base.
 To change the destination of a soldier a player must print the
 following command to stdout:
 
-MOVE (x1, y1) (x2, y2)
+Move (x1, y1) to (x2, y2)
 
 Here x1 and y1 are the x and y coordinates of a friendly soldier while
 x2 and y2 specify the new destination of this soldier.
 
 A move command fails if there is no soldier at the specified position
 or the the soldier at that position belongs to the enemy player.
+
+The final command changes the direction that a soldier faces,
+affecting how targets are selected. This command looks as follows:
+
+Change attack direction (4, 10) to Left
+
+The coordinate ~(4, 10)~ is the position where the soldier currently
+is. The direction (in this case left) is the new direction for the
+soldier to face and can be one of Down, Left, Up or Right.
 
 At the beginning of a turn bots get the current state of the game
 as a json object. An example state object is given below, a full
@@ -63,52 +73,240 @@ There are two bases, one for each player. Rocks are indestructible
 obstacles that soldiers have to manoeuver around.
 
 #+begin_src json
-{
-  "you": "player1",
-  "map": [
-    {
-      "type": "BASE",
-      "position": {
-        "x": 1,
-        "y": 3
+  {
+      "you": "player1",
+      "map": [
+          {
+              "type": "Base",
+              "position": {
+                  "x": 1,
+                  "y": 3
+              },
+              "team": "player1"
+          },
+          {
+              "type": "Base",
+              "position": {
+                  "x": 65,
+                  "y": 3
+              },
+              "team": "player2"
+          },
+          {
+              "position": {
+                  "x": 66,
+                  "y": 1
+              },
+              "type": "Rock"
+          },
+          {
+              "position": {
+                  "x": 5,
+                  "y": 10
+              },
+              "type": "Assassin",
+              "health": 5,
+              "team": "player1",
+              "destination": {
+                  "x": 6,
+                  "y": 7
+              },
+              "attack-direction": "Up"
+          }
+      ],
+      "turns-remaining": 99,
+      "player1": {
+          "team": "player1",
+          "money": 13,
+          "base": {
+              "x": 1,
+              "y": 3
+          },
+          "health": 40
       },
-      "team": "player1"
-    },
-    {
-      "type": "BASE",
-      "position": {
-        "x": 65,
-        "y": 3
-      },
-      "team": "player2"
-    },
-    {
-      "position": {
-        "x": 66,
-        "y": 1
-      },
-      "type": "ROCK"
-    }
-  ],
-  "turns-remaining": 99,
-  "player1": {
-    "team": "player1",
-    "money": 13,
-    "base": {
-      "x": 1,
-      "y": 3
-    },
-    "health": 40
-  },
-  "player2": {
-    "team": "player2",
-    "money": 13,
-    "base": {
-      "x": 65,
-      "y": 3
-    },
-    "health": 40
+      "player2": {
+          "team": "player2",
+          "money": 13,
+          "base": {
+              "x": 65,
+              "y": 3
+          },
+          "health": 40
+      }
   }
-}
+#+end_src
+
+Each turn player moves are read from each player's stdout and applied
+to the game. Then the soldiers are moved. Each soldier type has a
+speed. Soldiers can move left, right, up or down a number of squares
+equal to the soldier's speed. The soldiers search for the square
+closest to their destinations, using Manhattan distance, which is
+reachable within the allowed number of moves.
+
+When there are an even number of turns remaining player1's soldiers
+are moved first. Soldiers are moved in order based on their x and y
+coordinates at the start of the turn. 
+
+After moving soldiers they attack. Soldiers first find a target.
+Starting from the direction that the soldier is facing it rotates
+clockwise examining each square which is one Manhattan distance from
+its location. As soon as it finds a potential target it attacks.
+Targets are either enemy soldiers or the enemy base.
+
+After all soldiers have attacked, soldiers that have had their health
+reduced to zero are removed from the map.
+
+If either player has had it's health reduced to zero the game is over.
+If both players have zero health the game is a draw. If only one has
+health equal zero the other player wins.
+
+If no player reaches zero health and there are no turns remaining then
+the game is a draw.
+
+** Constants and schema
+
+Game constants are defined in the game-config.json file. These can be
+overriden at runtime by providing different values in the config file,
+but the values stipulated there should be taken as fixed values which
+will be used when running bots aginst each other.
+
+The ~health~ section defines the starting health for each type of
+soldier. The ~speed~ section defines the speed of each soldier. The
+~damage~ section defines the damage of each soldier. The ~cost~
+section defines the money required to build each soldier.
+
+#+begin_src yaml
+  state:
+
+    you: 
+      type: string
+      description: |
+        Identifies which player is receiving the state
+
+    map:
+      type: list of map-entry
+      description: |
+        A list of entries with a position, type and other attributes that depend of the type
+
+    player1:
+      type: player
+      description: |
+        The first of two players
+
+    player2:
+      type: player
+      description: |
+        The second of two players
+
+    turns-remaining:
+      type: integer
+      description: |
+        The number of turns until the game ends
+
+  player:
+    team:
+      type: enum
+      one-of:
+        - player1
+        - player2
+      description: |
+        Enum either 'player1' or 'player2'
+    money: 
+      type: integer
+      description: |
+        The current money for this player
+    base: 
+      type: coord
+      description: |
+        The position of this player's base
+    health: 
+      type: integer
+      description: |
+        The remaining health of this player
+
+  map-entry:
+    type: enum
+    one-of: 
+      - soldier
+      - base
+      - rock
+    description: |
+      Something that appears on the game map
+
+  soldier:
+    position:
+      type: coord
+      description: |
+        The current position of this soldier
+    type:
+      type: enum
+      one-of:
+        - Assassin
+        - Tank
+        - Scout
+      description: |
+        The type of soldier
+    health:
+      type: integer
+      description: |
+        The remaining health of this soldier
+    team:
+      type: enum
+      one-of:
+        - player1
+        - player2
+      description: |
+        The player that owns this soldier
+    destination:
+      type: coord
+      description: |
+        The intended destination of this soldier
+    attack-direction:
+      type: enum
+      one-of:
+        - Down
+        - Left
+        - Up
+        - Right
+      description: |
+        The first direction that a soldier checks when finding a target
+  rock:
+    position:
+      type: coord
+      description: |
+        The position of this rock
+    type:
+      type: string
+      description: |
+        Used to identify a map entry as a rock. In this case equal to Rock'.
+
+  base:
+    position:
+      type: coord
+      description: |
+        The position of this base
+    type:
+      type: string
+      description: |
+        Used to identify a map entry as a base. In this case equal to 'Base'.
+    team: 
+      type: enum
+      one-of:
+        - player1
+        - player2
+      description: |
+        The team that this base belongs to.
+
+  coord:
+    x: 
+      type: integer
+      description: |
+        The x value of this coordinate. Represents a column in the grid
+        increasing left to right.
+    y:
+      type: integer
+      description: |
+        The y value of this coordinate. Repressents a row in the grid
+        increasing top to bottom.
 #+end_src
 
