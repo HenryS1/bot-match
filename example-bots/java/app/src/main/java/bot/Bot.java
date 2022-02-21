@@ -18,7 +18,7 @@ public class Bot {
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
             
-            System.out.println("READY");
+            System.out.println("Ready");
             while (true) {
             
                 Input input = mapper.readValue(System.in, Input.class);
@@ -39,16 +39,16 @@ public class Bot {
                 if (me.money > 10) {
                     Coord myBaseCoord = me.base;
                     Coord enemyBaseCoord = enemy.base;
-                    System.out.println(String.format("BUILD SCOUT (%d, %d) (%d, %d)", 
+                    System.out.println(String.format("Build Scout (%d, %d) (%d, %d) Down", 
                                                      myBaseCoord.x, myBaseCoord.y + 1,
                                                      enemyBaseCoord.x, enemyBaseCoord.y));
                 } else {
-                    System.out.println("NO-OP");
+                    System.out.println("No-op");
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("NO-OP");
+            System.out.println("No-op");
         }
     }
 

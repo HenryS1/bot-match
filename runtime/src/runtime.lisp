@@ -90,7 +90,7 @@
   (handler-case 
       (with-timeout (*bot-initialisation-time*)
         (let ((ready-signal (read-line (sb-ext:process-output (bot-process bot)) nil nil)))
-          (when (or (not ready-signal) (not (equal ready-signal "READY")))
+          (when (or (not ready-signal) (not (equal ready-signal "Ready")))
               (format log-stream "Got unexpected output '~a' from bot ~a while waiting for readiness signal~%" ready-signal (bot-name bot))
               (kill-bot bot))
           bot))

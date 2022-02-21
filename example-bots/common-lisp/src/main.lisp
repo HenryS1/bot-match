@@ -20,17 +20,17 @@
                                  (player1 input)))))))
 
 (defun run ()
-  (format t "READY~%")
+  (format t "Ready~%")
   (loop for (my-player . other-player) = (read-input)
      if (and my-player other-player (>= (money my-player) 10))
      do (let ((my-base-coord (base my-player))
               (enemy-base-coord (base other-player)))
-          (format t "~a~%" (format nil "BUILD SCOUT (~a, ~a) (~a, ~a)"
+          (format t "~a~%" (format nil "Build Scout (~a, ~a) (~a, ~a) Down"
                                    (x my-base-coord)
                                    (+ (y my-base-coord) 1)
                                    (x enemy-base-coord)
                                    (y enemy-base-coord))))
-     else do (format t "NO-OP~%")))
+     else do (format t "No-op~%")))
 
 (defun main (&rest argv)
   "Start the bot."

@@ -2,31 +2,30 @@
 
 * Bot match
 
-** How it works
-
 This project provides building blocks for a AI bot match runner. Bot
 processes are run on the same machine as the runner. All bot processes
 are started as the game launches and immediately paused. 
 
 At the start of each bot's turn the bot process is resumed and given
-its input for the turn. The bot runner process sleeps for the duration
-of the bot's turn. When it wakes it pauses the bot process, reads it's
-input and updates the game state.
+its input for the turn. After the allocated turn time the bot process
+is paused, its output is read and this is used to update the game
+state.
 
-This process continues until the game reports that it is finished.
+This continues until the game reports that it is finished.
 
 ** Project structure
 
 Functions for interacting with processes are found in the runtime
-module. A template for an n-player game is found in the game-runner
-module. An example implementation of a two-player game is given in the
-tests directory of the game-runner module.
+module. A game runner for an n-player game is found in the game-runner
+module. The footsoldiers module provides an implementation of a game.
+The example-bots directory contains starter implementions of bots in
+various languages for the footsoldiers game.
 
 ** Platform
 
 The project only runs on *nix systems because it uses os signals to
 manage processes. It also requires the SBCL lisp compiler, because it
-uses low level sbcl apis for process management.
+uses SBCL funcions for process management.
 
 ** License
 
