@@ -18,6 +18,8 @@
 
 (defparameter *slow-bot* (test-file-path "slow-bot.lisp"))
 
+(defparameter *error-bot* (test-file-path "error-bot.lisp"))
+
 (defparameter *input-bot* (test-file-path "input-bot.lisp"))
 
 (defparameter *turn-bot* (test-file-path "turn-bot.lisp"))
@@ -30,13 +32,14 @@
 
 (defparameter *not-ready-bot-definition* (test-file-path "not-ready-bot-definition.json"))
 
-(defun run-test-bot (path &optional (bot-definition nil))
+(defun run-test-bot (path &optional (bot-definition nil) (error-stream *error-output*))
   (make-instance 'concrete-bot
                  :bot-process (run-bot "ros" (list "+Q" "--" path)) 
                  :bot-id (random 100) 
                  :bot-name "test-bot"
                  :bot-definition bot-definition
-                 :command nil))
+                 :command nil
+                 :error-stream error-stream))
 
 (defparameter *turn-timeout* 3)
 
@@ -70,18 +73,29 @@
       (let* ((definition (bot-definition-json:from-json f))
              (initial-bot (start-bot-from-definition definition 
                                                      *test-base-path* *standard-output*
+                                                     *error-output*
                                                      :memory-limit 10)))
         (sleep 0.01)
         (ok (or (equalp (fmap #'bot-status initial-bot) (right :exited))
                 (equalp (fmap #'bot-status initial-bot) (right :signaled))))))))
 
+(deftest process-error-output
+  (testing "should send error output to the error-stream stream provided in bot initialisation"
+    (ok (equal "Bot error output" 
+               (with-output-to-string (s)
+                 (let ((bot (run-test-bot *error-bot* nil s)))
+                  (sleep 0.5)
+                  (process-bot-error-output bot nil)))))))
+
 (deftest readiness-check
   (testing "should kill a bot if it fails to respond with ready within the time limit"
     (with-open-file (f *not-ready-bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
-             (bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
+             (bot (start-bot-from-definition definition *test-base-path* 
+                                             *standard-output* *error-output*)))
         (sleep 0.1)
-        (ok (equalp (fmap #'bot-status bot) (right :signaled)))))))
+        (ok (or (equalp (fmap #'bot-status bot) (right :signaled))
+                (equalp (fmap #'bot-status bot) (right :exited))))))))
 
 (deftest continue-bot
   (testing "should continue execution of a bot"
@@ -96,7 +110,8 @@
   (testing "should restart the bot if it was killed"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
-             (initial-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
+             (initial-bot (start-bot-from-definition definition *test-base-path*
+                                                     *standard-output* *error-output*)))
         (match initial-bot 
           ((left (left-err e)) (fail (format nil "~a" e)))
           ((right (right-value bot))
@@ -111,7 +126,8 @@
   (testing "should not restart a killed bot if it has reached the maximum restarts"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
-             (initial-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
+             (initial-bot (start-bot-from-definition definition *test-base-path*
+                                                     *standard-output* *error-output*)))
         (match initial-bot
           ((left (left-err e)) (fail (format nil "~a" e)))
           ((right (right-value bot))
@@ -128,7 +144,8 @@
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f)))
         (setf (filename definition) "./exited-bot.lisp")
-        (let ((initial-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
+        (let ((initial-bot (start-bot-from-definition definition *test-base-path*
+                                                      *standard-output* *error-output*)))
           (match initial-bot
             ((left (left-err e)) (format nil "~a" e))
             ((right (right-value bot))
@@ -146,7 +163,8 @@
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f)))
         (setf (filename definition) "./exited-bot.lisp")
-        (let ((initial-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
+        (let ((initial-bot (start-bot-from-definition definition *test-base-path*
+                                                      *standard-output* *error-output*)))
           (match initial-bot
             ((left (left-err e)) (fail (format nil "~a" e)))
             ((right (right-value bot))
@@ -193,7 +211,8 @@
   (testing "should send input, read output and stop bot"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
-             (started-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
+             (started-bot (start-bot-from-definition definition *test-base-path*
+                                                     *standard-output* *error-output*)))
         (match started-bot 
           ((left (left-err e)) (fail (format nil "~a" e)))
           ((right (right-value bot))
@@ -215,7 +234,8 @@
   (testing "should start a bot process using the provided command"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
-             (started-bot (start-bot-from-definition definition *test-base-path* *standard-output*)))
+             (started-bot (start-bot-from-definition definition *test-base-path*
+                                                     *standard-output* *error-output*)))
         (match started-bot
           ((left (left-err e)) (fail (format nil "~a" e)))
           ((right (right-value bot))

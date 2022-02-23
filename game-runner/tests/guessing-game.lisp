@@ -64,7 +64,8 @@
      for definition = (read-bot-definition (merge-pathnames "definition.json" bot-base-path))
      collect (start-bot-from-definition definition 
                                         (format nil "~a" bot-base-path)
-                                        (logging-config-turns logging-config))))
+                                        (logging-config-turns logging-config)
+                                        *error-output*)))
 
 (defun rights (results)
   (mapcar #'right-value (remove-if-not (lambda (r) (match r ((type right) t)
