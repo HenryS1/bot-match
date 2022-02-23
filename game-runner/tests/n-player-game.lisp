@@ -14,6 +14,8 @@
    (bot-status :accessor bot-status :initarg :bot-status :initform :running)
    (turn-time-limit :accessor turn-time-limit :initarg :turn-time-limit)))
 
+(defmethod process-bot-error-output ((bot test-bot) logging-stream) ())
+
 (defclass recoverable-bot (test-bot) ())
 
 (defclass disqualified-bot (test-bot) ())

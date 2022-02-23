@@ -71,8 +71,9 @@
 
 (defparameter *termination-timeout* 0.5)
 
-(defun terminate-bots (bots)
+(defun terminate-bots (bots logging-config)
   (let ((bs (hash-table-values bots)))
+    (mapc (lambda (bot) (process-bot-error-output bot (logging-config-turns logging-config))) bs)
     (mapc #'interrupt-bot bs)
     (sleep *termination-timeout*)
     (mapc (lambda (bot) (when (not (equal (bot-status bot) :exited)) (kill-bot bot))) bs)))
@@ -82,4 +83,4 @@
        (loop for (cur-bots . gm) = (cons bots game) then (tick cur-bots gm logging-config)
           until (is-finished? gm)
           finally (return gm))
-    (terminate-bots bots)))
+    (terminate-bots bots logging-config)))

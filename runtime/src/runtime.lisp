@@ -34,7 +34,8 @@
            :*max-bot-restarts*
            :*memory-limit*
            :bot-restarts
-           :disqualified))
+           :disqualified
+           :process-bot-error-output))
 
 (in-package :runtime)
 
@@ -46,7 +47,8 @@
   ((bot-process :accessor bot-process :initarg :bot-process)
    (bot-definition :accessor bot-definition :initarg :bot-definition :initform (error "bot definition must be provided"))
    (command :accessor command :initarg :command :initform (error "command must be provided"))
-   (bot-restarts :accessor bot-restarts :initarg :bot-restarts :initform 0)))
+   (bot-restarts :accessor bot-restarts :initarg :bot-restarts :initform 0)
+   (error-stream :accessor error-stream :initarg :error-stream :initform *error-output*)))
 
 (define-json-model bot-definition (name command filename) :kebab-case)
 
@@ -62,16 +64,25 @@
   (map 'string #'code-char (loop for i from 1 to len collecting (+ 97 (random 26)))))
 
 (defun run-bot (command args)
-  (sb-ext:run-program command args :wait nil :input :stream :output :stream :search t))
+  (sb-ext:run-program command args
+                      :wait nil
+                      :input :stream
+                      :output :stream
+                      :error :stream
+                      :search t))
 
 (defmethod initialise-bot ((bot concrete-bot) log-stream)
-  (let ((initialised-bot (make-instance 'concrete-bot
-                                        :bot-process (run-bot "bash" (list "-c" (command bot)))
-                                        :bot-id (bot-id bot)
-                                        :bot-name (bot-name bot)
-                                        :bot-definition (bot-definition bot)
-                                        :command (command bot)
-                                        :bot-restarts (+ (bot-restarts bot) 1))))
+  (let* ((bot-id (random-id 10))
+         (bot-name (-> (bot-definition bot) name))
+         (initialised-bot (make-instance 'concrete-bot
+                                         :bot-process (run-bot "bash"
+                                                               (list "-c" (command bot)))
+                                         :bot-id bot-id
+                                         :bot-name bot-name
+                                         :bot-definition (bot-definition bot)
+                                         :command (command bot)
+                                         :bot-restarts (+ (bot-restarts bot) 1)
+                                         :error-stream (error-stream bot))))
     (wait-for-bot-to-be-ready initialised-bot log-stream)))
 
 (defmethod wait-for-bot-to-be-ready ((bot concrete-bot) log-stream)
@@ -93,6 +104,7 @@
 
 (defmethod start-bot-from-definition ((bot-definition bot-definition) base-path 
                                       log-stream
+                                      error-stream
                                       &key (memory-limit *memory-limit*)
                                         (allowed-commands *default-allowed-commands*))
   (if (not (gethash (command bot-definition) allowed-commands))
@@ -112,13 +124,17 @@
         (format log-stream "starting bot ~a using command ~a~%" 
                 (name bot-definition)
                 memory-limited-command)
-        (let ((bot (make-instance 
-                    'concrete-bot
-                    :bot-process (run-bot "bash" (list "-c" memory-limited-command))
-                    :bot-id (random-id 10)
-                    :bot-name (name bot-definition)
-                    :bot-definition bot-definition
-                    :command memory-limited-command)))
+        (let* ((bot-id (random-id 1000))
+               (bot-name (name bot-definition))
+               (bot (make-instance
+                     'concrete-bot
+                     :bot-process (run-bot "bash"
+                                           (list "-c" memory-limited-command))
+                     :bot-id bot-id
+                     :bot-name bot-name
+                     :bot-definition bot-definition
+                     :command memory-limited-command
+                     :error-stream error-stream)))
           (wait-for-bot-to-be-ready bot log-stream)
           (stop-bot bot)
           (right bot)))))
@@ -143,7 +159,19 @@
     (timeout-error (e)
       (declare (ignore e))
       (format log-stream "Timed out waiting for output from bot ~a~%" bot-name)
+      nil)
+    (error (e)
+      (declare (ignore e))
+      (format log-stream "Error while reading output from bot ~a~%" bot-name)
       nil)))
+
+(defmethod process-bot-error-output ((bot concrete-bot) log-stream)
+  (handler-case 
+      (loop while (listen (sb-ext:process-error (bot-process bot)))
+         for c = (read-char (sb-ext:process-error (bot-process bot)))
+         do (write-char c (error-stream bot)))
+    (error () (format log-stream "Error reading from bot error stream for bot ~a~%" 
+                      (bot-name bot)))))
 
 (defmethod bot-output ((bot concrete-bot) time-limit log-stream &optional (parser #'read-output))
   (-> (sb-ext:process-output (bot-process bot))
@@ -175,7 +203,8 @@
   (let ((running-bot (if (or (equal (bot-status bot) :exited)
                              (equal (bot-status bot) :signaled))
                          (if (< (bot-restarts bot) *max-bot-restarts*)
-                             (progn (format log-stream "bot ~a not running. re-initialising it~%"
+                             (progn (format log-stream 
+                                            "bot ~a not running. re-initialising it~%"
                                             (bot-name bot))
                                     (initialise-bot bot log-stream))
                              (progn 
@@ -228,6 +257,7 @@
                         (send-input-to-bot running-bot turn-input)
                         (bind ((output (bot-output running-bot time-limit log-stream parser)))
                           (end-bot-turn running-bot log-stream)
+                          (process-bot-error-output running-bot log-stream)
                           (make-bot-turn-result :updated-bot running-bot
                                                 :output output)))
                       (make-bot-turn-result :updated-bot running-bot :output nil)))
