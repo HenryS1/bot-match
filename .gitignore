@@ -14,3 +14,6 @@ state-logs
 system-index.txt
 turn-logs
 target/
+player1-errs
+player2-errs
+*.jar
