@@ -718,8 +718,8 @@
                    &key (current-directory nil)
                      (game-config *default-game-config*)
                      (game-map *default-game-map*)
-                     (player1-error-stream *standard-output*)
-                     (player2-error-stream *standard-output*))
+                     (player1-error-stream *error-output*)
+                     (player2-error-stream *error-output*))
   (format t "Running footsoldiers~%")
   (let ((runtime:*bot-initialisation-time* (bot-initialisation-time game-config))
         (base1-lookup (gethash (map-details-base1 game-map) (map-details-map game-map)))
@@ -907,7 +907,8 @@
            (format s (draw-map (game-map game))))))
 
 (defclass wrapped-stream (sb-gray:fundamental-stream)
-  ((stream :initarg :stream :reader stream-of)))
+  ((stream :initarg :stream :reader stream-of)
+   (wrapping-stream :initarg :wrapping-stream :reader wrapping-stream :initform *standard-output*)))
 
 (defmethod stream-element-type ((stream wrapped-stream))
   (stream-element-type (stream-of stream)))
@@ -919,16 +920,16 @@
 
 (defmethod sb-gray:stream-write-char ((stream with-stdout) char)
   (write-char char (stream-of stream))
-  (write-char char *standard-output*))
+  (write-char char (wrapping-stream stream)))
 
 (defmethod sb-gray:stream-write-sequence ((stream with-stdout) seq &optional (start 0) end)
   (write-sequence seq stream start end)
-  (write-sequence seq *standard-output* :start start :end end))
+  (write-sequence seq (wrapping-stream stream) :start start :end end))
 
 (defmethod sb-gray:stream-write-string ((stream with-stdout)
                                 string &optional (start 0) end)
   (write-string string (stream-of stream) :start start :end end)
-  (write-string string *standard-output* :start start :end end))
+  (write-string string (wrapping-stream stream) :start start :end end))
 
 (defun run-footsoldiers ()
   (handler-case 
@@ -980,10 +981,14 @@
                                                            states)
                                                :visualisation *standard-output*)
                                               :player1-error-stream (if (getf options :print-bot-errors)
-                                                                        (make-instance 'with-stdout :stream player1-error-stream)
-                                                                        player1-error-stream)
+                                                                        (make-instance 'with-stdout 
+                                                                                       :stream player1-error-stream
+                                                                                       :wrapping-stream *error-output*)
+                                                         player1-error-stream)
                                               :player2-error-stream (if (getf options :print-bot-errors)
-                                                                        (make-instance 'with-stdout :stream player2-error-stream)
+                                                                        (make-instance 'with-stdout 
+                                                                                       :stream player2-error-stream 
+                                                                                       :wrapping-stream *error-output*)
                                                                         player2-error-stream)
                                               :game-map map-details
                                               :game-config config)
