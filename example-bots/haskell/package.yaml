@@ -1,0 +1,48 @@
+name:                HaskellBot
+version:             0.1.0.0
+license:             GPLv3
+author:              John Doe
+maintainer:          john.doe@test.com
+copyright:           John Doe
+
+extra-source-files: []
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on Github at <https://github.com/HenryS1/bot-match/tree/master/example-bots/haskell/#readme>
+
+dependencies:
+- base >= 4.14.3.0
+- aeson >= 1.5.6.0
+- text >= 1.2.4.1
+- vector >= 0.12.3.1
+- json-stream >= 0.4.2.4
+- bytestring >= 0.10.12.0
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wpartial-fields
+- -Wredundant-constraints
+
+library:
+  source-dirs: src
+
+executables:
+  bot:
+    main:                Main.hs
+    source-dirs:         app
+    dependencies:
+    - HaskellBot
+
+tests:
+  bot-test:
+    main:                Spec.hs
+    source-dirs:         test
+    dependencies:
+    - HaskellBot
+    - hspec
