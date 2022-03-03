@@ -1,0 +1,68 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           HaskellBot
+version:        0.1.0.0
+description:    Please see the README on Github at <https://github.com/HenryS1/bot-match/tree/master/example-bots/haskell/#readme>
+author:         John Doe
+maintainer:     john.doe@test.com
+copyright:      John Doe
+license:        GPLv3
+build-type:     Simple
+
+library
+  exposed-modules:
+      Bot
+      RenameFields
+  other-modules:
+      Paths_HaskellBot
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      aeson >=1.5.6.0
+    , base >=4.14.3.0
+    , bytestring >=0.10.12.0
+    , json-stream >=0.4.2.4
+    , text >=1.2.4.1
+    , vector >=0.12.3.1
+  default-language: Haskell2010
+
+executable bot
+  main-is: Main.hs
+  other-modules:
+      Paths_HaskellBot
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      HaskellBot
+    , aeson >=1.5.6.0
+    , base >=4.14.3.0
+    , bytestring >=0.10.12.0
+    , json-stream >=0.4.2.4
+    , text >=1.2.4.1
+    , vector >=0.12.3.1
+  default-language: Haskell2010
+
+test-suite 2019EntelectChallenge-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_HaskellBot
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      HaskellBot
+    , aeson >=1.5.6.0
+    , base >=4.14.3.0
+    , bytestring >=0.10.12.0
+    , hspec
+    , json-stream >=0.4.2.4
+    , text >=1.2.4.1
+    , vector >=0.12.3.1
+  default-language: Haskell2010
