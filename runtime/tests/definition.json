@@ -1,5 +1,5 @@
 {
-    "name": "bot",
+    "name": "turn-bot.lisp",
     "filename": "turn-bot.lisp",
     "command": "lisp-ros"
 }

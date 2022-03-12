@@ -9,10 +9,11 @@
         :herodotus)
   (:export :run-bot
            :bot-output
+           :has-exited
+           :bot-process
            :filename
            :pause-bot
            :continue-bot
-           :name
            :command
            :bot-status
            :kill-bot
@@ -36,6 +37,7 @@
            :*memory-limit*
            :bot-restarts
            :disqualified
+           :name
            :process-bot-error-output))
 
 (in-package :runtime)
@@ -47,7 +49,7 @@
 (defclass concrete-bot (bot)
   ((bot-process :accessor bot-process :initarg :bot-process)
    (bot-definition :accessor bot-definition :initarg :bot-definition :initform (error "bot definition must be provided"))
-   (command :accessor command :initarg :command :initform (error "command must be provided"))
+   (command :accessor command :initarg :command :initform nil)
    (bot-restarts :accessor bot-restarts :initarg :bot-restarts :initform 0)
    (error-stream :accessor error-stream :initarg :error-stream :initform *error-output*)))
 
@@ -65,9 +67,11 @@
   (map 'string #'code-char (loop for i from 1 to len collecting (+ 97 (random 26)))))
 
 (defun run-bot (identifier)
-  (right-value (mdo (start-result (start-container identifier))
-                    (attached-container (attach-container identifier))
-                    (yield attached-container))))
+  (let ((result (mdo (_ (stop-container identifier :kill-wait 1))
+                     (attached-container (attach-container identifier))
+                     (_ (start-container identifier))
+                     (yield attached-container))))
+    (right-value result)))
 
 (defmethod initialise-bot ((bot concrete-bot) log-stream)
   (let* ((bot-id (random-id 10))
@@ -161,8 +165,6 @@
 (defmethod pause-bot ((bot concrete-bot)) (pause-container (bot-name bot)))
 
 (defmethod continue-bot ((bot concrete-bot) log-stream)
-  ;; when a bot process exits on its own it's status is :exited 
-  ;; when it is killed its status is :signaled
   (let* ((running-bot (if (not (running (bot-status bot)))
                           (if (< (bot-restarts bot) *max-bot-restarts*)
                               (progn (format log-stream 
@@ -180,24 +182,28 @@
    running-bot))
 
 (defmethod kill-bot ((bot concrete-bot))
-  (stop-container (bot-name bot) :kill-wait 0))
+  (unwind-protect
+       (stop-container (bot-name bot) :kill-wait 0)
+    (detach (bot-process bot))))
 
 (defmethod interrupt-bot ((bot concrete-bot))
-  (stop-container (bot-name bot)))
+  (unwind-protect (stop-container (bot-name bot) :kill-wait 1)
+    (detach (bot-process bot))))
 
 (defmethod bot-status ((bot concrete-bot))
-  (right-value (inspect-container (bot-name bot))))
+  (state (right-value (inspect-container (bot-name bot)))))
 
 (defmethod send-input-to-bot ((bot concrete-bot) str)
   (with-slots (bot-process) bot
     (write-string str (container-input-stream bot-process))
     (finish-output (container-input-stream bot-process))))
 
-(defmethod end-bot-turn ((bot concrete-bot) log-stream &optional (wait-time 0.1))
+
+(defmethod end-bot-turn ((bot concrete-bot) log-stream &optional (wait-time 0.01))
+  (declare (ignore wait-time))
   (pause-bot bot)
-  (sleep wait-time)
   (when (not (paused (bot-status bot)))    
-    (format log-stream "Bot ~a didn't respond to stop signal, terminating it.~%" (bot-name bot))
+    (format log-stream "Bot ~a didn't respond to pause signal, terminating it.~%" (bot-name bot))
     (kill-bot bot)))
 
 (defstruct bot-turn-result updated-bot output)

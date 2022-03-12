@@ -1,9 +1,11 @@
 (defpackage runtime/tests/runtime
   (:use :cl
         :runtime
-        :ppcre
+        :cl-ppcre
         :trivia
         :either
+        :docker-client
+        :alexandria
         :monad
         :rove))
 
@@ -14,17 +16,30 @@
 (defun test-file-path (filename)
   (format nil "~a" (merge-pathnames *test-base-path* filename)))
 
-(defparameter *quick-bot* (test-file-path "quick-bot.lisp"))
+(defun create-bot (bot-file)
+  (let* ((directory-mount (format nil "~a:/bots" *test-base-path*))
+         (host-config (make-instance 'host-config 
+                                     :binds (list directory-mount)))
+         (config (make-instance 'docker-config
+                                :image "bot-match/lisp-base"
+                                :cmd (split "\\s+" (format nil "ros +Q -- /bots/~a" bot-file))
+                                :entrypoint (list "")
+                                :open-stdin t
+                                :volumes (alist-hash-table (list (cons "/bots" (alist-hash-table (list) :test 'equal))) :test 'equal)
+                                :host-config host-config)))
+    (create-container bot-file :docker-config config)))
 
-(defparameter *slow-bot* (test-file-path "slow-bot.lisp"))
+(defparameter *bot-files* (list "quick-bot.lisp" "slow-bot.lisp" 
+                           "error-bot.lisp" "input-bot.lisp"
+                           "turn-bot.lisp" "exited-bot.lisp"
+                           "filesystem-bot.lisp" "not-ready-bot.lisp"))
 
-(defparameter *error-bot* (test-file-path "error-bot.lisp"))
+(setup (mapc #'create-bot *bot-files*))
 
-(defparameter *input-bot* (test-file-path "input-bot.lisp"))
-
-(defparameter *turn-bot* (test-file-path "turn-bot.lisp"))
-
-(defparameter *exited-bot* (test-file-path "exited-bot.lisp"))
+(teardown
+  (handler-case (progn (mapc #'stop-container *bot-files*)
+                       (mapc #'remove-container *bot-files*))
+    (error (e) (format t "Error during tear down ~a~%" e))))
 
 (defparameter *bot-definition* (test-file-path "definition.json"))
 
@@ -32,39 +47,51 @@
 
 (defparameter *not-ready-bot-definition* (test-file-path "not-ready-bot-definition.json"))
 
-(defun run-test-bot (path &optional (bot-definition nil) (error-stream *error-output*))
+(defun run-test-bot (identifier &key (bot-definition nil) (error-stream *error-output*))
   (make-instance 'concrete-bot
-                 :bot-process (run-bot "ros" (list "+Q" "--" path)) 
+                 :bot-process (run-bot identifier) 
                  :bot-id (random 100) 
-                 :bot-name "test-bot"
+                 :bot-name identifier
                  :bot-definition bot-definition
                  :command nil
                  :error-stream error-stream))
+
+(defmacro with-test-bot (var identifier bot-definition error-stream &rest body)
+  (with-gensyms (bot-process)
+    `(let* ((,bot-process (run-bot ,identifier))
+            (,var (make-instance 'concrete-bot
+                                 :bot-process ,bot-process
+                                 :bot-id (random 100)
+                                 :bot-name ,identifier
+                                 :bot-definition ,bot-definition
+                                 :command nil
+                                 :error-stream ,error-stream)))
+       (unwind-protect 
+            ,@body
+         (kill-bot ,var)))))
 
 (defparameter *turn-timeout* 3)
 
 (deftest bot-output
   (testing "should capture bot output from stdout"
-    (let ((logs (make-array 0 :element-type 'base-char :fill-pointer 0 :adjustable t))
-          (bot (run-test-bot *quick-bot*)))
-      (sleep 0.2)
-      (ok (equalp (with-output-to-string (s logs) (bot-output bot *turn-timeout* s)) 
-                  '("bot output")))
-      (ok (equalp logs (format nil "Bot test-bot returned output (bot output)~%"))))))
+    (let ((logs (make-array 0 :element-type 'base-char :fill-pointer 0 :adjustable t)))
+      (with-test-bot bot "quick-bot.lisp" nil *error-output*
+                     (ok (equalp (with-output-to-string (s logs) (bot-output bot *turn-timeout* s)) 
+                                 '("bot output")))
+                     (ok (equalp logs (format nil "Bot quick-bot.lisp returned output (bot output)~%")))))))
 
 (deftest start-bot
   (testing "should start the bot process"
-    (let ((bot (run-test-bot *slow-bot*)))
-      (ok (equal (bot-status bot) :running))
-      (interrupt-bot bot))))
+    (with-test-bot bot "slow-bot.lisp" nil *error-output*
+      (ok (running (bot-status bot)))
+      (pause-bot bot))))
 
 (deftest suspend-bot
   (testing "should suspend a bot"
-    (let ((bot (run-test-bot *slow-bot*)))
-      (stop-bot bot)
-      (sleep 0.01)
-      (ok (equal (bot-status bot) :stopped))
-      (interrupt-bot bot))))
+    (with-test-bot bot "slow-bot.lisp" nil *error-output*
+      (pause-bot bot)
+      (ok (paused (bot-status bot)))
+      (pause-bot bot))))
 
 #+linux
 (deftest memory-limiting
@@ -72,20 +99,21 @@
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
              (initial-bot (start-bot-from-definition definition 
-                                                     *test-base-path* *standard-output*
+                                                     *test-base-path*
+                                                     *standard-output*
                                                      *error-output*
                                                      :memory-limit 10)))
-        (sleep 0.01)
-        (ok (or (equalp (fmap #'bot-status initial-bot) (right :exited))
-                (equalp (fmap #'bot-status initial-bot) (right :signaled))))))))
+        (unwind-protect (progn (sleep 0.01)
+                               (ok (not (running bot))))
+          (fmap #'kill-bot initial-bot))))))
 
 (deftest process-error-output
   (testing "should send error output to the error-stream stream provided in bot initialisation"
     (ok (equal "Bot error output" 
                (with-output-to-string (s)
-                 (let ((bot (run-test-bot *error-bot* nil s)))
-                  (sleep 0.5)
-                  (process-bot-error-output bot nil)))))))
+                   (with-test-bot bot "error-bot.lisp" nil s
+                     (sleep 0.2)
+                     (process-bot-error-output bot nil)))))))
 
 (deftest readiness-check
   (testing "should kill a bot if it fails to respond with ready within the time limit"
@@ -93,118 +121,128 @@
       (let* ((definition (bot-definition-json:from-json f))
              (bot (start-bot-from-definition definition *test-base-path* 
                                              *standard-output* *error-output*)))
-        (sleep 0.1)
-        (ok (or (equalp (fmap #'bot-status bot) (right :signaled))
-                (equalp (fmap #'bot-status bot) (right :exited))))))))
+        (unwind-protect (ok (not (running (bot-status (right-value bot)))))
+          (fmap #'kill-bot bot))))))
 
 (deftest continue-bot
   (testing "should continue execution of a bot"
-    (let ((bot (run-test-bot *slow-bot*)))
-      (stop-bot bot)
-      (sleep 0.01)
-      (ok (equal (bot-status bot) :stopped))
+    (with-test-bot bot "slow-bot.lisp" nil *error-output*
+      (pause-bot bot)
+      (ok (paused (bot-status bot)))
       (continue-bot bot *standard-output*)
       (sleep 0.01)
-      (ok (equal (bot-status bot) :running))
+      (ok (running (bot-status bot)))
       (interrupt-bot bot)))
+
   (testing "should restart the bot if it was killed"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
              (initial-bot (start-bot-from-definition definition *test-base-path*
                                                      *standard-output* *error-output*)))
-        (match initial-bot 
-          ((left (left-err e)) (fail (format nil "~a" e)))
-          ((right (right-value bot))
-           (sleep 0.01)
-           (ok (equalp (bot-status bot) :stopped))
-           (kill-bot bot)
-           (sleep 0.2)
-           (ok (equalp (bot-status bot) :signaled))
-           (let ((continued-bot (continue-bot bot *standard-output*)))
-             (sleep 0.01)
-             (ok (equalp (bot-status continued-bot) :running))))))))
+        (unwind-protect 
+             (match initial-bot 
+               ((left (left-err e)) (fail (format nil "~a" e)))
+               ((right (right-value bot))
+                (sleep 0.01)
+                (ok (paused (bot-status bot)))
+                (kill-bot bot)
+                (sleep 0.2)
+                (ok (not (running (bot-status bot))))
+                (let ((continued-bot (continue-bot bot *standard-output*)))
+                  (unwind-protect
+                       (progn (sleep 0.01)
+                              (ok (running (bot-status continued-bot))))
+                    (kill-bot continued-bot)))))
+          (fmap #'kill-bot initial-bot)))))
+
   (testing "should not restart a killed bot if it has reached the maximum restarts"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
              (initial-bot (start-bot-from-definition definition *test-base-path*
                                                      *standard-output* *error-output*)))
-        (match initial-bot
-          ((left (left-err e)) (fail (format nil "~a" e)))
-          ((right (right-value bot))
-           (sleep 0.01)
-           (ok (equalp (bot-status bot) :stopped))
-           (kill-bot bot)
-           (setf (bot-restarts bot) *max-bot-restarts*)
-           (sleep 0.2)
-           (ok (equalp (bot-status bot) :signaled))
-           (let ((continued-bot (continue-bot bot *standard-output*)))
-             (sleep 0.01)
-             (ok (equalp (bot-status continued-bot) :signaled))))))))
+        (unwind-protect 
+             (match initial-bot
+               ((left (left-err e)) (fail (format nil "~a" e)))
+               ((right (right-value bot))
+                (sleep 0.01)
+                (ok (paused (bot-status bot)))
+                (kill-bot bot)
+                (setf (bot-restarts bot) *max-bot-restarts*)
+                (sleep 0.2)
+                (ok (not (running (bot-status bot))))
+                (let ((continued-bot (continue-bot bot *standard-output*)))
+                  (unwind-protect
+                       (progn (sleep 0.01)
+                              (ok (not (running (bot-status continued-bot)))))
+                    (kill-bot continued-bot)))))
+          (fmap #'kill-bot initial-bot)))))
+
   (testing "should restart the bot if it exited"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f)))
-        (setf (filename definition) "./exited-bot.lisp")
+        (setf (name definition) "exited-bot.lisp")
         (let ((initial-bot (start-bot-from-definition definition *test-base-path*
                                                       *standard-output* *error-output*)))
-          (match initial-bot
-            ((left (left-err e)) (format nil "~a" e))
-            ((right (right-value bot))
-             (sleep 0.01)
-             (continue-bot bot *standard-output*)
-             (sleep 0.5)
-             (ok (equalp (bot-status bot) :exited))
-             (setf (command bot) (regex-replace "exited-bot.lisp" 
-                                                        (command bot)
-                                                        "turn-bot.lisp"))
-             (let ((continued-bot (continue-bot bot *standard-output*)))
-               (sleep 0.01)
-               (ok (equalp (bot-status continued-bot) :running)))))))))
+          (unwind-protect (match initial-bot
+             ((left (left-err e)) (format nil "~a" e))
+             ((right (right-value bot))
+              (sleep 0.01)
+              (continue-bot bot *standard-output*)
+              (sleep 0.5)
+              (ok (has-exited bot))
+              (setf (bot-name bot) "turn-bot.lisp")
+              (let ((continued-bot (continue-bot bot *standard-output*)))
+                (unwind-protect
+                     (progn (sleep 0.01)
+                            (ok (running (bot-status continued-bot))))
+                 (kill-bot continued-bot)))))
+            (fmap #'kill-bot initial-bot))))))
   (testing "should not restart an exited bot if it has reached the maximum restarts"
     (with-open-file (f *bot-definition*)
       (let* ((definition (bot-definition-json:from-json f)))
-        (setf (filename definition) "./exited-bot.lisp")
+        (setf (name definition) "exited-bot.lisp")
         (let ((initial-bot (start-bot-from-definition definition *test-base-path*
                                                       *standard-output* *error-output*)))
-          (match initial-bot
-            ((left (left-err e)) (fail (format nil "~a" e)))
-            ((right (right-value bot))
-             (sleep 0.01)
-             (continue-bot bot *standard-output*)
-             (sleep 0.5)
-             (ok (equalp (bot-status bot) :exited))
-             (setf (command bot) (regex-replace "exited-bot.lisp" 
-                                                        (command bot)
-                                                        "turn-bot.lisp"))
-             (setf (bot-restarts bot) *max-bot-restarts*)
-             (let ((continued-bot (continue-bot bot *standard-output*)))
-               (sleep 0.01)
-               (ok (equalp (bot-status continued-bot) :exited))))))))))
+          (unwind-protect (match initial-bot
+             ((left (left-err e)) (fail (format nil "~a" e)))
+             ((right (right-value bot))
+              (sleep 0.01)
+              (continue-bot bot *standard-output*)
+              (sleep 0.5)
+              (ok (has-exited bot))
+              (setf (command bot) "turn-bot.lisp")
+              (setf (bot-restarts bot) *max-bot-restarts*)
+              (let ((continued-bot (continue-bot bot *standard-output*)))
+                (unwind-protect (progn (sleep 0.01)
+                                       (ok (has-exited continued-bot)))
+                  (kill-bot continued-bot)))))
+            (fmap #'kill-bot initial-bot)))))))
 
 (deftest interrupt-bot
   (testing "should interrupt execution of a bot"
-    (let ((bot (run-test-bot *slow-bot*)))
+    (with-test-bot bot "slow-bot.lisp" nil *error-output*
       (sleep 0.1)
       (interrupt-bot bot)
       (sleep 0.1)
-      (ok (equal (bot-status bot) :exited)))))
+      (ok (has-exited bot)))))
 
 (deftest send-input-to-bot
   (testing "should send input to a bot"
-    (let ((bot (run-test-bot *input-bot*)))
+    (with-test-bot bot "input-bot.lisp" nil *error-output*
       (send-input-to-bot bot (format nil "hello bot~%"))
       (let* ((logs (make-array 0 :element-type 'base-char :fill-pointer 0 :adjustable t))
              (bot-out (with-output-to-string (s logs) (bot-output bot *turn-timeout* s))))
         (ok (equal bot-out '("hello bot")))
-        (ok (equal logs (format nil "Bot test-bot returned output (hello bot)~%")))
+        (ok (equal logs (format nil "Bot input-bot.lisp returned output (hello bot)~%")))
         (interrupt-bot bot)))))
 
 (deftest end-bot-turn
   (testing "should stop a bot"
-    (let ((bot (run-test-bot *turn-bot*)))
+    (with-test-bot bot "turn-bot.lisp" nil *error-output*
       (send-input-to-bot bot (format nil "input~%"))
       (end-bot-turn bot nil)
       (sleep 0.01)
-      (ok (equal (bot-status bot) :stopped))
+      (ok (paused (bot-status bot)))
       (interrupt-bot bot))))
 
 (deftest bot-turn
@@ -213,20 +251,22 @@
       (let* ((definition (bot-definition-json:from-json f))
              (started-bot (start-bot-from-definition definition *test-base-path*
                                                      *standard-output* *error-output*)))
-        (match started-bot 
-          ((left (left-err e)) (fail (format nil "~a" e)))
-          ((right (right-value bot))
-           (sleep 0.5)
-           (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*) 
-                       (make-bot-turn-result :updated-bot bot :output '("input"))))
-           (ok (equal (bot-status bot) :stopped))
-           (interrupt-bot bot)))))))
+        (unwind-protect 
+             (match started-bot 
+               ((left (left-err e)) (fail (format nil "~a" e)))
+               ((right (right-value bot))
+                (sleep 0.5)
+                (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*) 
+                            (make-bot-turn-result :updated-bot bot :output '("input"))))
+                (ok (paused (bot-status bot)))
+                (interrupt-bot bot)))
+          (fmap #'kill-bot started-bot))))))
 
 (deftest bot-definition 
   (testing "should read a bot definition from a file"
     (with-open-file (f *bot-definition*)
       (let ((definition (bot-definition-json:from-json f)))
-        (ok (equal (runtime:name definition) "bot"))
+        (ok (equal (runtime:name definition) "turn-bot.lisp"))
         (ok (equal (runtime:command definition) "lisp-ros"))
         (ok (equal (runtime:filename definition) "turn-bot.lisp"))))))
 
