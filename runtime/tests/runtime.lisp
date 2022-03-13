@@ -112,7 +112,7 @@
     (ok (equal "Bot error output" 
                (with-output-to-string (s)
                    (with-test-bot bot "error-bot.lisp" nil s
-                     (sleep 0.2)
+                     (sleep 0.3)
                      (process-bot-error-output bot nil)))))))
 
 (deftest readiness-check

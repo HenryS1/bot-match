@@ -1,5 +1,14 @@
 (defpackage :guessing-game
-  (:use :cl :runtime :n-player-game :alexandria :rove :trivia :monad :either))
+  (:use :cl 
+        :runtime
+        :cl-ppcre
+        :n-player-game
+        :alexandria
+        :rove
+        :trivia
+        :monad
+        :either
+        :docker-client))
 
 (in-package :guessing-game)
 
@@ -57,10 +66,39 @@
 
 (defparameter *base-path* (directory-namestring #.*compile-file-truename*))
 
+(defun create-bot (bot-file bot-directory)
+  (let* ((directory-mount (format nil "~a:/bots" (merge-pathnames bot-directory *base-path*)))
+         (host-config (make-instance 'host-config 
+                                     :binds (list directory-mount)))
+         (config (make-instance 'docker-config
+                                :image "bot-match/lisp-base"
+                                :cmd (split "\\s+" (format nil "ros +Q -- /bots/~a" bot-file))
+                                :entrypoint (list "")
+                                :open-stdin t
+                                :volumes (alist-hash-table 
+                                          (list 
+                                           (cons "/bots"
+                                                 (alist-hash-table
+                                                  (list) :test 'equal))) 
+                                          :test 'equal)
+                                :host-config host-config)))
+    (create-container bot-file :docker-config config)))
+
+(setup (create-bot "guessing-game-bot1.lisp" "bot1")
+       (create-bot "guessing-game-bot2.lisp" "bot2"))
+
+(defun cleanup-bot (bot-file)
+  (stop-container bot-file)
+  (remove-container bot-file))
+
+(teardown 
+  (handler-case (progn (cleanup-bot "guessing-game-bot1.lisp")
+                       (cleanup-bot "guessing-game-bot2.lisp"))
+    (error (e) (format t "Error during tear down ~a~%" e))))
+
 (defun run-bots (logging-config)
-  (loop for i from 1 to 2
-     for bot-base-path in (mapcar (lambda (dir) (merge-pathnames dir *base-path* ))
-                                  '("bot1/" "bot2/"))
+  (loop for bot-base-path in (mapcar (lambda (dir) (merge-pathnames dir *base-path* ))
+                                     '("bot1/" "bot2/"))
      for definition = (read-bot-definition (merge-pathnames "definition.json" bot-base-path))
      collect (start-bot-from-definition definition 
                                         (format nil "~a" bot-base-path)
@@ -68,12 +106,14 @@
                                         *error-output*)))
 
 (defun rights (results)
-  (mapcar #'right-value (remove-if-not (lambda (r) (match r ((type right) t)
-                                                          (otherwise nil))) results)))
+  (mapcar #'right-value (remove-if-not (lambda (r) 
+                                         (match r ((type right) t)
+                                                (otherwise nil))) results)))
 
 (defun lefts (results)
-  (mapcar #'left-err (remove-if-not (lambda (r) (match r ((type left) t) 
-                                                       (otherwise nil))) results)))
+  (mapcar #'left-err (remove-if-not (lambda (r) 
+                                      (match r ((type left) t) 
+                                             (otherwise nil))) results)))
 
 (defmethod game-visualisation ((game guessing-game)) "Guessing game")
 

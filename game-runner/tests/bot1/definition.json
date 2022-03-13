@@ -1,5 +1,5 @@
 {
-    "name": "bot1",
-    "filename": "bot.lisp",
+    "name": "guessing-game-bot1.lisp",
+    "filename": "guessing-game-bot1.lisp",
     "command": "lisp-ros"
 }
