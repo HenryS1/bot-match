@@ -67,21 +67,15 @@
 (defparameter *base-path* (directory-namestring #.*compile-file-truename*))
 
 (defun create-bot (bot-file bot-directory)
-  (let* ((directory-mount (format nil "~a:/bots" (merge-pathnames bot-directory *base-path*)))
-         (host-config (make-instance 'host-config 
-                                     :binds (list directory-mount)))
-         (config (make-instance 'docker-config
-                                :image "bot-match/lisp-base"
-                                :cmd (split "\\s+" (format nil "ros +Q -- /bots/~a" bot-file))
-                                :entrypoint (list "")
-                                :open-stdin t
-                                :volumes (alist-hash-table 
-                                          (list 
-                                           (cons "/bots"
-                                                 (alist-hash-table
-                                                  (list) :test 'equal))) 
-                                          :test 'equal)
-                                :host-config host-config)))
+  (let* ((config (make-docker-config 
+                  "bot-match/lisp-base"
+                  :command (split "\\s+" (format nil "ros +Q -- /bots/~a" bot-file))
+                  :entrypoint (list "")
+                  :open-stdin t
+                  :volumes (list "/bots")
+                  :read-only-root-fs t
+                  :binds (list (format nil "~a:/bots" 
+                                       (merge-pathnames bot-directory *base-path*))))))
     (create-container bot-file :docker-config config)))
 
 (setup (create-bot "guessing-game-bot1.lisp" "bot1")

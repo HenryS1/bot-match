@@ -16,17 +16,16 @@
 (defun test-file-path (filename)
   (format nil "~a" (merge-pathnames *test-base-path* filename)))
 
-(defun create-bot (bot-file)
-  (let* ((directory-mount (format nil "~a:/bots" *test-base-path*))
-         (host-config (make-instance 'host-config 
-                                     :binds (list directory-mount)))
-         (config (make-instance 'docker-config
-                                :image "bot-match/lisp-base"
-                                :cmd (split "\\s+" (format nil "ros +Q -- /bots/~a" bot-file))
-                                :entrypoint (list "")
-                                :open-stdin t
-                                :volumes (alist-hash-table (list (cons "/bots" (alist-hash-table (list) :test 'equal))) :test 'equal)
-                                :host-config host-config)))
+(defun create-bot (bot-file &key (memory-limit nil))
+  (let* ((config (make-docker-config "bot-match/lisp-base"
+                                     :command (split "\\s+"
+                                                     (format nil "ros +Q -- /bots/~a" bot-file))
+                                     :entrypoint (list "")
+                                     :open-stdin t
+                                     :volumes (list "/bots")
+                                     :memory memory-limit
+                                     :read-only-root-fs t
+                                     :binds (list (format nil "~a:/bots" *test-base-path*)))))
     (create-container bot-file :docker-config config)))
 
 (defparameter *bot-files* (list "quick-bot.lisp" "slow-bot.lisp" 
