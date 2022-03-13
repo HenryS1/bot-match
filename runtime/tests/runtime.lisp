@@ -33,11 +33,14 @@
                            "turn-bot.lisp" "exited-bot.lisp"
                            "filesystem-bot.lisp" "not-ready-bot.lisp"))
 
-(setup (mapc #'create-bot *bot-files*))
+(setup (mapc #'create-bot *bot-files*) 
+       (create-bot "memory-limited-bot.lisp" :memory-limit (* 6 1024 1024)))
 
 (teardown
   (handler-case (progn (mapc #'stop-container *bot-files*)
-                       (mapc #'remove-container *bot-files*))
+                       (mapc #'remove-container *bot-files*)
+                       (stop-container "memory-limited-bot.lisp")
+                       (remove-container "memory-limited-bot.lisp"))
     (error (e) (format t "Error during tear down ~a~%" e))))
 
 (defparameter *bot-definition* (test-file-path "definition.json"))
@@ -92,18 +95,11 @@
       (ok (paused (bot-status bot)))
       (pause-bot bot))))
 
-;; (deftest memory-limiting
-;;   (testing "should prevent a bot from starting if it exceeds the memory limit"
-;;     (with-open-file (f *bot-definition*)
-;;       (let* ((definition (bot-definition-json:from-json f))
-;;              (initial-bot (start-bot-from-definition definition 
-;;                                                      *test-base-path*
-;;                                                      *standard-output*
-;;                                                      *error-output*
-;;                                                      :memory-limit 10)))
-;;         (unwind-protect (progn (sleep 0.01)
-;;                                (ok (not (running bot))))
-;;           (fmap #'kill-bot initial-bot))))))
+(deftest memory-limiting
+  (testing "should prevent a bot from starting if it exceeds the memory limit"
+    (with-test-bot bot "memory-limited-bot.lisp" nil *error-output*
+      (sleep 1)
+      (ok (not (running (bot-status bot)))))))
 
 (deftest process-error-output
   (testing "should send error output to the error-stream stream provided in bot initialisation"

@@ -76,7 +76,6 @@
            :change-soldier-attack-direction
            :make-change-attack-direction))
 
-
 (in-package :footsoldiers)
 
 (defstruct rock)
