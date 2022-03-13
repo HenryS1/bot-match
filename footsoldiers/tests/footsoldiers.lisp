@@ -7,6 +7,8 @@
         :n-player-game
         :monad
         :either
+        :docker-client
+        :cl-ppcre
         :rove))
 
 (in-package :footsoldiers/tests/footsoldiers)
@@ -1134,6 +1136,36 @@
                                                  :test 'equal))))))      
       (let ((test-file (probe-file test-path)))
         (when test-file (delete-file test-file))))))
+
+(defun create-bot (bot-file bot-directory)
+  (let* ((directory-mount (format nil "~a:/bots" (merge-pathnames bot-directory *test-base-path*)))
+         (host-config (make-instance 'host-config 
+                                     :binds (list directory-mount)))
+         (config (make-instance 'docker-config
+                                :image "bot-match/lisp-base"
+                                :cmd (split "\\s+" (format nil "ros -Q -s herodotus /bots/~a" bot-file))
+                                :entrypoint (list "")
+                                :open-stdin t
+                                :volumes (alist-hash-table 
+                                          (list 
+                                           (cons "/bots"
+                                                 (alist-hash-table
+                                                  (list) :test 'equal))) 
+                                          :test 'equal)
+                                :host-config host-config)))
+    (create-container bot-file :docker-config config)))
+
+(setup (create-bot "footsoldiers-bot1.lisp" "bot1")
+       (create-bot "footsoldiers-bot2.lisp" "bot2"))
+
+(defun cleanup-bot (bot-file)
+  (stop-container bot-file)
+  (remove-container bot-file))
+
+(teardown 
+  (handler-case (progn (cleanup-bot "footsoldiers-bot1.lisp")
+                       (cleanup-bot "footsoldiers-bot2.lisp"))
+    (error (e) (format t "Error during tear down ~a~%" e))))
 
 (deftest start-game
   (testing "runs bots and plays game until it is finished"
