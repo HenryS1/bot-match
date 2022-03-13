@@ -29,6 +29,11 @@ jobs:
       - name: Install qlot
         run: ros install qlot
 
+      - name: Install dependencies
+        run: |
+          PATH="~/.roswell/bin:$PATH"
+          qlot install
+
       - name: Build docker container
         run: |
           docker build . --tag bot-match/lisp-base
