@@ -93,19 +93,18 @@
       (ok (paused (bot-status bot)))
       (pause-bot bot))))
 
-#+linux
-(deftest memory-limiting
-  (testing "should prevent a bot from starting if it exceeds the memory limit"
-    (with-open-file (f *bot-definition*)
-      (let* ((definition (bot-definition-json:from-json f))
-             (initial-bot (start-bot-from-definition definition 
-                                                     *test-base-path*
-                                                     *standard-output*
-                                                     *error-output*
-                                                     :memory-limit 10)))
-        (unwind-protect (progn (sleep 0.01)
-                               (ok (not (running bot))))
-          (fmap #'kill-bot initial-bot))))))
+;; (deftest memory-limiting
+;;   (testing "should prevent a bot from starting if it exceeds the memory limit"
+;;     (with-open-file (f *bot-definition*)
+;;       (let* ((definition (bot-definition-json:from-json f))
+;;              (initial-bot (start-bot-from-definition definition 
+;;                                                      *test-base-path*
+;;                                                      *standard-output*
+;;                                                      *error-output*
+;;                                                      :memory-limit 10)))
+;;         (unwind-protect (progn (sleep 0.01)
+;;                                (ok (not (running bot))))
+;;           (fmap #'kill-bot initial-bot))))))
 
 (deftest process-error-output
   (testing "should send error output to the error-stream stream provided in bot initialisation"

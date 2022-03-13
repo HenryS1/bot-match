@@ -15,18 +15,38 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v1
 
+      - name: Install Roswell
+        env:
+          LISP: ${{ matrix.lisp }}
+          ROSWELL_INSTALL_DIR: /usr
+        run: |
+          wget https://raw.githubusercontent.com/roswell/roswell/master/scripts/install-for-ci.sh
+          chmod +x ./install-for-ci.sh
+          ./install-for-ci.sh
+
+      - name: Install Rove
+        run: ros install rove
+      - name: Install qlot
+        run: ros install qlot
+
       - name: Build docker container
         run: |
-          docker build . --tag footsoldiers-runner
+          docker build . --tag bot-match/lisp-base
 
       - name: Run game runner tests      
+        working-directory: ./game-runner
         run: |
-          docker run --entrypoint /home/footsoldiers/.roswell/bin/rove footsoldiers-runner game-runner/game-runner.asd
+          PATH="~/.roswell/bin:$PATH"
+          rove game-runner.asd
 
       - name: Run runtime tests
+        working-directory: ./runtime
         run: |
-          docker run --entrypoint /home/footsoldiers/.roswell/bin/rove footsoldiers-runner runtime/runtime.asd
+          PATH="~/.roswell/bin:$PATH"
+          rove runtime.asd
 
       - name: Run footsoldiers tests
+        working-directory: ./footsoldiers
         run: |
-          docker run --entrypoint /home/footsoldiers/.roswell/bin/rove footsoldiers-runner footsoldiers/footsoldiers.asd
+          PATH="~/.roswell/bin:$PATH"
+          rove footsoldiers.asd
