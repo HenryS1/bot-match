@@ -94,8 +94,7 @@
   (loop for bot-base-path in (mapcar (lambda (dir) (merge-pathnames dir *base-path* ))
                                      '("bot1/" "bot2/"))
      for definition = (read-bot-definition (merge-pathnames "definition.json" bot-base-path))
-     collect (start-bot-from-definition definition 
-                                        (format nil "~a" bot-base-path)
+     collect (start-bot-from-definition (name definition) 
                                         (logging-config-turns logging-config)
                                         *error-output*)))
 

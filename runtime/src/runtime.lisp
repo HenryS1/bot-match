@@ -10,11 +10,10 @@
   (:export :run-bot
            :bot-output
            :has-exited
+           :image
            :bot-process
-           :filename
            :pause-bot
            :continue-bot
-           :command
            :bot-status
            :kill-bot
            :interrupt-bot
@@ -24,7 +23,6 @@
            :bot
            :bot-id
            :bot-name
-           :bot-definition
            :read-bot-definition
            :start-bot-from-definition
            :bot-turn
@@ -34,7 +32,6 @@
            :bot-turn-result-output
            :bot-turn-result-updated-bot
            :*max-bot-restarts*
-           :*memory-limit*
            :bot-restarts
            :disqualified
            :name
@@ -48,19 +45,16 @@
 
 (defclass concrete-bot (bot)
   ((bot-process :accessor bot-process :initarg :bot-process)
-   (bot-definition :accessor bot-definition :initarg :bot-definition :initform (error "bot definition must be provided"))
-   (command :accessor command :initarg :command :initform nil)
    (bot-restarts :accessor bot-restarts :initarg :bot-restarts :initform 0)
    (error-stream :accessor error-stream :initarg :error-stream :initform *error-output*)))
 
-(define-json-model bot-definition (name command filename) :kebab-case)
+(define-json-model bot-definition (name image) :kebab-case)
 
 (defun read-bot-definition (path)
   (with-open-file (f path)
     (bot-definition-json:from-json f)))
 
 (defparameter *bot-initialisation-time* 0.5)
-(defparameter *memory-limit* 2000000)
 (defparameter *max-bot-restarts* 4)
 
 (defun random-id (len)
@@ -80,8 +74,6 @@
                                          :bot-process (run-bot (bot-name bot))
                                          :bot-id bot-id
                                          :bot-name bot-name
-                                         :bot-definition (bot-definition bot)
-                                         :command (command bot)
                                          :bot-restarts (+ (bot-restarts bot) 1)
                                          :error-stream (error-stream bot))))
     (wait-for-bot-to-be-ready initialised-bot log-stream)))
@@ -103,21 +95,17 @@
       (format log-stream "Timed out waiting for bot ~a to signal readiness" (bot-name bot))
       bot)))
 
-(defmethod start-bot-from-definition ((bot-definition bot-definition) base-path 
+(defmethod start-bot-from-definition (bot-name
                                       log-stream
-                                      error-stream
-                                      &key (memory-limit *memory-limit*)
-                                        (allowed-commands nil))
-  (declare (ignore memory-limit allowed-commands))
-  (format log-stream "starting bot ~a~%" (name bot-definition))
+                                      error-stream)
+  (format log-stream "starting bot ~a~%" bot-name)
   (let* ((bot-id (random-id 1000))
-         (bot-name (name bot-definition))
+         (bot-name bot-name)
          (bot (make-instance
                'concrete-bot
                :bot-process (run-bot bot-name)
                :bot-id bot-id
                :bot-name bot-name
-               :bot-definition bot-definition
                :error-stream error-stream)))
     (wait-for-bot-to-be-ready bot log-stream)
     (pause-bot bot)
