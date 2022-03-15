@@ -87,7 +87,7 @@
 (deftest memory-limiting
   (testing "should prevent a bot from starting if it exceeds the memory limit"
     (with-test-bot bot "memory-limited-bot.lisp" *error-output*
-      (sleep 1)
+      (sleep 1.5)
       (ok (not (running (bot-status bot)))))))
 
 (deftest process-error-output

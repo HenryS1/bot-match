@@ -5,7 +5,7 @@ RUN apt-get install -y zip
 RUN apt-get install -y unzip
 RUN apt-get install -y curl
 
-RUN useradd -ms /bin/bash compiler
+RUN useradd -ms /bin/bash bot
 
 RUN apt-get install -y gnupg
 
@@ -22,13 +22,16 @@ RUN apt-get update
 # Install openjdk 17
 RUN apt-get install -y zulu17-jdk
 
-ADD ./entrypoint.sh /home/compiler/entrypoint.sh
+ADD ./gradlew /home/bot/gradlew
+ADD ./gradle /home/bot/gradle
+ADD ./settings.gradle /home/bot/settings.gradle
+ADD ./app /home/bot/app
+RUN chown -R bot /home/bot/
 
-WORKDIR /home/compiler
+WORKDIR /home/bot
 
-RUN chmod +x entrypoint.sh
-RUN chown compiler entrypoint.sh
+USER bot
 
-USER compiler
+RUN /home/bot/gradlew clean build
 
-ENTRYPOINT ["/bin/bash", "/home/compiler/entrypoint.sh"]
+ENTRYPOINT ["java", "-jar", "app/build/libs/app-all.jar"]

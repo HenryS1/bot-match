@@ -1,5 +1,3 @@
 {
-    "name": "haskell",
-    "filename": "bot",
-    "command": "execute-binary"
+    "image": "bot-match/haskell-example"
 }

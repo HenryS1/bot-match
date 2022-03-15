@@ -1,14 +1,19 @@
 FROM ubuntu:21.04
 
 RUN useradd -ms /bin/bash bot
-ADD . /home/bot/bot
-WORKDIR /home/bot/bot
-
-RUN chown -R bot .
 
 RUN apt-get update && \
  apt-get install -y cargo
 
+ADD ./Cargo.toml /home/bot/Cargo.toml
+ADD ./src /home/bot/src
+
+RUN chown -R bot /home/bot
+
 USER bot
 
-CMD cargo build --release && cp target/release/bot /build/
+WORKDIR /home/bot
+
+RUN cargo build --release 
+
+ENTRYPOINT ["./target/release/bot"]
