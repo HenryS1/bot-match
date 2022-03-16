@@ -1141,6 +1141,7 @@
                   :open-stdin t
                   :volumes (list "/bots")
                   :memory (* 1024 (bot-memory-limit-kib *default-game-config*))
+                  :memory-swap (* 2 1024 (bot-memory-limit-kib *default-game-config*))
                   :read-only-root-fs t
                   :binds (list (format nil "~a:/bots" 
                                        (merge-pathnames bot-directory *test-base-path*))))))

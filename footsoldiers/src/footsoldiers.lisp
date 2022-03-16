@@ -682,6 +682,7 @@
 (defun create-bot-container (name image memory-limit)
   (let ((config (make-docker-config image :open-stdin t
                                     :memory memory-limit 
+                                    :memory-swap (* memory-limit 2)
                                     :read-only-root-fs t)))
     (create-container name :docker-config config)))
 

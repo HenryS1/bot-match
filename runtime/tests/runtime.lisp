@@ -24,6 +24,7 @@
                                      :open-stdin t
                                      :volumes (list "/bots")
                                      :memory memory-limit
+                                     :memory-swap (when memory-limit (* memory-limit 2))
                                      :read-only-root-fs t
                                      :binds (list (format nil "~a:/bots" *test-base-path*)))))
     (create-container bot-file :docker-config config)))
