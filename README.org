@@ -2,16 +2,15 @@
 
 * Bot match
 
-This project provides building blocks for a AI bot match runner. Bot
-processes are run on the same machine as the runner. All bot processes
-are started as the game launches and immediately paused. 
+This project provides building blocks for an AI bot match runner. Bot
+processes are run in docker containers and managed using the docker
+API with http over unix sockets. 
 
+Bot processes are started as the game launches and immediately paused.
 At the start of each bot's turn the bot process is resumed and given
 its input for the turn. After the allocated turn time the bot process
 is paused, its output is read and this is used to update the game
-state.
-
-This continues until the game reports that it is finished.
+state. This continues until the game reports that it is finished.
 
 ** Project structure
 
@@ -25,7 +24,7 @@ various languages for the footsoldiers game.
 
 The project only runs on *nix systems because it uses os signals to
 manage processes. It also requires the SBCL lisp compiler, because it
-uses SBCL funcions for process management.
+uses SBCL APIs for unix sockets.
 
 ** License
 

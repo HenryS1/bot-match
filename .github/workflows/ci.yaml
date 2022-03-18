@@ -15,16 +15,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v1
 
-      - name: Check Docker Version
-        run: docker --version
-      - name: Install Latest Docker
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build base container
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: false
+          load: true
+          tags: bot-match/lisp-base
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+      - name: Move cache
         run: |
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
-          sudo apt-get update
-          sudo apt-get install docker-ce
-      - name: Check Docker Version
-        run: docker --version
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache      
 
       - name: Install Roswell
         env:
@@ -44,10 +59,6 @@ jobs:
         run: |
           PATH="~/.roswell/bin:$PATH"
           qlot install
-
-      - name: Build docker container
-        run: |
-          docker build . --tag bot-match/lisp-base
 
       - name: Run game runner tests      
         working-directory: ./game-runner
