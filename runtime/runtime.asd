@@ -6,6 +6,7 @@
                "anaphora"
                "herodotus"
                "metabang-bind"
+               "docker-client"
                "alexandria"
                "cl-fad"
                "salmon"

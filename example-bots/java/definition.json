@@ -1,5 +1,3 @@
 {
-    "name": "bot",
-    "filename": "bot.jar",
-    "command": "java-jar"
+    "image": "bot-match/java-example"
 }

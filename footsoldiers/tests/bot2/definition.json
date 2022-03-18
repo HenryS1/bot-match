@@ -1,5 +1,0 @@
-{
-    "name": "bot2",
-    "filename": "bot.lisp",
-    "command": "lisp-ros-herodotus"
-}

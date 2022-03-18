@@ -8,11 +8,7 @@ run:
 
 help:
 	@echo "Usage:"
-	@echo "  make compile"
 	@echo "  make compile-docker"
-	@echo "  make run"
 
 compile-docker:
-	docker build . --tag build-haskell-bot-for-docker
-	docker run -v $(PWD)/build:/build build-haskell-bot-for-docker
-	mv build/bot ./
+	docker build . --tag bot-match/haskell-example

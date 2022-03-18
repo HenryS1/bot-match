@@ -7,6 +7,8 @@
         :n-player-game
         :monad
         :either
+        :docker-client
+        :cl-ppcre
         :rove))
 
 (in-package :footsoldiers/tests/footsoldiers)
@@ -1031,25 +1033,20 @@
 
 (defparameter *test-base-path* (directory-namestring #.*compile-file-truename*))
 
-(deftest construct-bot-paths
-  (testing "ensures that user provided bot directories are treated as directories"
-    (let ((bot-dir-1 "/bot1")
-          (bot-dir-2 "/bot2"))
-      (bind (((bot1-path . bot2-path) (construct-bot-paths (cons bot-dir-1 bot-dir-2))))
-        (ok (string= (format nil "~a" bot1-path) "/bot1/"))
-        (ok (string= (format nil "~a" bot2-path) "/bot2/")))))
+(deftest construct-bot-path
+  (testing "ensures that user provided bot directory is treated as a directory"
+    (let ((bot-dir-1 "/bot1"))
+      (bind ((bot1-path (construct-bot-path bot-dir-1)))
+        (ok (string= (format nil "~a" bot1-path) "/bot1/")))))
   (testing "prepends the current directory when provided"
-    (let ((bot-dir-1 "bot1/")
-          (bot-dir-2 "bot2/"))
-      (bind (((bot1-path . bot2-path) (construct-bot-paths (cons bot-dir-1 bot-dir-2) "/bots")))
-        (ok (string= (format nil "~a" bot1-path) "/bots/bot1/"))
-        (ok (string= (format nil "~a" bot2-path) "/bots/bot2/")))))
+    (let ((bot-dir-1 "bot1/"))
+      (bind ((bot1-path (construct-bot-path bot-dir-1 "/bots")))
+        (ok (string= (format nil "~a" bot1-path) "/bots/bot1/")))))
   (testing "resolves a relative path to an absolute path"
-    (let ((bot-dir-1 "bot1")
-          (bot-dir-2 "bot2"))
-      (bind (((bot1-path . bot2-path) (construct-bot-paths (cons bot-dir-1 bot-dir-2) *test-base-path*)))
-        (ok (string= (format nil "~a" bot1-path) (format nil "~abot1/" *test-base-path*)))
-        (ok (string= (format nil "~a" bot2-path) (format nil "~abot2/" *test-base-path*)))))))
+    (let ((bot-dir-1 "bot1"))
+      (bind ((bot1-path (construct-bot-path bot-dir-1 *test-base-path*)))
+        (ok (string= (format nil "~a" bot1-path) (format nil "~abot1/" *test-base-path*)))))))
+
 
 (deftest map-from-lines 
   (testing "should fail to parse a map with disallowed characters"
@@ -1135,25 +1132,45 @@
       (let ((test-file (probe-file test-path)))
         (when test-file (delete-file test-file))))))
 
+
+(defun create-bot (name bot-file bot-directory)
+  (let* ((config (make-docker-config 
+                  "bot-match/lisp-base"
+                  :command (split "\\s+" (format nil "ros -Q -s herodotus /bots/~a" bot-file))
+                  :entrypoint (list "")
+                  :open-stdin t
+                  :volumes (list "/bots")
+                  :memory (* 1024 (bot-memory-limit-kib *default-game-config*))
+                  :memory-swap (* 2 1024 (bot-memory-limit-kib *default-game-config*))
+                  :read-only-root-fs t
+                  :binds (list (format nil "~a:/bots" 
+                                       (merge-pathnames bot-directory *test-base-path*))))))
+    (create-container name :docker-config config)))
+
+(setup (create-bot "player1" "footsoldiers-bot1.lisp" "bot1")
+       (create-bot "player2" "footsoldiers-bot2.lisp" "bot2"))
+
+(defun cleanup-bot (bot-file)
+  (stop-container bot-file)
+  (remove-container bot-file))
+
+(teardown 
+  (handler-case (progn (cleanup-bot "player1")
+                       (cleanup-bot "player2"))
+    (error (e) (format t "Error during tear down ~a~%" e))))
+
 (deftest start-game
   (testing "runs bots and plays game until it is finished"
     (let ((result (start-game 
-                   (cons "bot1/" "bot2/")
                    (make-logging-config :turns *standard-output*
                                         :moves nil
                                         :states nil
                                         :visualisation nil)
-                   :current-directory (directory-namestring #.*compile-file-truename*)
                    :game-config (make-instance 
                                  'game-config
                                  :initial-money 10
                                  :money-per-turn 3
                                  :total-turns 100
-                                 :allowed-commands 
-                                 (alist-hash-table
-                                  (list (cons "lisp-ros-herodotus"
-                                              "ros -Q -s herodotus -- <bot-file>"))
-                                  :test 'equal)
                                  :max-distance-from-base 5
                                  :bot-memory-limit-kib (bot-memory-limit-kib *default-game-config*)
                                  :bot-initialisation-time (bot-initialisation-time *default-game-config*)

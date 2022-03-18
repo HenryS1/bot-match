@@ -1,7 +1,12 @@
 (defpackage footsoldiers
-  (:use :cl :herodotus :bind
-        :alexandria :try
-        :iterate :trivia
+  (:use :cl
+        :herodotus
+        :bind
+        :alexandria
+        :try
+        :iterate 
+        :trivia
+        :docker-client
         :local-time
         :trivia.ppcre
         :metabang-bind
@@ -59,7 +64,7 @@
            :*default-game-config*
            :game-config
            :money-per-turn
-           :construct-bot-paths
+           :construct-bot-path
            :*default-health-config*
            :*default-speed-config*
            :*default-damage-config*
@@ -75,7 +80,6 @@
            :soldier-attack-direction
            :change-soldier-attack-direction
            :make-change-attack-direction))
-
 
 (in-package :footsoldiers)
 
@@ -162,7 +166,6 @@
      (total-turns)
      (bot-memory-limit-kib)
      (bot-initialisation-time)
-     (allowed-commands)
      (health health-config)
      (speed-config speed-config "speed")
      (damage damage-config)
@@ -194,9 +197,6 @@
    :initial-money 10
    :money-per-turn 3 
    :total-turns 100
-   :allowed-commands (alist-hash-table 
-                      (list (cons "lisp-ros" "ros +Q -- <bot-file>"))
-                      :test 'equal)
    :bot-memory-limit-kib 2000000
    :bot-initialisation-time 15
    :max-distance-from-base 5 
@@ -663,6 +663,12 @@
 
 (defmethod input-parser ((game game)) #'read-line)
 
+(defun construct-bot-path (bot-relative-path &optional (current-directory nil))
+  (if current-directory 
+      (merge-pathnames (cl-fad:pathname-as-directory bot-relative-path)
+                       (cl-fad:pathname-as-directory (parse-namestring current-directory)))
+      (merge-pathnames (cl-fad:pathname-as-directory bot-relative-path))))
+
 (defun construct-bot-paths (bot-relative-paths &optional (current-directory nil))
   (bind (((bot-1-relative-path . bot-2-relative-path) bot-relative-paths))
     (labels ((bot-absolute-path (bot-relative-path)
@@ -673,30 +679,26 @@
       (cons (bot-absolute-path bot-1-relative-path)
             (bot-absolute-path bot-2-relative-path)))))
 
-(defun run-bots (bot-absolute-paths turns-log-stream player1-error-stream player2-error-stream
-                 allowed-commands memory-limit)
-  (bind (((bot1-path . bot2-path) bot-absolute-paths)
-         (bot-1-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot1-path)))
-         (bot-2-def (runtime:read-bot-definition (merge-pathnames "definition.json" bot2-path))))
-    (let* ((bots (list (runtime:start-bot-from-definition
-                        bot-1-def
-                        (format nil "~a" bot1-path) 
+(defun create-bot-container (name image memory-limit)
+  (let ((config (make-docker-config image :open-stdin t
+                                    :memory memory-limit 
+                                    :memory-swap (* memory-limit 2)
+                                    :read-only-root-fs t)))
+    (create-container name :docker-config config)))
+
+
+(defun run-bots (turns-log-stream player1-error-stream player2-error-stream)
+  (mdo (clean-on-error #'runtime:kill-bot player1 
+                       (runtime:start-bot-from-definition 
+                        "player1"
                         turns-log-stream
-                        player1-error-stream
-                        :allowed-commands allowed-commands
-                        :memory-limit memory-limit)
+                        player1-error-stream))
+       (clean-on-error #'runtime:kill-bot player2
                        (runtime:start-bot-from-definition
-                        bot-2-def
-                        (format nil "~a" bot2-path)
+                        "player2"
                         turns-log-stream
-                        player2-error-stream
-                        :allowed-commands allowed-commands
-                        :memory-limit memory-limit)))
-           (errors (lefts bots))
-           (successes (rights bots)))
-      (if (null errors)
-          (right successes)
-          (left errors)))))
+                        player2-error-stream))
+       (yield (list player1 player2))))
 
 (defstruct map-details base1 base2 map)
 
@@ -714,43 +716,43 @@
                                 (cons (cons 10 2) (make-rock))) 
                           :test 'equal)))
 
-(defun start-game (bot-relative-paths logging-config 
-                   &key (current-directory nil)
-                     (game-config *default-game-config*)
+(defun cleanup-containers () 
+  (mapc #'remove-container (list "player1" "player2")))
+
+
+(defun start-game (logging-config 
+                   &key (game-config *default-game-config*)
                      (game-map *default-game-map*)
                      (player1-error-stream *error-output*)
                      (player2-error-stream *error-output*))
   (format t "Running footsoldiers~%")
-  (let ((runtime:*bot-initialisation-time* (bot-initialisation-time game-config))
-        (base1-lookup (gethash (map-details-base1 game-map) (map-details-map game-map)))
-        (base2-lookup (gethash (map-details-base2 game-map) (map-details-map game-map))))
-    (cond ((or (not base1-lookup) (not (equalp (base-team base1-lookup) "player1")))
-           (left "player1 base was not in the expected position"))
-          ((or (not base2-lookup) (not (equalp (base-team base2-lookup) "player2")))
-           (left "player2 base was not in the expected position"))
-          (t (fmap (lambda (bs)
-                     (let* ((bots (alist-hash-table (pairlis '("player1" "player2") bs)
-                                                    :test 'equal))
-                            (game (make-game :map (map-details-map game-map)
-                                             :turns-remaining (total-turns game-config)
-                                             :player1 (make-player 
-                                                       :team "player1" 
-                                                       :money (initial-money game-config)
-                                                       :base (map-details-base1 game-map)
-                                                       :health 40)
-                                             :player2 (make-player 
-                                                       :team "player2"
-                                                       :money (initial-money game-config)
-                                                       :base (map-details-base2 game-map)
-                                                       :health 40)
-                                             :config game-config)))
-                       (n-player-game bots game logging-config))) 
-                   (run-bots (construct-bot-paths bot-relative-paths current-directory)
-                             (logging-config-turns logging-config)
-                             player1-error-stream
-                             player2-error-stream
-                             (allowed-commands game-config)
-                             (bot-memory-limit-kib game-config)))))))
+  (let ((runtime:*bot-initialisation-time* (bot-initialisation-time game-config)))
+    (mdo (_ (if-absent (gethash (map-details-base1 game-map)
+                                (map-details-map game-map))
+                       "player1 base was not in the expected position"))
+         (_ (if-absent (gethash (map-details-base2 game-map) 
+                                (map-details-map game-map))
+                       "player2 base was not in the expected position"))
+         (with (lambda (bs) (mapc #'runtime:kill-bot bs) (cleanup-containers))
+               started-bots (run-bots (logging-config-turns logging-config)
+                                      player1-error-stream
+                                      player2-error-stream))
+         (let (bots (alist-hash-table (pairlis '("player1" "player2") started-bots)
+                      :test 'equal)))
+         (let (game (make-game :map (map-details-map game-map)
+                               :turns-remaining (total-turns game-config)
+                               :player1 (make-player 
+                                         :team "player1" 
+                                         :money (initial-money game-config)
+                                         :base (map-details-base1 game-map)
+                                         :health 40)
+                               :player2 (make-player 
+                                         :team "player2"
+                                         :money (initial-money game-config)
+                                         :base (map-details-base2 game-map)
+                                         :health 40)
+                               :config game-config)))
+         (yield (n-player-game bots game logging-config)))))
 
 (opts:define-opts 
     (:name :help
@@ -922,6 +924,7 @@
   (write-char char (stream-of stream))
   (write-char char (wrapping-stream stream)))
 
+
 (defmethod sb-gray:stream-write-sequence ((stream with-stdout) seq &optional (start 0) end)
   (write-sequence seq stream start end)
   (write-sequence seq (wrapping-stream stream) :start start :end end))
@@ -931,73 +934,91 @@
   (write-string string (stream-of stream) :start start :end end)
   (write-string string (wrapping-stream stream) :start start :end end))
 
+(defmacro with-files (file-specs &rest body)
+  (labels ((with-file (acc file-spec)
+             `(with-open-file ,file-spec
+                ,acc)))
+    (reduce #'with-file file-specs :initial-value `(progn ,@body))))
+
 (defun run-footsoldiers ()
   (handler-case 
       (multiple-value-bind (options free-args) (opts:get-opts)
         (declare (ignore free-args))
-       (let ((bot-1-relative-path (or (getf options :bot-dir-1) "~/bot1/"))
-             (bot-2-relative-path (or (getf options :bot-dir-2) "~/bot2/"))
-             (config-file-path (normalise-path 
-                                (or (getf options :config-file-path) "./game-config.json")))
-             (result-filepath (or (getf options :result-file) "./game-result"))
-             (turns-filepath (or (getf options :turn-logs) "./turn-logs"))
-             (moves-filepath (or (getf options :move-logs) "./move-logs"))
-             (states-filepath (or (getf options :state-logs) "./state-logs"))
-             (map-filepath (or (getf options :map-file-path) "./game-map")))
-         (if (getf options :help)
-             (opts:describe 
-              :prefix "Footsoldiers game runner"
-              :suffix "Hope you enjoy!"
-              :usage-of "footsoldiers-runner"
-              :args     "[FREE-ARGS]")
-             (bind ((config (if (and config-file-path (probe-file config-file-path))
-                                (with-open-file (f config-file-path)
-                                  (game-config-json:from-json f))
-                                *default-game-config*))
-                    (parsed-map (map-from-file map-filepath)))
-               (match parsed-map 
-                 ((left (left-err e)) (format t "~a" e))
-                 ((right (right-value map-details))
-                  (with-open-file (player1-error-stream "./player1-errs" :if-does-not-exist :create
-                                                :if-exists :supersede :direction :output)
-                    (with-open-file (player2-error-stream "./player2-errs" :if-does-not-exist :create
-                                                  :if-exists :supersede :direction :output)
-                     (with-open-file (turns turns-filepath :if-does-not-exist 
-                                            :create :if-exists :supersede :direction :output)
-                       (with-open-file (moves moves-filepath :if-does-not-exist
-                                              :create :if-exists :supersede :direction :output)
-                         (with-open-file (states states-filepath :if-does-not-exist
-                                                 :create :if-exists :supersede :direction :output)
-                           (match (start-game (cons bot-1-relative-path bot-2-relative-path) 
-                                              (make-logging-config
-                                               :turns (if (getf options :print-turns)
-                                                          (make-instance 'with-stdout :stream turns)
-                                                          turns)
-                                               :moves (if (getf options :print-moves)
-                                                          (make-instance 'with-stdout :stream moves)
-                                                          moves)
-                                               :states (if (getf options :print-states)
-                                                           (make-instance 'with-stdout :stream states)
-                                                           states)
-                                               :visualisation *standard-output*)
-                                              :player1-error-stream (if (getf options :print-bot-errors)
-                                                                        (make-instance 'with-stdout 
-                                                                                       :stream player1-error-stream
-                                                                                       :wrapping-stream *error-output*)
-                                                         player1-error-stream)
-                                              :player2-error-stream (if (getf options :print-bot-errors)
-                                                                        (make-instance 'with-stdout 
-                                                                                       :stream player2-error-stream 
-                                                                                       :wrapping-stream *error-output*)
-                                                                        player2-error-stream)
-                                              :game-map map-details
-                                              :game-config config)
-                             ((left (left-err errs)) (mapc (lambda (e) (format t "~a~%" e)) errs))
-                             ((right (right-value end-game)) 
-                              (with-open-file (result result-filepath 
-                                                      :if-does-not-exist
-                                                      :create :if-exists
-                                                      :supersede :direction :output)
-                                (format result "~a~%" (game-result end-game))))))))))))))))
-    (sb-sys:interactive-interrupt () (progn (format t "User interrupt. Exiting.~%") (sb-ext:exit :code 0)))
+        (if (getf options :help)
+            (opts:describe 
+               :prefix "Footsoldiers game runner"
+               :suffix "Hope you enjoy!"
+               :usage-of "footsoldiers-runner"
+               :args     "[FREE-ARGS]")
+            (bind ((bot-1-path (or (getf options :bot-dir-1) "~/bot1/"))
+                   (bot-1-def (runtime:read-bot-definition (merge-pathnames "definition.json" 
+                                                                            (construct-bot-path bot-1-path))))
+                   (bot-2-path (or (getf options :bot-dir-2) "~/bot2/"))
+                   (bot-2-def (runtime:read-bot-definition (merge-pathnames "definition.json"
+                                                                            (construct-bot-path bot-2-path))))
+                   (config-file-path (normalise-path 
+                                      (or (getf options :config-file-path) "./game-config.json")))
+                   (result-filepath (or (getf options :result-file) "./game-result"))
+                   (turns-filepath (or (getf options :turn-logs) "./turn-logs"))
+                   (moves-filepath (or (getf options :move-logs) "./move-logs"))
+                   (states-filepath (or (getf options :state-logs) "./state-logs"))
+                   (map-filepath (or (getf options :map-file-path) "./game-map"))
+                   (config (if (and config-file-path (probe-file config-file-path))
+                               (with-open-file (f config-file-path)
+                                 (game-config-json:from-json f))
+                               *default-game-config*)))
+              (remove-container "player1")
+              (remove-container "player2")
+              
+              (with-files ((player1-error-stream "./player1-errs" :if-does-not-exist :create
+                                                 :if-exists :supersede :direction :output)
+                           (player2-error-stream "./player2-errs" :if-does-not-exist :create
+                                                 :if-exists :supersede :direction :output)
+                           (turns turns-filepath :if-does-not-exist 
+                                  :create :if-exists :supersede :direction :output)
+                           (moves moves-filepath :if-does-not-exist
+                                  :create :if-exists :supersede :direction :output)
+                           (states states-filepath :if-does-not-exist
+                                   :create :if-exists :supersede :direction :output))
+                (match (mdo (_ (create-bot-container "player1" (runtime:image bot-1-def)
+                                                     (* 1024 (bot-memory-limit-kib config))))
+                            (_ (create-bot-container "player2" (runtime:image bot-2-def)
+                                                     (* 1024 (bot-memory-limit-kib config))))
+                            (map-details (map-from-file map-filepath))
+                            (end-game 
+                             (start-game (make-logging-config
+                                          :turns (if (getf options :print-turns)
+                                                     (make-instance 'with-stdout :stream turns)
+                                                     turns)
+                                          :moves (if (getf options :print-moves)
+                                                     (make-instance 'with-stdout :stream moves)
+                                                     moves)
+                                          :states (if (getf options :print-states)
+                                                      (make-instance 'with-stdout :stream states)
+                                                      states)
+                                          :visualisation *standard-output*)
+                                         :player1-error-stream (if (getf options :print-bot-errors)
+                                                                   (make-instance 
+                                                                    'with-stdout 
+                                                                    :stream player1-error-stream
+                                                                    :wrapping-stream 
+                                                                    *error-output*)
+                                                                   player1-error-stream)
+                                         :player2-error-stream (if (getf options :print-bot-errors)
+                                                                   (make-instance
+                                                                    'with-stdout 
+                                                                    :stream player2-error-stream 
+                                                                    :wrapping-stream 
+                                                                    *error-output*)
+                                                                   player2-error-stream)
+                                         :game-map map-details
+                                         :game-config config))
+                            (yield (with-open-file (result result-filepath 
+                                                           :if-does-not-exist
+                                                           :create :if-exists
+                                                           :supersede :direction :output)
+                                     (format result "~a~%" (game-result end-game)))))
+                  ((left (left-err e)) (format t "~a~%" e)))))))
+    (sb-sys:interactive-interrupt () (progn (format t "User interrupt. Exiting.~%") 
+                                            (sb-ext:exit :code 0)))
     (error (e) (progn (format t "Error occurred: ~%~a~%" e) (sb-ext:exit :code 1)))))

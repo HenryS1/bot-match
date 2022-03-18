@@ -8,5 +8,6 @@ ql rove 2020-03-25
 ql dissect 2020-03-25
 ql trivial-timeout 2020-03-25
 ql metabang-bind 2020-03-25
-git herodotus https://github.com/HenryS1/herodotus.git :tag v1.0.0
-git salmon https://github.com/HenryS1/salmon.git :tag v1.1.0
+git herodotus https://github.com/HenryS1/herodotus.git :branch master
+git salmon https://github.com/HenryS1/salmon.git :branch master
+git docker-client https://github.com/HenryS1/docker-client :branch master

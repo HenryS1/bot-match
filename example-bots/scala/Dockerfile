@@ -5,7 +5,7 @@ RUN apt-get install -y zip
 RUN apt-get install -y unzip
 RUN apt-get install -y curl
 
-RUN useradd -ms /bin/bash compiler
+RUN useradd -ms /bin/bash bot
 
 RUN apt-get install -y gnupg
 
@@ -31,13 +31,17 @@ RUN chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg
 RUN apt-get update
 RUN apt-get install -y sbt
 
-ADD ./entrypoint.sh /home/compiler/entrypoint.sh
+ADD ./project/plugins.sbt /home/bot/project/plugins.sbt
+ADD ./project/build.properties /home/bot/project/build.properties
+ADD ./src /home/bot/src
+ADD ./build.sbt /home/bot/build.sbt
 
-WORKDIR /home/compiler
+RUN chown -R bot /home/bot
 
-RUN chmod +x entrypoint.sh
-RUN chown compiler entrypoint.sh
+WORKDIR /home/bot
 
-USER compiler
+USER bot
 
-ENTRYPOINT ["/bin/bash", "/home/compiler/entrypoint.sh"]
+RUN sbt "clean" "assembly"
+
+ENTRYPOINT ["java", "-jar", "target/scala-3.1.1/scala-assembly-0.1.0-SNAPSHOT.jar"]

@@ -5,14 +5,15 @@
         :either
         :alexandria
         :bind
+        :docker-client
         :herodotus)
   (:export :run-bot
            :bot-output
-           :filename
-           :stop-bot
+           :has-exited
+           :image
+           :bot-process
+           :pause-bot
            :continue-bot
-           :name
-           :command
            :bot-status
            :kill-bot
            :interrupt-bot
@@ -22,7 +23,6 @@
            :bot
            :bot-id
            :bot-name
-           :bot-definition
            :read-bot-definition
            :start-bot-from-definition
            :bot-turn
@@ -32,9 +32,9 @@
            :bot-turn-result-output
            :bot-turn-result-updated-bot
            :*max-bot-restarts*
-           :*memory-limit*
            :bot-restarts
            :disqualified
+           :name
            :process-bot-error-output))
 
 (in-package :runtime)
@@ -45,42 +45,35 @@
 
 (defclass concrete-bot (bot)
   ((bot-process :accessor bot-process :initarg :bot-process)
-   (bot-definition :accessor bot-definition :initarg :bot-definition :initform (error "bot definition must be provided"))
-   (command :accessor command :initarg :command :initform (error "command must be provided"))
    (bot-restarts :accessor bot-restarts :initarg :bot-restarts :initform 0)
    (error-stream :accessor error-stream :initarg :error-stream :initform *error-output*)))
 
-(define-json-model bot-definition (name command filename) :kebab-case)
+(define-json-model bot-definition (name image) :kebab-case)
 
 (defun read-bot-definition (path)
   (with-open-file (f path)
     (bot-definition-json:from-json f)))
 
 (defparameter *bot-initialisation-time* 0.5)
-(defparameter *memory-limit* 2000000)
 (defparameter *max-bot-restarts* 4)
 
 (defun random-id (len)
   (map 'string #'code-char (loop for i from 1 to len collecting (+ 97 (random 26)))))
 
-(defun run-bot (command args)
-  (sb-ext:run-program command args
-                      :wait nil
-                      :input :stream
-                      :output :stream
-                      :error :stream
-                      :search t))
+(defun run-bot (identifier)
+  (let ((result (mdo (_ (stop-container identifier :kill-wait 1))
+                     (attached-container (attach-container identifier))
+                     (_ (start-container identifier))
+                     (yield attached-container))))
+    (right-value result)))
 
 (defmethod initialise-bot ((bot concrete-bot) log-stream)
   (let* ((bot-id (random-id 10))
-         (bot-name (-> (bot-definition bot) name))
+         (bot-name (bot-name bot))
          (initialised-bot (make-instance 'concrete-bot
-                                         :bot-process (run-bot "bash"
-                                                               (list "-c" (command bot)))
+                                         :bot-process (run-bot (bot-name bot))
                                          :bot-id bot-id
                                          :bot-name bot-name
-                                         :bot-definition (bot-definition bot)
-                                         :command (command bot)
                                          :bot-restarts (+ (bot-restarts bot) 1)
                                          :error-stream (error-stream bot))))
     (wait-for-bot-to-be-ready initialised-bot log-stream)))
@@ -88,9 +81,12 @@
 (defmethod wait-for-bot-to-be-ready ((bot concrete-bot) log-stream)
   (handler-case 
       (with-timeout (*bot-initialisation-time*)
-        (let ((ready-signal (read-line (sb-ext:process-output (bot-process bot)) nil nil)))
+        (let ((ready-signal (read-line (container-stdout (bot-process bot)))))
           (when (or (not ready-signal) (not (equal ready-signal "Ready")))
-              (format log-stream "Got unexpected output '~a' from bot ~a while waiting for readiness signal~%" ready-signal (bot-name bot))
+              (format 
+               log-stream
+               "Got unexpected output '~a' from bot ~a while waiting for readiness signal~%" 
+               ready-signal (bot-name bot))
               (kill-bot bot))
           bot))
     (timeout-error (e)
@@ -99,45 +95,21 @@
       (format log-stream "Timed out waiting for bot ~a to signal readiness" (bot-name bot))
       bot)))
 
-(defparameter *default-allowed-commands* 
-  (alist-hash-table (list (cons "lisp-ros" "ros +Q -- <bot-file>")) :test 'equal))
-
-(defmethod start-bot-from-definition ((bot-definition bot-definition) base-path 
+(defmethod start-bot-from-definition (bot-name
                                       log-stream
-                                      error-stream
-                                      &key (memory-limit *memory-limit*)
-                                        (allowed-commands *default-allowed-commands*))
-  (if (not (gethash (command bot-definition) allowed-commands))
-      (left (format nil "Failed to start bot ~a. Unrecognised command ~a." 
-                    (name bot-definition) (command bot-definition)))
-      (let* ((templated-command
-              (regex-replace "<bot-file>" 
-                             (gethash (command bot-definition) allowed-commands)
-                             (format nil "~a" (merge-pathnames
-                                               (file-namestring
-                                                (parse-namestring (filename bot-definition)))
-                                               (cl-fad:pathname-as-directory 
-                                                (parse-namestring base-path))))))
-             (memory-limited-command (format nil "ulimit -v ~a; ~a" 
-                                             memory-limit
-                                             templated-command)))
-        (format log-stream "starting bot ~a using command ~a~%" 
-                (name bot-definition)
-                memory-limited-command)
-        (let* ((bot-id (random-id 1000))
-               (bot-name (name bot-definition))
-               (bot (make-instance
-                     'concrete-bot
-                     :bot-process (run-bot "bash"
-                                           (list "-c" memory-limited-command))
-                     :bot-id bot-id
-                     :bot-name bot-name
-                     :bot-definition bot-definition
-                     :command memory-limited-command
-                     :error-stream error-stream)))
-          (wait-for-bot-to-be-ready bot log-stream)
-          (stop-bot bot)
-          (right bot)))))
+                                      error-stream)
+  (format log-stream "starting bot ~a~%" bot-name)
+  (let* ((bot-id (random-id 1000))
+         (bot-name bot-name)
+         (bot (make-instance
+               'concrete-bot
+               :bot-process (run-bot bot-name)
+               :bot-id bot-id
+               :bot-name bot-name
+               :error-stream error-stream)))
+    (wait-for-bot-to-be-ready bot log-stream)
+    (pause-bot bot)
+    (right bot)))
 
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit &optional log-stream parser))
@@ -167,46 +139,26 @@
 
 (defmethod process-bot-error-output ((bot concrete-bot) log-stream)
   (handler-case 
-      (loop while (listen (sb-ext:process-error (bot-process bot)))
-         for c = (read-char (sb-ext:process-error (bot-process bot)))
+      (loop while (listen (container-stderr (bot-process bot)))
+         for c = (read-char (container-stderr (bot-process bot)))
          do (write-char c (error-stream bot)))
     (error () (format log-stream "Error reading from bot error stream for bot ~a~%" 
                       (bot-name bot)))))
 
 (defmethod bot-output ((bot concrete-bot) time-limit log-stream &optional (parser #'read-output))
-  (-> (sb-ext:process-output (bot-process bot))
+  (-> (container-stdout (bot-process bot))
       (to-string (bot-name bot) parser time-limit log-stream)))
 
-;; Interrupt process
-(defconstant SIGINT 2)
-;; Kill process
-(defconstant SIGKILL 9)
-;; Resume process
-#+linux (defconstant SIGCONT 18)
-#-linux (defconstant SIGCONT 19)
-
-;; Hard pause process
-#+linux (defconstant SIGSTOP 19)
-#-linux (defconstant SIGSTOP 17)
-
-;; Gentle pause process
-#+linux (defconstant SIGTSTP 20)
-#-linux (defconstant SIGTSTP 18)
-
 ;; SBCL process statuses are :running :stopped :exited :signaled
-(defmethod stop-bot ((bot concrete-bot))
-  (sb-ext:process-kill (bot-process bot) SIGSTOP))
+(defmethod pause-bot ((bot concrete-bot)) (pause-container (bot-name bot)))
 
 (defmethod continue-bot ((bot concrete-bot) log-stream)
-  ;; when a bot process exits on its own it's status is :exited 
-  ;; when it is killed its status is :signaled
-  (let ((running-bot (if (or (equal (bot-status bot) :exited)
-                             (equal (bot-status bot) :signaled))
-                         (if (< (bot-restarts bot) *max-bot-restarts*)
-                             (progn (format log-stream 
-                                            "bot ~a not running. re-initialising it~%"
-                                            (bot-name bot))
-                                    (initialise-bot bot log-stream))
+  (let* ((running-bot (if (not (running (bot-status bot)))
+                          (if (< (bot-restarts bot) *max-bot-restarts*)
+                              (progn (format log-stream 
+                                             "bot ~a not running. re-initialising it~%"
+                                             (bot-name bot))
+                                     (initialise-bot bot log-stream))
                              (progn 
                                (format 
                                 log-stream 
@@ -214,35 +166,38 @@
                                 (bot-name bot))
                                bot))
                          bot)))
-   (sb-ext:process-kill (bot-process running-bot) SIGCONT)
+   (unpause-container (bot-name running-bot))
    running-bot))
 
 (defmethod kill-bot ((bot concrete-bot))
-  (sb-ext:process-kill (bot-process bot) SIGKILL))
+  (unwind-protect
+       (stop-container (bot-name bot) :kill-wait 0)
+    (detach (bot-process bot))))
 
 (defmethod interrupt-bot ((bot concrete-bot))
-  (sb-ext:process-kill (bot-process bot) SIGINT))
+  (unwind-protect (stop-container (bot-name bot) :kill-wait 1)
+    (detach (bot-process bot))))
 
 (defmethod bot-status ((bot concrete-bot))
-  (sb-ext:process-status (bot-process bot)))
+  (state (right-value (inspect-container (bot-name bot)))))
 
 (defmethod send-input-to-bot ((bot concrete-bot) str)
   (with-slots (bot-process) bot
-    (write-string str (sb-ext:process-input bot-process))
-    (finish-output (sb-ext:process-input bot-process))))
+    (write-string str (container-input-stream bot-process))
+    (finish-output (container-input-stream bot-process))))
 
-(defmethod end-bot-turn ((bot concrete-bot) log-stream &optional (wait-time 0.1))
-  (stop-bot bot)
-  (sleep wait-time)
-  (when (equal (bot-status bot) :running)    
-    (format log-stream "Bot ~a didn't respond to stop signal, terminating it.~%" (bot-name bot))
+
+(defmethod end-bot-turn ((bot concrete-bot) log-stream &optional (wait-time 0.01))
+  (declare (ignore wait-time))
+  (pause-bot bot)
+  (when (not (paused (bot-status bot)))    
+    (format log-stream "Bot ~a didn't respond to pause signal, terminating it.~%" (bot-name bot))
     (kill-bot bot)))
 
 (defstruct bot-turn-result updated-bot output)
 
 (defun has-exited (bot)
-  (or (equalp (bot-status bot) :exited)
-      (equalp (bot-status bot) :signaled)))
+  (not (running (bot-status bot))))
 
 (defmethod disqualified ((bot concrete-bot))
   (and (has-exited bot)

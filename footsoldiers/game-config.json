@@ -3,12 +3,6 @@
     "money-per-turn": 3,
     "max-distance-from-base": 5,
     "total-turns": 100,
-    "allowed-commands": {
-        "lisp-ros": "ros dynamic-space-size=800 +Q -- <bot-file>",
-        "lisp-ros-herodotus": "ros dynamic-space-size=800 -Q -s herodotus -- <bot-file>",
-        "execute-binary": "<bot-file>",
-        "java-jar": "java -jar <bot-file>"
-    },
     "bot-memory-limit-kib": 2621440,
     "bot-initialisation-time": 15,
     "health": {
