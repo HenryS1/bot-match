@@ -38,12 +38,20 @@ RUN mkdir -p /home/footsoldiers/.config/common-lisp
 RUN echo "(:source-registry (:tree (:home \"bot-match\")) :inherit-configuration)" > /home/footsoldiers/.config/common-lisp/source-registry.conf
 
 USER root
-ADD . /home/footsoldiers/bot-match
+ADD ./qlfile /home/footsoldiers/bot-match/qlfile
 WORKDIR /home/footsoldiers/bot-match
 RUN chown -R footsoldiers .
 USER footsoldiers
 
 RUN /home/footsoldiers/.roswell/bin/qlot install
+USER root
+ADD ./game-runner /home/footsoldiers/bot-match/game-runner
+ADD ./runtime /home/footsoldiers/bot-match/runtime
+ADD ./footsoldiers /home/footsoldiers/bot-match/footsoldiers
+RUN chown -R footsoldiers .
+
+USER footsoldiers
+
 RUN ros run --load footsoldiers/build.lisp
 RUN chmod +x /home/footsoldiers/bot-match/footsoldiers
 
