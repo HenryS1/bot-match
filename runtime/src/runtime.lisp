@@ -99,7 +99,7 @@
                                       log-stream
                                       error-stream)
   (format log-stream "starting bot ~a~%" bot-name)
-  (let* ((bot-id (random-id 1000))
+  (let* ((bot-id (random-id 10))
          (bot-name bot-name)
          (bot (make-instance
                'concrete-bot
@@ -149,7 +149,6 @@
   (-> (container-stdout (bot-process bot))
       (to-string (bot-name bot) parser time-limit log-stream)))
 
-;; SBCL process statuses are :running :stopped :exited :signaled
 (defmethod pause-bot ((bot concrete-bot)) (pause-container (bot-name bot)))
 
 (defmethod continue-bot ((bot concrete-bot) log-stream)
