@@ -55,7 +55,7 @@ jobs:
       - name: Install qlot
         run: ros install qlot
 
-      - name: Cache dependencies
+      - name: Cache build dependencies
         uses: actions/cache@v2
         with:
           path: ~/bot-match/bot-match/.qlot
