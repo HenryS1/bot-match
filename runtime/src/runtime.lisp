@@ -61,22 +61,24 @@
   (map 'string #'code-char (loop for i from 1 to len collecting (+ 97 (random 26)))))
 
 (defun run-bot (identifier)
-  (let ((result (mdo (_ (stop-container identifier :kill-wait 1))
-                     (attached-container (attach-container identifier))
-                     (_ (start-container identifier))
-                     (yield attached-container))))
-    (right-value result)))
+  (mdo (_ (stop-container identifier :kill-wait 1))
+       (clean-on-error #'detach attached-container (attach-container identifier))
+       (_ (start-container identifier))
+       (yield attached-container)))
 
 (defmethod initialise-bot ((bot concrete-bot) log-stream)
-  (let* ((bot-id (random-id 10))
-         (bot-name (bot-name bot))
-         (initialised-bot (make-instance 'concrete-bot
-                                         :bot-process (run-bot (bot-name bot))
-                                         :bot-id bot-id
-                                         :bot-name bot-name
-                                         :bot-restarts (+ (bot-restarts bot) 1)
-                                         :error-stream (error-stream bot))))
-    (wait-for-bot-to-be-ready initialised-bot log-stream)))
+  (mdo (let (bot-id (random-id 10)))
+       (let (bot-name (bot-name bot)))
+       (bot-process (run-bot (bot-name bot)))
+       (clean-on-error #'kill-bot initialised-bot
+                       (right (make-instance 'concrete-bot
+                                       :bot-process bot-process
+                                       :bot-id bot-id
+                                       :bot-name bot-name
+                                       :bot-restarts (+ (bot-restarts bot) 1)
+                                       :error-stream (error-stream bot))))
+       (let (_ (wait-for-bot-to-be-ready initialised-bot log-stream)))
+       (yield initialised-bot)))
 
 (defmethod wait-for-bot-to-be-ready ((bot concrete-bot) log-stream)
   (handler-case 
@@ -99,17 +101,18 @@
                                       log-stream
                                       error-stream)
   (format log-stream "starting bot ~a~%" bot-name)
-  (let* ((bot-id (random-id 10))
-         (bot-name bot-name)
-         (bot (make-instance
-               'concrete-bot
-               :bot-process (run-bot bot-name)
-               :bot-id bot-id
-               :bot-name bot-name
-               :error-stream error-stream)))
-    (wait-for-bot-to-be-ready bot log-stream)
-    (pause-bot bot)
-    (right bot)))
+  (mdo (let (bot-id (random-id 10)))
+       (let (bot-name bot-name))
+       (bot-process (run-bot bot-name))
+       (clean-on-error #'kill-bot bot (right (make-instance
+                                              'concrete-bot
+                                              :bot-process bot-process
+                                              :bot-id bot-id
+                                              :bot-name bot-name
+                                              :error-stream error-stream)))
+       (let (_ (wait-for-bot-to-be-ready bot log-stream)))
+       (let (_ (pause-bot bot)))
+       (yield bot)))
 
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit &optional log-stream parser))
@@ -157,7 +160,7 @@
                               (progn (format log-stream 
                                              "bot ~a not running. re-initialising it~%"
                                              (bot-name bot))
-                                     (initialise-bot bot log-stream))
+                                     (right-value (initialise-bot bot log-stream)))
                              (progn 
                                (format 
                                 log-stream 
@@ -184,7 +187,6 @@
   (with-slots (bot-process) bot
     (write-string str (container-input-stream bot-process))
     (finish-output (container-input-stream bot-process))))
-
 
 (defmethod end-bot-turn ((bot concrete-bot) log-stream &optional (wait-time 0.01))
   (declare (ignore wait-time))

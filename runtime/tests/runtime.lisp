@@ -52,7 +52,7 @@
 
 (defmacro with-test-bot (var identifier error-stream &rest body)
   (with-gensyms (bot-process)
-    `(let* ((,bot-process (run-bot ,identifier))
+    `(let* ((,bot-process (right-value (run-bot ,identifier)))
             (,var (make-instance 'concrete-bot
                                  :bot-process ,bot-process
                                  :bot-id (random 100)
