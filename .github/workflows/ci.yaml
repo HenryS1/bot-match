@@ -55,6 +55,14 @@ jobs:
       - name: Install qlot
         run: ros install qlot
 
+      - name: Cache build dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/work/bot-match/bot-match/.qlot/
+          key: ${{ runner.os }}-qlot-cache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-qlot-cache-
+
       - name: Install dependencies
         run: |
           PATH="~/.roswell/bin:$PATH"
