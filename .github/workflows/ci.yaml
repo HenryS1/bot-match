@@ -58,10 +58,10 @@ jobs:
       - name: Cache build dependencies
         uses: actions/cache@v2
         with:
-          path: ~/bot-match/bot-match/.qlot
-          key: ${{ runner.os }}-qlot-dependencies-${{ github.sha }}
+          path: ~/work/bot-match/bot-match/.qlot/
+          key: ${{ runner.os }}-qlot-cache-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-qlot-dependencies-
+            ${{ runner.os }}-qlot-cache-
 
       - name: Install dependencies
         run: |
