@@ -717,7 +717,8 @@
                           :test 'equal)))
 
 (defun cleanup-containers () 
-  (mapc #'remove-container (list "player1" "player2")))
+  (mapc (lambda (identifier) (stop-container identifier :kill-wait 0) 
+          (remove-container identifier)) (list "player1" "player2")))
 
 
 (defun start-game (logging-config 
@@ -967,9 +968,7 @@
                                (with-open-file (f config-file-path)
                                  (game-config-json:from-json f))
                                *default-game-config*)))
-              (remove-container "player1")
-              (remove-container "player2")
-              
+              (cleanup-containers)            
               (with-files ((player1-error-stream "./player1-errs" :if-does-not-exist :create
                                                  :if-exists :supersede :direction :output)
                            (player2-error-stream "./player2-errs" :if-does-not-exist :create
@@ -980,7 +979,11 @@
                                   :create :if-exists :supersede :direction :output)
                            (states states-filepath :if-does-not-exist
                                    :create :if-exists :supersede :direction :output))
-                (match (mdo (_ (create-bot-container "player1" (runtime:image bot-1-def)
+                (match (mdo (let (_ (progn (stop-container "player1")
+                                           (remove-container "player1"))))
+                            (let (_ (progn (stop-container "player2")
+                                           (remove-container "player2"))))
+                            (_ (create-bot-container "player1" (runtime:image bot-1-def)
                                                      (* 1024 (bot-memory-limit-kib config))))
                             (_ (create-bot-container "player2" (runtime:image bot-2-def)
                                                      (* 1024 (bot-memory-limit-kib config))))
@@ -1020,5 +1023,8 @@
                                      (format result "~a~%" (game-result end-game)))))
                   ((left (left-err e)) (format t "~a~%" e)))))))
     (sb-sys:interactive-interrupt () (progn (format t "User interrupt. Exiting.~%") 
+                                            (cleanup-containers)
                                             (sb-ext:exit :code 0)))
-    (error (e) (progn (format t "Error occurred: ~%~a~%" e) (sb-ext:exit :code 1)))))
+    (error (e) (progn (format t "Error occurred: ~%~a~%" e)
+                      (cleanup-containers)
+                      (sb-ext:exit :code 1)))))
