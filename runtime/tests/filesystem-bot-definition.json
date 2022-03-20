@@ -1,5 +1,3 @@
 {
-    "name": "filesystem-bot.lisp",
-    "filename": "filesystem-bot.lisp",
-    "command": "lisp-ros"
+    "name": "filesystem-bot.lisp"
 }

@@ -1,5 +1,3 @@
 {
-    "name": "not-ready-bot.lisp",
-    "filename": "not-ready-bot.lisp",
-    "command": "lisp-ros"
+    "name": "not-ready-bot.lisp"
 }

@@ -61,22 +61,24 @@
   (map 'string #'code-char (loop for i from 1 to len collecting (+ 97 (random 26)))))
 
 (defun run-bot (identifier)
-  (let ((result (mdo (_ (stop-container identifier :kill-wait 1))
-                     (attached-container (attach-container identifier))
-                     (_ (start-container identifier))
-                     (yield attached-container))))
-    (right-value result)))
+  (mdo (_ (stop-container identifier :kill-wait 1))      
+       (clean-on-error #'detach attached-container (attach-container identifier))
+       (_ (start-container identifier))
+       (yield attached-container)))
 
 (defmethod initialise-bot ((bot concrete-bot) log-stream)
-  (let* ((bot-id (random-id 10))
-         (bot-name (bot-name bot))
-         (initialised-bot (make-instance 'concrete-bot
-                                         :bot-process (run-bot (bot-name bot))
-                                         :bot-id bot-id
-                                         :bot-name bot-name
-                                         :bot-restarts (+ (bot-restarts bot) 1)
-                                         :error-stream (error-stream bot))))
-    (wait-for-bot-to-be-ready initialised-bot log-stream)))
+  (mdo (let (bot-id (random-id 10)))
+       (let (bot-name (bot-name bot)))
+       (bot-process (run-bot (bot-name bot)))
+       (clean-on-error #'kill-bot initialised-bot
+                       (right (make-instance 'concrete-bot
+                                       :bot-process bot-process
+                                       :bot-id bot-id
+                                       :bot-name bot-name
+                                       :bot-restarts (+ (bot-restarts bot) 1)
+                                       :error-stream (error-stream bot))))
+       (let (_ (wait-for-bot-to-be-ready initialised-bot log-stream)))
+       (yield initialised-bot)))
 
 (defmethod wait-for-bot-to-be-ready ((bot concrete-bot) log-stream)
   (handler-case 
@@ -99,17 +101,18 @@
                                       log-stream
                                       error-stream)
   (format log-stream "starting bot ~a~%" bot-name)
-  (let* ((bot-id (random-id 10))
-         (bot-name bot-name)
-         (bot (make-instance
-               'concrete-bot
-               :bot-process (run-bot bot-name)
-               :bot-id bot-id
-               :bot-name bot-name
-               :error-stream error-stream)))
-    (wait-for-bot-to-be-ready bot log-stream)
-    (pause-bot bot)
-    (right bot)))
+  (mdo (let (bot-id (random-id 10)))
+       (let (bot-name bot-name))
+       (bot-process (run-bot bot-name))
+       (clean-on-error #'kill-bot bot (right (make-instance
+                                              'concrete-bot
+                                              :bot-process bot-process
+                                              :bot-id bot-id
+                                              :bot-name bot-name
+                                              :error-stream error-stream)))
+       (let (_ (wait-for-bot-to-be-ready bot log-stream)))
+       (let (_ (pause-bot bot)))
+       (yield bot)))
 
 (defgeneric bot-status (bot))
 (defgeneric bot-turn (bot input time-limit &optional log-stream parser))
@@ -152,21 +155,22 @@
 (defmethod pause-bot ((bot concrete-bot)) (pause-container (bot-name bot)))
 
 (defmethod continue-bot ((bot concrete-bot) log-stream)
-  (let* ((running-bot (if (not (running (bot-status bot)))
-                          (if (< (bot-restarts bot) *max-bot-restarts*)
-                              (progn (format log-stream 
-                                             "bot ~a not running. re-initialising it~%"
-                                             (bot-name bot))
-                                     (initialise-bot bot log-stream))
-                             (progn 
-                               (format 
-                                log-stream 
-                                "bot ~a not running, but has restarted the maximum number of times~%"
-                                (bot-name bot))
-                               bot))
-                         bot)))
-   (unpause-container (bot-name running-bot))
-   running-bot))
+  (mdo (status (bot-status bot))
+       (running-bot (if (not (running status))
+                        (if (< (bot-restarts bot) *max-bot-restarts*)
+                            (progn (format log-stream 
+                                           "bot ~a not running. re-initialising it~%"
+                                           (bot-name bot))
+                                   (initialise-bot bot log-stream))
+                            (progn 
+                              (format 
+                               log-stream 
+                               "bot ~a not running, but has restarted the maximum number of times~%"
+                               (bot-name bot))
+                              (right bot)))
+                        (right bot)))
+       (let (_ (unpause-container (bot-name running-bot))))
+       (yield running-bot)))
 
 (defmethod kill-bot ((bot concrete-bot))
   (unwind-protect
@@ -178,25 +182,30 @@
     (detach (bot-process bot))))
 
 (defmethod bot-status ((bot concrete-bot))
-  (state (right-value (inspect-container (bot-name bot)))))
+  (fmap #'state (inspect-container (bot-name bot))))
 
 (defmethod send-input-to-bot ((bot concrete-bot) str)
   (with-slots (bot-process) bot
     (write-string str (container-input-stream bot-process))
     (finish-output (container-input-stream bot-process))))
 
-
 (defmethod end-bot-turn ((bot concrete-bot) log-stream &optional (wait-time 0.01))
   (declare (ignore wait-time))
-  (pause-bot bot)
-  (when (not (paused (bot-status bot)))    
-    (format log-stream "Bot ~a didn't respond to pause signal, terminating it.~%" (bot-name bot))
-    (kill-bot bot)))
+  (mdo (_ (pause-bot bot))
+       (status (bot-status bot))
+       (result (if (not (paused status))
+                   (progn (format log-stream
+                                  "Bot ~a didn't respond to pause signal, terminating it.~%" 
+                                  (bot-name bot))
+                          (kill-bot))
+                   (right "turn finished")))
+       (yield result)))
 
 (defstruct bot-turn-result updated-bot output)
 
 (defun has-exited (bot)
-  (not (running (bot-status bot))))
+  (mdo (status (bot-status bot))
+       (yield (not (running status)))))
 
 (defmethod disqualified ((bot concrete-bot))
   (and (has-exited bot)
@@ -205,15 +214,18 @@
 (defmethod bot-turn ((bot concrete-bot) turn-input time-limit 
                      &optional (log-stream *standard-output*) 
                        (parser #'read-output))
-  (handler-case (let ((running-bot (continue-bot bot log-stream)))
-                  (if (not (has-exited running-bot))
-                      (progn 
-                        (send-input-to-bot running-bot turn-input)
-                        (bind ((output (bot-output running-bot time-limit log-stream parser)))
-                          (end-bot-turn running-bot log-stream)
-                          (process-bot-error-output running-bot log-stream)
-                          (make-bot-turn-result :updated-bot running-bot
-                                                :output output)))
-                      (make-bot-turn-result :updated-bot running-bot :output nil)))
-    (error (e) (progn (format t "Error while handling turn for bot ~a: ~a~%" (bot-name bot) e)
-                      (make-bot-turn-result :updated-bot bot :output nil)))))
+  (right-value 
+   (mdo (handle error (e) (progn 
+                            (format nil "Error while handling turn for bot ~a: ~a~%" 
+                                    (bot-name bot) e)
+                            (right (make-bot-turn-result :updated-bot bot :output nil))))
+        (running-bot (continue-bot bot log-stream))
+        (exited (has-exited running-bot))
+        (result (if (not exited)
+                    (mdo (let (_ (send-input-to-bot running-bot turn-input)))
+                         (let (output (bot-output running-bot time-limit log-stream parser)))
+                         (let (_ (process-bot-error-output running-bot log-stream)))
+                         (_ (end-bot-turn running-bot log-stream))
+                         (yield (make-bot-turn-result :updated-bot running-bot :output output)))
+                    (right (make-bot-turn-result :updated-bot running-bot :output nil))))
+        (yield result))))
