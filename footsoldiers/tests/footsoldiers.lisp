@@ -1142,7 +1142,8 @@
                   :volumes (list "/bots")
                   :memory (* 1024 (bot-memory-limit-kib *default-game-config*))
                   :memory-swap (* 2 1024 (bot-memory-limit-kib *default-game-config*))
-                  :read-only-root-fs t
+                  ;; need to disable read-only fs so that ql cache can be updated in test
+                  :readonly-rootfs nil
                   :binds (list (format nil "~a:/bots" 
                                        (merge-pathnames bot-directory *test-base-path*))))))
     (create-container name :docker-config config)))

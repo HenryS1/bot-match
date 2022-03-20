@@ -25,7 +25,7 @@
                                      :volumes (list "/bots")
                                      :memory memory-limit
                                      :memory-swap (when memory-limit (* memory-limit 2))
-                                     :read-only-root-fs t
+                                     :readonly-rootfs t
                                      :binds (list (format nil "~a:/bots" *test-base-path*)))))
     (create-container bot-file :docker-config config)))
 
@@ -102,6 +102,12 @@
                                                           *error-output*))))
         (unwind-protect (ok (not (running (right-value (bot-status bot)))))
           (kill-bot bot))))))
+
+(deftest immutable-filesystem
+  (testing "should prevent a bot from writing to a file"
+    (with-test-bot bot "filesystem-bot.lisp" *error-output*
+      (sleep 0.5)
+      (ok (right-value (has-exited bot))))))
 
 (deftest continue-bot
   (testing "should continue execution of a bot"
@@ -253,9 +259,11 @@
              (started-bot (start-bot-from-definition (name definition)
                                                      *standard-output*
                                                      *error-output*)))
-        (match started-bot
-          ((left (left-err e)) (fail (format nil "~a" e)))
-          ((right (right-value bot))
-           (sleep 0.01)
-           (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*)
-                       (make-bot-turn-result :updated-bot bot :output '("input"))))))))))
+        (unwind-protect
+             (match started-bot
+               ((left (left-err e)) (fail (format nil "~a" e)))
+               ((right (right-value bot))
+                (sleep 0.01)
+                (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*)
+                            (make-bot-turn-result :updated-bot bot :output '("input"))))))
+          (fmap #'kill-bot started-bot))))))

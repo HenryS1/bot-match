@@ -73,7 +73,7 @@
                   :entrypoint (list "")
                   :open-stdin t
                   :volumes (list "/bots")
-                  :read-only-root-fs t
+                  :readonly-rootfs t
                   :binds (list (format nil "~a:/bots" 
                                        (merge-pathnames bot-directory *base-path*))))))
     (create-container bot-file :docker-config config)))
