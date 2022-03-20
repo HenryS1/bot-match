@@ -75,14 +75,14 @@
 (deftest start-bot
   (testing "should start the bot process"
     (with-test-bot bot "slow-bot.lisp" *error-output*
-      (ok (running (bot-status bot)))
+      (ok (right-value (fmap #'running (bot-status bot))))
       (pause-bot bot))))
 
 (deftest suspend-bot
   (testing "should suspend a bot"
     (with-test-bot bot "slow-bot.lisp" *error-output*
       (pause-bot bot)
-      (ok (paused (bot-status bot)))
+      (ok (right-value (fmap #'paused (bot-status bot))))
       (pause-bot bot))))
 
 (deftest process-error-output
@@ -97,20 +97,20 @@
   (testing "should kill a bot if it fails to respond with ready within the time limit"
     (with-open-file (f *not-ready-bot-definition*)
       (let* ((definition (bot-definition-json:from-json f))
-             (bot (start-bot-from-definition (name definition)
-                                             *standard-output*
-                                             *error-output*)))
-        (unwind-protect (ok (not (running (bot-status (right-value bot)))))
-          (fmap #'kill-bot bot))))))
+             (bot (right-value (start-bot-from-definition (name definition)
+                                                          *standard-output*
+                                                          *error-output*))))
+        (unwind-protect (ok (not (running (right-value (bot-status bot)))))
+          (kill-bot bot))))))
 
 (deftest continue-bot
   (testing "should continue execution of a bot"
     (with-test-bot bot "slow-bot.lisp" *error-output*
       (pause-bot bot)
-      (ok (paused (bot-status bot)))
+      (ok (paused (right-value (bot-status bot))))
       (continue-bot bot *standard-output*)
       (sleep 0.01)
-      (ok (running (bot-status bot)))
+      (ok (running (right-value (bot-status bot))))
       (interrupt-bot bot)))
 
   (testing "should restart the bot if it was killed"
@@ -124,14 +124,13 @@
                ((left (left-err e)) (fail (format nil "~a" e)))
                ((right (right-value bot))
                 (sleep 0.01)
-                (ok (paused (bot-status bot)))
+                (ok (paused (right-value (bot-status bot))))
                 (kill-bot bot)
-                (sleep 0.2)
-                (ok (not (running (bot-status bot))))
-                (let ((continued-bot (continue-bot bot *standard-output*)))
+                (ok (not (running (right-value (bot-status bot)))))
+                (let ((continued-bot (right-value (continue-bot bot *standard-output*))))
                   (unwind-protect
                        (progn (sleep 0.01)
-                              (ok (running (bot-status continued-bot))))
+                              (ok (running (right-value (bot-status continued-bot)))))
                     (kill-bot continued-bot)))))
           (fmap #'kill-bot initial-bot)))))
 
@@ -146,15 +145,14 @@
                ((left (left-err e)) (fail (format nil "~a" e)))
                ((right (right-value bot))
                 (sleep 0.01)
-                (ok (paused (bot-status bot)))
+                (ok (paused (right-value (bot-status bot))))
                 (kill-bot bot)
                 (setf (bot-restarts bot) *max-bot-restarts*)
-                (sleep 0.2)
-                (ok (not (running (bot-status bot))))
-                (let ((continued-bot (continue-bot bot *standard-output*)))
+                (ok (not (running (right-value (bot-status bot)))))
+                (let ((continued-bot (right-value (continue-bot bot *standard-output*))))
                   (unwind-protect
                        (progn (sleep 0.01)
-                              (ok (not (running (bot-status continued-bot)))))
+                              (ok (not (running (right-value (bot-status continued-bot))))))
                     (kill-bot continued-bot)))))
           (fmap #'kill-bot initial-bot)))))
 
@@ -170,14 +168,14 @@
              ((right (right-value bot))
               (sleep 0.01)
               (continue-bot bot *standard-output*)
-              (sleep 0.5)
-              (ok (has-exited bot))
+              (sleep 0.2)
+              (ok (right-value (has-exited bot)))
               (setf (bot-name bot) "turn-bot.lisp")
               (let ((continued-bot (continue-bot bot *standard-output*)))
                 (unwind-protect
                      (progn (sleep 0.01)
-                            (ok (running (bot-status continued-bot))))
-                 (kill-bot continued-bot)))))
+                            (ok (running (right-value (flatmap #'bot-status continued-bot)))))
+                 (fmap #'kill-bot continued-bot)))))
             (fmap #'kill-bot initial-bot))))))
   (testing "should not restart an exited bot if it has reached the maximum restarts"
     (with-open-file (f *bot-definition*)
@@ -191,22 +189,19 @@
              ((right (right-value bot))
               (sleep 0.01)
               (continue-bot bot *standard-output*)
-              (sleep 0.5)
               (ok (has-exited bot))
               (setf (bot-name bot) "turn-bot.lisp")
               (setf (bot-restarts bot) *max-bot-restarts*)
-              (let ((continued-bot (continue-bot bot *standard-output*)))
+              (let ((continued-bot (right-value (continue-bot bot *standard-output*))))
                 (unwind-protect (progn (sleep 0.01)
-                                       (ok (has-exited continued-bot)))
+                                       (ok (right-value (has-exited continued-bot))))
                   (kill-bot continued-bot)))))
             (fmap #'kill-bot initial-bot)))))))
 
 (deftest interrupt-bot
   (testing "should interrupt execution of a bot"
     (with-test-bot bot "slow-bot.lisp" *error-output*
-      (sleep 0.1)
       (interrupt-bot bot)
-      (sleep 0.1)
       (ok (has-exited bot)))))
 
 (deftest send-input-to-bot
@@ -225,7 +220,7 @@
       (send-input-to-bot bot (format nil "input~%"))
       (end-bot-turn bot nil)
       (sleep 0.01)
-      (ok (paused (bot-status bot)))
+      (ok (paused (right-value (bot-status bot))))
       (interrupt-bot bot))))
 
 (deftest bot-turn
@@ -239,10 +234,9 @@
              (match started-bot 
                ((left (left-err e)) (fail (format nil "~a" e)))
                ((right (right-value bot))
-                (sleep 0.5)
-                (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*) 
+                (ok (equalp (bot-turn bot (format nil "input~%") *turn-timeout*)
                             (make-bot-turn-result :updated-bot bot :output '("input"))))
-                (ok (paused (bot-status bot)))
+                (ok (paused (right-value (bot-status bot))))
                 (interrupt-bot bot)))
           (fmap #'kill-bot started-bot))))))
 

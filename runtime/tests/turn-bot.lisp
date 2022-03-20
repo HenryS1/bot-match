@@ -13,4 +13,7 @@
     (finish-output)
     (sleep 20)))
 
-(run)
+(defun main (&rest argv)
+  "Start the bot."
+  (declare (ignorable argv))
+  (run))
