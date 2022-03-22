@@ -2,6 +2,7 @@
   (:use :cl
         :herodotus
         :bind
+        :footsoldiers-macros
         :alexandria
         :try
         :iterate 
@@ -78,6 +79,10 @@
            :game-disqualified-players
            :attack-candidates
            :soldier-attack-direction
+           :duplicate-player
+           :player-base
+           :player-money
+           :player-team
            :change-soldier-attack-direction
            :make-change-attack-direction))
 
@@ -90,7 +95,7 @@
   (list (cons "position" (coord-alist coord))
         (cons "type" "Rock")))
 
-(defstruct soldier pos health type team destination attack-direction)
+(def-copy-struct soldier pos health type team destination attack-direction)
 
 (defun coord-alist (coord)
   (list (cons "x" (car coord))
@@ -105,7 +110,7 @@
    (cons "destination" (coord-alist (soldier-destination soldier)))
    (cons "attack-direction" (format nil "~@(~a~)" (soldier-attack-direction soldier)))))
 
-(defstruct base team)
+(def-copy-struct base team)
 
 (defun base-alist (position base)
   (list
@@ -135,7 +140,7 @@
                    ((type base) (base-alist (car e) (cdr e)))))
        (sort (hash-table-alist mp) #'pair-less :key #'car)))
 
-(defstruct player team money base health)
+(def-copy-struct player team money base health)
 
 (defun player-alist (player)
   (list 
@@ -144,7 +149,7 @@
    (cons "base" (coord-alist (player-base player)))
    (cons "health" (player-health player))))
 
-(defstruct build soldier-type start destination attack-direction)
+(def-copy-struct build soldier-type start destination attack-direction)
 
 (defun build-alist (build)
   (list 
@@ -152,7 +157,7 @@
    (cons "start" (build-start build))
    (cons "destination" (build-destination build))))
 
-(defstruct move-result errors updated-game)
+(def-copy-struct move-result errors updated-game)
 
 (define-json-model speed-config (scout assassin tank) :kebab-case)
 (define-json-model damage-config (scout assassin tank) :kebab-case)
@@ -205,7 +210,7 @@
    :damage *default-damage-config*
    :cost *default-cost-config*))
 
-(defstruct game map turns-remaining player1 player2 
+(def-copy-struct game map turns-remaining player1 player2 
            (config *default-game-config*) (disqualified-players nil))
 
 (defun game-alist (game)
@@ -301,8 +306,7 @@
 (defmethod move-soldier (mp (s soldier) (game-config game-config))
   (when (not (equal (soldier-pos s) (soldier-destination s)))
     (let* ((destination (closest-reachable-position s mp game-config))
-           (new-soldier (copy-structure s)))
-      (setf (soldier-pos new-soldier) destination)
+           (new-soldier (duplicate-soldier s :pos destination)))
       (remhash (soldier-pos s) mp)
       (setf (gethash destination mp) new-soldier))))
 
@@ -359,31 +363,25 @@
   (let ((new-health (max 0 (- (soldier-health s2) (soldier-damage (soldier-type s1) config)))))
     (if (= new-health 0)
         (remhash (soldier-pos s2) mp)
-        (setf (gethash (soldier-pos s2) mp)
-              (let ((new-soldier (copy-structure s2)))
-                (setf (soldier-health new-soldier) new-health)
-                new-soldier)))
+        (setf (gethash (soldier-pos s2) mp) (duplicate-soldier s2 :health new-health)))
     mp))
 
 (defmethod attack-base ((s soldier) (b base) (gm game))
-  (let ((new-player (if (equalp (base-team b) (player-team (game-player1 gm)))
-                        (copy-structure (game-player1 gm))
-                        (copy-structure (game-player2 gm)))))
-    (setf (player-health new-player) (max 0 (- (player-health new-player)
-                                               (soldier-damage (soldier-type s) (game-config gm)))))
+  (let* ((player (if (equalp (base-team b) (player-team (game-player1 gm)))
+                     (game-player1 gm)
+                     (game-player2 gm)))
+         (new-player (duplicate-player player
+                      :health (max 0 (- (player-health player)
+                                        (soldier-damage (soldier-type s) (game-config gm)))))))
     (if (equalp (base-team b) (player-team (game-player1 gm)))
-        (setf (game-player1 gm) new-player)
-        (setf (game-player2 gm) new-player))
-    gm))
+        (duplicate-game gm :player1 new-player)
+        (duplicate-game gm :player2 new-player))))
 
 (defmethod attack-target ((s soldier) e (gm game))
   (match e
     ((type rock) gm)
-    ((type soldier) 
-     (let ((new-gm (copy-structure gm)))
-       (setf (game-map new-gm)
-             (attack-soldier s e (game-map gm) (game-config gm)))
-       new-gm))
+    ((type soldier) (duplicate-game 
+                     gm :map (attack-soldier s e (game-map gm) (game-config gm))))
     ((type base) 
      (attack-base s e gm))))
 
@@ -444,7 +442,7 @@
                       (setf (game-player2 new-gm) player))
                   (right new-gm)))))))
 
-(defstruct change-destination soldier-position new-destination)
+(def-copy-struct change-destination soldier-position new-destination)
 
 (defmethod change-soldier-destination (team soldier-position new-destination (new-gm game))
   (let ((soldier-lookup (gethash soldier-position (game-map new-gm))))
@@ -460,12 +458,12 @@
            (if (not (equal (soldier-team soldier-lookup) team))
                (left (format nil "Player ~a tried to change destination, but position ~a has an enemy soldier"
                              team (format-position soldier-position)))
-               (let ((new-soldier (copy-structure soldier-lookup)))
-                 (setf (soldier-destination new-soldier) new-destination)
-                 (setf (gethash soldier-position (game-map new-gm)) new-soldier)
+               (progn
+                 (setf (gethash soldier-position (game-map new-gm))
+                       (duplicate-soldier soldier-lookup :destination new-destination))
                  (right new-gm))))))))
 
-(defstruct change-attack-direction soldier-position new-direction)
+(def-copy-struct change-attack-direction soldier-position new-direction)
 
 (defmethod change-soldier-attack-direction (team soldier-position new-attack-direction (new-gm game))
   (let ((soldier-lookup (gethash soldier-position (game-map new-gm))))
@@ -700,7 +698,7 @@
                         player2-error-stream))
        (yield (list player1 player2))))
 
-(defstruct map-details base1 base2 map)
+(def-copy-struct map-details base1 base2 map)
 
 (defparameter *default-game-map* 
   (make-map-details :base1 (cons 0 0) :base2 (cons 20 0)

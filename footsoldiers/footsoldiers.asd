@@ -16,7 +16,8 @@
                "game-runner")
   :components ((:module "src"
                 :components
-                ((:file "footsoldiers"))))
+                ((:file "footsoldiers-macros") 
+                 (:file "footsoldiers" :depends-on ("footsoldiers-macros")))))
   :description "A game called footsoldiers"
   :in-order-to ((test-op (test-op "footsoldiers/tests"))))
 

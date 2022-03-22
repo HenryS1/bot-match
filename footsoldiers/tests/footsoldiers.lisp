@@ -344,11 +344,10 @@
                                        (cons (cons 10 13) *test-base1*)) :test 'equal))
            (player1 (make-player :team "player1" :money 10 :base (cons 10 13) :health 20))
            (player2 (make-player :team "player2" :money 7 :base (cons 0 4) :health 13))
-           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
-      (attack-base *test-soldier1* *test-base2* gm)
-      (let ((new-player2 (copy-structure player2)))
-        (setf (player-health new-player2) 11)
-        (ok (equalp gm 
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))      
+      (let* ((new-game (attack-base *test-soldier1* *test-base2* gm))
+             (new-player2 (duplicate-player player2 :health 11)))
+        (ok (equalp new-game
                     (make-game :map mp :turns-remaining 20 :player1 player1 :player2 new-player2))))))
   (testing "doesn't reduce the attacked player's health below zero"
     (let* ((mp (alist-hash-table (list (cons (soldier-pos *test-soldier1*) *test-soldier1*)
@@ -357,10 +356,10 @@
            (player1 (make-player :team "player1" :money 10 :base (cons 10 13) :health 20))
            (player2 (make-player :team "player2" :money 7 :base (cons 0 4) :health 1))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
-      (attack-base *test-soldier1* *test-base2* gm)
-      (let ((new-player2 (copy-structure player2)))
-        (setf (player-health new-player2) 0)
-        (ok (equalp gm 
+      
+      (let* ((new-player2 (duplicate-player player2 :health 0))
+             (new-game (attack-base *test-soldier1* *test-base2* gm)))
+        (ok (equalp new-game
                     (make-game :map mp :turns-remaining 20 :player1 player1 :player2 new-player2)))))))
 
 (deftest attack-target
