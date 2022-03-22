@@ -80,6 +80,11 @@
            :attack-candidates
            :soldier-attack-direction
            :duplicate-player
+           :duplicate-soldier
+           :duplicate-game
+           :game-turns-remaining
+           :soldier-team
+           :soldier-type
            :player-base
            :player-money
            :player-team
@@ -719,7 +724,6 @@
 (defun cleanup-containers () 
   (mapc (lambda (identifier) (stop-container identifier :kill-wait 0) 
           (remove-container identifier)) (list "player1" "player2")))
-
 
 (defun start-game (logging-config 
                    &key (game-config *default-game-config*)
