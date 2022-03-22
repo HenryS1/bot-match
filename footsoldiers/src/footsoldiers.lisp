@@ -415,12 +415,13 @@
   (format nil "(~a, ~a)" (car pos) (cdr pos)))
 
 (defmethod build-soldier (team soldier-type start destination (new-gm game))
-  (let ((player (copy-structure (if (equalp team (player-team (game-player1 new-gm)))
-                                    (game-player1 new-gm)
-                                    (game-player2 new-gm)))))
+  (let ((player (if (equalp team (player-team (game-player1 new-gm)))
+                    (game-player1 new-gm)
+                    (game-player2 new-gm))))
     (if (< (player-money player) (soldier-cost soldier-type (game-config new-gm)))
         (left (format nil "Player ~a with money ~a doesn't have enough money for ~a with cost ~a" 
-                      (player-team player) (player-money player) soldier-type (soldier-cost soldier-type (game-config new-gm))))
+                      (player-team player) (player-money player) 
+                      soldier-type (soldier-cost soldier-type (game-config new-gm))))
         (if (not (close-enough-to-base start player (game-config new-gm)))
             (left (format nil "Player ~a tried to build ~a at position ~a, too far from base ~a"
                           (player-team player) soldier-type 
@@ -434,13 +435,13 @@
                                         :type soldier-type
                                         :destination destination
                                         :team (player-team player)
-                                        :attack-direction :down)))
-                  (setf (player-money player) (- (player-money player) (soldier-cost soldier-type (game-config new-gm))))
+                                        :attack-direction :down))
+                       (new-player (duplicate-player player :money (- (player-money player) 
+                                   (soldier-cost soldier-type (game-config new-gm))))))
                   (setf (gethash start (game-map new-gm)) s)
-                  (if (equalp team (player-team (game-player1 new-gm)))
-                      (setf (game-player1 new-gm) player)
-                      (setf (game-player2 new-gm) player))
-                  (right new-gm)))))))
+                  (right (if (equalp team (player-team (game-player1 new-gm)))
+                             (duplicate-game new-gm :player1 new-player)
+                             (duplicate-game new-gm :player2 new-player)))))))))
 
 (def-copy-struct change-destination soldier-position new-destination)
 
@@ -479,8 +480,8 @@
            (if (not (equal (soldier-team soldier-lookup) team))
                (left (format nil "Player ~a tried to change attack direction, but position ~a has an enemy soldier"
                              team (format-position soldier-position)))
-               (let ((new-soldier (copy-structure soldier-lookup)))
-                 (setf (soldier-attack-direction new-soldier) new-attack-direction)
+               (let ((new-soldier (duplicate-soldier soldier-lookup 
+                                                     :attack-direction new-attack-direction)))
                  (setf (gethash soldier-position (game-map new-gm)) new-soldier)
                  (right new-gm))))))))
 
@@ -527,7 +528,7 @@
                              (apply-moves (cdr moves) new-gm)))
            ((right right-value) 
             (combine-results (right right-value)
-                             (apply-moves (cdr moves) new-gm)))))))
+                             (apply-moves (cdr moves) right-value)))))))
 
 (defmethod game-over ((game game))
   (or (not (null (game-disqualified-players game)))
@@ -550,24 +551,26 @@
         (t "Draw")))
 
 (defmethod step-game (moves (gm game))
-  (let ((new-mp (copy-hash-table (game-map gm)))
-        (new-gm (copy-structure gm)))
-    (setf (game-map new-gm) new-mp)
+  (let* ((new-mp (copy-hash-table (game-map gm)))
+         (new-gm (duplicate-game gm :map new-mp)))
     (bind ((result (apply-moves moves new-gm))
            (after-attack (progn (move-soldiers (game-map (move-result-updated-game result)) 
                                                (game-config gm)
                                                (game-turns-remaining gm))
                                 (make-soldiers-attack (move-result-updated-game result)))))
-      (let* ((ticked-game (copy-structure after-attack))
-             (player1 (copy-structure (game-player1 ticked-game)))
-             (player2 (copy-structure (game-player2 ticked-game))))
-        (incf (player-money player1) (money-per-turn (game-config gm)))
-        (incf (player-money player2) (money-per-turn (game-config gm)))
-        (setf (game-turns-remaining ticked-game)
-              (- (game-turns-remaining ticked-game) 1))
-        (setf (game-player1 ticked-game) player1)
-        (setf (game-player2 ticked-game) player2)
-        (make-move-result :errors (move-result-errors result) :updated-game ticked-game)))))
+      (let* ((ticked-game (duplicate-game after-attack))
+             (player1 (duplicate-player (game-player1 ticked-game) 
+                                        :money (+ (player-money (game-player1 ticked-game))
+                                                  (money-per-turn (game-config gm)))))
+             (player2 (duplicate-player (game-player2 ticked-game) 
+                                        :money (+ (player-money (game-player2 ticked-game)) 
+                                                  (money-per-turn (game-config gm))))))
+        (make-move-result :errors (move-result-errors result) 
+                          :updated-game (duplicate-game 
+                                         ticked-game 
+                                         :turns-remaining (- (game-turns-remaining ticked-game) 1)
+                                         :player1 player1
+                                         :player2 player2))))))
 
 (defmethod is-finished? ((game game)) (game-over game))
 
@@ -644,15 +647,14 @@
 
 (defmethod advance-turn (player-moves (game game) disqualified-players)
   (if (not (null disqualified-players))
-      (let ((updated-game (copy-structure game)))
-        (setf (game-disqualified-players updated-game) disqualified-players)
-        (make-game-turn-result :game updated-game
-                               :move-log nil))
+      (make-game-turn-result 
+       :game (duplicate-game game :disqualified-players disqualified-players)
+       :move-log nil)
       (bind ((parsed-moves (mapcar #'parse-move player-moves))
-                (valid-moves (rights parsed-moves))
-                (move-result (step-game valid-moves game)))
-           (make-game-turn-result :game (move-result-updated-game move-result)
-                                  :move-log (mapcar #'format-parsed-move parsed-moves)))))
+             (valid-moves (rights parsed-moves))
+             (move-result (step-game valid-moves game)))
+        (make-game-turn-result :game (move-result-updated-game move-result)
+                               :move-log (mapcar #'format-parsed-move parsed-moves)))))
 
 (defmethod game-state ((game game)) 
   (let ((yason:*list-encoder* #'yason:encode-alist))
