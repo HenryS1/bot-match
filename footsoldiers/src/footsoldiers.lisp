@@ -939,12 +939,6 @@
   (write-string string (stream-of stream) :start start :end end)
   (write-string string (wrapping-stream stream) :start start :end end))
 
-(defmacro with-files (file-specs &rest body)
-  (labels ((with-file (acc file-spec)
-             `(with-open-file ,file-spec
-                ,acc)))
-    (reduce #'with-file file-specs :initial-value `(progn ,@body))))
-
 (defun run-footsoldiers ()
   (handler-case 
       (multiple-value-bind (options free-args) (opts:get-opts)

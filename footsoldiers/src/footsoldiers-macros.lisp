@@ -1,6 +1,6 @@
 (defpackage :footsoldiers-macros
   (:use :cl :alexandria)
-  (:export :def-copy-struct))
+  (:export :def-copy-struct :with-files))
 
 (in-package :footsoldiers-macros)
 
@@ -41,3 +41,9 @@
               ',name
               ',(mapcar (lambda (p) (if (consp p) (car p) p)) properties)
               (pair-initargs ,initargs) ,obj))))))
+
+(defmacro with-files (file-specs &rest body)
+  (labels ((with-file (acc file-spec)
+             `(with-open-file ,file-spec
+                ,acc)))
+    (reduce #'with-file file-specs :initial-value `(progn ,@body))))
