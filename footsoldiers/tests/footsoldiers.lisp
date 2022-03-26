@@ -169,15 +169,14 @@
       (ok (equal (closest-reachable-position soldier mp *default-game-config*)
                  (cons 3 -1)))))
   (testing "chooses the least lexicographic position when multiple closest positions exist"
-    (let ((new-soldier1 (copy-structure *test-soldier1*)))
-      (setf (soldier-destination new-soldier1) (cons 2 1))
-      (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
-                                          (list new-soldier1 *test-soldier2*
-                                                *test-soldier3* *test-soldier4*
-                                                *test-soldier5*))
-                                  :test 'equal)))
-        (ok (equal (closest-reachable-position new-soldier1 mp *default-game-config*)
-                   (cons 1 1)))))))
+    (let* ((new-soldier1 (duplicate-soldier *test-soldier1* :destination (cons 2 1)))
+           (mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
+                                         (list new-soldier1 *test-soldier2*
+                                               *test-soldier3* *test-soldier4*
+                                               *test-soldier5*))
+                                 :test 'equal)))
+      (ok (equal (closest-reachable-position new-soldier1 mp *default-game-config*)
+                 (cons 1 1))))))
 
 (deftest move-soldier
   (testing "moves a soldier to the reachable position closest to it's destination"
@@ -187,8 +186,7 @@
                                               *test-soldier5*))
                                  :test 'equal)))
       (move-soldier mp *test-soldier1* *default-game-config*)
-      (let ((new-soldier1 (copy-structure *test-soldier1*)))
-        (setf (soldier-pos new-soldier1) (cons 2 5))
+      (let ((new-soldier1 (duplicate-soldier *test-soldier1* :pos (cons 2 5))))
         (ok (equalp mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                                  (list new-soldier1 *test-soldier2*
                                                        *test-soldier3* *test-soldier4*
@@ -199,10 +197,8 @@
   (testing "moves all soldiers to the the reachable position closest to their destinations"
     (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                         (list *test-soldier1* *test-soldier2*)) :test 'equal)))
-      (let* ((new-soldier1 (copy-structure *test-soldier1*))
-             (new-soldier2 (copy-structure *test-soldier2*)))
-        (setf (soldier-pos new-soldier1) (cons 3 5))
-        (setf (soldier-pos new-soldier2) (cons 3 1))
+      (let* ((new-soldier1 (duplicate-soldier *test-soldier1* :pos (cons 3 5)))
+             (new-soldier2 (duplicate-soldier *test-soldier2* :pos (cons 3 1))))
         (move-soldiers mp *default-game-config* 10)
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
@@ -210,10 +206,8 @@
   (testing "moves soldiers in lexicographical order of their starting coordinate when they are on the same team"
     (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                         (list *test-soldier2* *test-soldier4*)) :test 'equal)))
-      (let* ((new-soldier2 (copy-structure *test-soldier2*))
-             (new-soldier4 (copy-structure *test-soldier4*)))
-        (setf (soldier-pos new-soldier2) (cons 2 1))
-        (setf (soldier-pos new-soldier4) (cons 3 1))
+      (let* ((new-soldier2 (duplicate-soldier *test-soldier2* :pos (cons 2 1)))
+             (new-soldier4 (duplicate-soldier *test-soldier4* :pos (cons 3 1))))
         (move-soldiers mp *default-game-config* 10)
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
@@ -221,10 +215,8 @@
   (testing "moves soldiers from player1 first when there are an even number of turns remaining"
     (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                         (list *test-soldier2* *test-soldier3*)) :test 'equal)))
-      (let* ((new-soldier2 (copy-structure *test-soldier2*))
-             (new-soldier3 (copy-structure *test-soldier3*)))
-        (setf (soldier-pos new-soldier2) (cons 2 1))
-        (setf (soldier-pos new-soldier3) (cons 3 1))
+      (let* ((new-soldier2 (duplicate-soldier *test-soldier2* :pos (cons 2 1)))
+             (new-soldier3 (duplicate-soldier *test-soldier3* :pos (cons 3 1))))
         (move-soldiers mp *default-game-config* 10)
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
@@ -244,10 +236,8 @@
                                           :attack-direction :down))
            (mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                          (list player1-soldier player2-soldier)) :test 'equal)))
-      (let* ((new-soldier1 (copy-structure player1-soldier))
-             (new-soldier2 (copy-structure player2-soldier)))
-        (setf (soldier-pos new-soldier1) (cons 1 4))
-        (setf (soldier-pos new-soldier2) (cons 1 5))
+      (let* ((new-soldier1 (duplicate-soldier player1-soldier :pos (cons 1 4)))
+             (new-soldier2 (duplicate-soldier player2-soldier :pos (cons 1 5))))
         (move-soldiers mp *default-game-config* 11)
         (ok (equalp mp
                     (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
@@ -282,12 +272,9 @@
                                        :team "player1"
                                        :destination (cons 2 4)
                                        :attack-direction :down))
-           (soldier-left (copy-structure soldier-down))
-           (soldier-up (copy-structure soldier-down))
-           (soldier-right (copy-structure soldier-down)))
-      (setf (soldier-attack-direction soldier-left) :left)
-      (setf (soldier-attack-direction soldier-up) :up)
-      (setf (soldier-attack-direction soldier-right) :right)
+           (soldier-left (duplicate-soldier soldier-down :attack-direction :left))
+           (soldier-up (duplicate-soldier soldier-down :attack-direction :up))
+           (soldier-right (duplicate-soldier soldier-down :attack-direction :right)))
       (ok (equal (attack-candidates soldier-down)
                  (list (cons 2 5) (cons 1 4) (cons 2 3) (cons 3 4))))
       (ok (equal (attack-candidates soldier-left)
@@ -299,10 +286,8 @@
 
 (deftest find-target
   (testing "finds the first adjacent target clockwise starting from the soldiers attack direction"
-    (let ((new-soldier4 (copy-structure *test-soldier4*))
-          (new-soldier3 (copy-structure *test-soldier3*)))
-      (setf (soldier-pos new-soldier3) (cons 1 5))
-      (setf (soldier-pos new-soldier4) (cons 0 4))
+    (let ((new-soldier4 (duplicate-soldier *test-soldier4* :pos (cons 1 5)))
+          (new-soldier3 (duplicate-soldier *test-soldier3* :pos (cons 0 4))))
       (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                           (list *test-soldier1* 
                                                 *test-soldier2*
@@ -319,17 +304,15 @@
 
 (deftest attack-soldier 
   (testing "decreases the health of a soldier by the difference between armour and damage"
-    (let ((new-soldier2 (copy-structure *test-soldier2*))
+    (let ((new-soldier2 (duplicate-soldier *test-soldier2* :health 1))
           (mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                         (list *test-soldier1* *test-soldier2*)) :test 'equal)))
-      (setf (soldier-health new-soldier2) 1)
       (attack-soldier *test-soldier1* *test-soldier2* mp *default-game-config*)
       (ok (equalp mp
                   (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                             (list *test-soldier1* new-soldier2)) :test 'equal)))))
   (testing "removes a soldier from the map when it's health reaches zero"
-    (let ((new-soldier2 (copy-structure *test-soldier2*)))
-      (setf (soldier-health new-soldier2) 2)
+    (let ((new-soldier2 (duplicate-soldier *test-soldier2* :health 2)))
       (let ((mp (alist-hash-table (mapcar (lambda (s) (cons (soldier-pos s) s))
                                           (list *test-soldier1* new-soldier2)) :test 'equal)))
         (attack-soldier *test-soldier1* new-soldier2 mp *default-game-config*)
@@ -344,11 +327,10 @@
                                        (cons (cons 10 13) *test-base1*)) :test 'equal))
            (player1 (make-player :team "player1" :money 10 :base (cons 10 13) :health 20))
            (player2 (make-player :team "player2" :money 7 :base (cons 0 4) :health 13))
-           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
-      (attack-base *test-soldier1* *test-base2* gm)
-      (let ((new-player2 (copy-structure player2)))
-        (setf (player-health new-player2) 11)
-        (ok (equalp gm 
+           (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))      
+      (let* ((new-game (attack-base *test-soldier1* *test-base2* gm))
+             (new-player2 (duplicate-player player2 :health 11)))
+        (ok (equalp new-game
                     (make-game :map mp :turns-remaining 20 :player1 player1 :player2 new-player2))))))
   (testing "doesn't reduce the attacked player's health below zero"
     (let* ((mp (alist-hash-table (list (cons (soldier-pos *test-soldier1*) *test-soldier1*)
@@ -357,10 +339,10 @@
            (player1 (make-player :team "player1" :money 10 :base (cons 10 13) :health 20))
            (player2 (make-player :team "player2" :money 7 :base (cons 0 4) :health 1))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2)))
-      (attack-base *test-soldier1* *test-base2* gm)
-      (let ((new-player2 (copy-structure player2)))
-        (setf (player-health new-player2) 0)
-        (ok (equalp gm 
+      
+      (let* ((new-player2 (duplicate-player player2 :health 0))
+             (new-game (attack-base *test-soldier1* *test-base2* gm)))
+        (ok (equalp new-game
                     (make-game :map mp :turns-remaining 20 :player1 player1 :player2 new-player2)))))))
 
 (deftest attack-target
@@ -420,8 +402,7 @@
            (new-gm (make-soldiers-attack gm)))
       (ok (equal (player-health (game-player1 new-gm)) 15))
       (ok (equal (player-health (game-player2 new-gm)) 5))
-      (let ((new-soldier2 (copy-structure *test-soldier2*)))
-        (setf (soldier-health new-soldier2) 1)
+      (let ((new-soldier2 (duplicate-soldier *test-soldier2* :health 1)))
         (ok (equalp (game-map new-gm)
                     (alist-hash-table (list 
                                        (cons (soldier-pos new-soldier2) new-soldier2)
@@ -541,10 +522,8 @@
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
            (new-map (copy-hash-table (game-map gm)))
-           (new-gm (copy-structure gm))
-           (new-soldier (copy-structure *test-soldier1*)))
-      (setf (game-map new-gm) new-map)
-      (setf (soldier-attack-direction new-soldier) :up)
+           (new-gm (duplicate-game gm :map new-map))
+           (new-soldier (duplicate-soldier *test-soldier1* :attack-direction :up)))
       (setf (gethash (soldier-pos new-soldier) new-map) new-soldier)
       (ok (equalp (change-soldier-attack-direction "player1" (soldier-pos *test-soldier1*) :up new-gm)
                   (right new-gm))))))
@@ -583,10 +562,8 @@
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
            (new-map (copy-hash-table (game-map gm)))
-           (new-gm (copy-structure gm))
-           (new-soldier (copy-structure *test-soldier1*)))
-      (setf (game-map new-gm) new-map)
-      (setf (soldier-destination new-soldier) (cons 10 10))
+           (new-gm (duplicate-game gm :map new-map))
+           (new-soldier (duplicate-soldier *test-soldier1* :destination (cons 10 10))))
       (setf (gethash (soldier-pos new-soldier) new-map) new-soldier)
       (ok (equalp (change-soldier-destination "player1" (soldier-pos *test-soldier1*) (cons 10 10) new-gm)
                   (right new-gm))))))
@@ -645,10 +622,8 @@
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
            (new-map (copy-hash-table (game-map gm)))
-           (new-gm (copy-structure gm))
-           (new-soldier (copy-structure *test-soldier1*)))
-      (setf (game-map new-gm) new-map)
-      (setf (soldier-destination new-soldier) (cons 10 10))
+           (new-gm (duplicate-game gm :map new-map))
+           (new-soldier (duplicate-soldier *test-soldier1* :destination (cons 10 10))))
       (setf (gethash (soldier-pos new-soldier) new-map) new-soldier)
       (ok (equalp (apply-move "player1"
                               (make-change-destination :soldier-position (soldier-pos *test-soldier1*)
@@ -663,10 +638,8 @@
            (player2 (make-player :team "player2" :money 3 :base (cons 5 4) :health 24))
            (gm (make-game :map mp :turns-remaining 20 :player1 player1 :player2 player2))
            (new-map (copy-hash-table (game-map gm)))
-           (new-gm (copy-structure gm))
-           (new-soldier (copy-structure *test-soldier1*)))
-      (setf (game-map new-gm) new-map)
-      (setf (soldier-attack-direction new-soldier) :right)
+           (new-gm (duplicate-game gm :map new-map))
+           (new-soldier (duplicate-soldier *test-soldier1* :attack-direction :right)))
       (setf (gethash (soldier-pos new-soldier) new-map) new-soldier)
       (ok (equalp (apply-move "player1"
                               (make-change-attack-direction :soldier-position (soldier-pos *test-soldier1*)
@@ -992,14 +965,15 @@
                                                     :start (cons 3 2)
                                                     :destination (cons 3 3)))))
            (mp-copy (copy-hash-table mp))
-           (player1-copy (copy-structure player1))
-           (player2-copy (copy-structure player2))
+           (player1-copy (duplicate-player player1))
+           (player2-copy (duplicate-player player2))
            (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
            (unparsed-moves (list (cons "player1" "Build Scout (6, 5) (5, 5) Down")
                                  (cons "player2" "Build Assassin (3, 2) (3, 3) Down")))
            (step-result (step-game moves gm))
            (advance-turn-result (advance-turn unparsed-moves gm-copy nil)))
-      (ok (equalp (move-result-updated-game step-result) (game-turn-result-game advance-turn-result)))))
+      (ok (equalp (move-result-updated-game step-result) 
+                  (game-turn-result-game advance-turn-result)))))
   (testing "discards moves which failed parsing"
     (let* ((mp (alist-hash-table (list (cons (cons 4 3) *test-base1*)
                                        (cons (cons 5 4) *test-base2*)) :test 'equal))
@@ -1010,8 +984,8 @@
                                                     :start (cons 6 5)
                                                     :destination (cons 5 5)))))
            (mp-copy (copy-hash-table mp))
-           (player1-copy (copy-structure player1))
-           (player2-copy (copy-structure player2))
+           (player1-copy (duplicate-player player1))
+           (player2-copy (duplicate-player player2))
            (gm-copy (make-game :map mp-copy :turns-remaining 20 :player1 player1-copy :player2 player2-copy))
            (unparsed-moves (list (cons "player1" "Build Scout (6, 5) (5, 5) Down")
                                  (cons "player2" "Build  (3, 2) (3, 3)")))
@@ -1028,7 +1002,7 @@
            (unparsed-moves (list (cons "player1" "No-op")
                                  (cons "player2" nil)))
            (updated-game (game-turn-result-game 
-                          (advance-turn unparsed-moves (copy-structure gm) (list "player2")))))
+                          (advance-turn unparsed-moves (duplicate-game gm) (list "player2")))))
       (ok (equalp (game-disqualified-players updated-game) (list "player2"))))))
 
 (defparameter *test-base-path* (directory-namestring #.*compile-file-truename*))

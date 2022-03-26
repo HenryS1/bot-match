@@ -1,5 +1,5 @@
 (defpackage runtime
-  (:use :cl :arrow-macros :trivial-timeout
+  (:use :cl :trivial-timeout
         :cl-ppcre
         :monad
         :either
@@ -149,8 +149,8 @@
                       (bot-name bot)))))
 
 (defmethod bot-output ((bot concrete-bot) time-limit log-stream &optional (parser #'read-output))
-  (-> (container-stdout (bot-process bot))
-      (to-string (bot-name bot) parser time-limit log-stream)))
+  (to-string (container-stdout (bot-process bot))
+             (bot-name bot) parser time-limit log-stream))
 
 (defmethod pause-bot ((bot concrete-bot)) (pause-container (bot-name bot)))
 

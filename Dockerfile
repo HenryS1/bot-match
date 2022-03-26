@@ -53,6 +53,6 @@ RUN chown -R footsoldiers .
 USER footsoldiers
 
 RUN ros run --load footsoldiers/build.lisp
-RUN chmod +x /home/footsoldiers/bot-match/footsoldiers
+RUN chmod +x /home/footsoldiers/bot-match/footsoldiers-runner
 
 ENTRYPOINT ["/home/footsoldiers/bot-match/footsoldiers-runner"]

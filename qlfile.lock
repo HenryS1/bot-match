@@ -1,52 +1,68 @@
 ("quicklisp" .
  (:class qlot/source/dist:source-dist
   :initargs (:distribution "http://beta.quicklisp.org/dist/quicklisp.txt" :%version :latest)
-  :version "2021-02-28"))
-("arrow-macros" .
+  :version "2022-02-20"))
+("type-i" .
  (:class qlot/source/ql:source-ql
-  :initargs (:%version "2020-03-25")
-  :version "ql-2020-03-25"))
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
+("trivia" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
+("trivial-cltl2" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
+("lisp-namespace" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
 ("anaphora" .
  (:class qlot/source/ql:source-ql
-  :initargs (:%version "2020-03-25")
-  :version "ql-2020-03-25"))
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
 ("cl-ppcre" .
  (:class qlot/source/ql:source-ql
-  :initargs (:%version "2020-03-25")
-  :version "ql-2020-03-25"))
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
 ("local-time" .
  (:class qlot/source/ql:source-ql
-  :initargs (:%version "2020-03-25")
-  :version "ql-2020-03-25"))
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
 ("cl-fad" .
  (:class qlot/source/ql:source-ql
-  :initargs (:%version "2020-03-25")
-  :version "ql-2020-03-25"))
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
 ("unix-opts" .
  (:class qlot/source/ql:source-ql
-  :initargs (:%version "2020-03-25")
-  :version "ql-2020-03-25"))
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
 ("rove" .
  (:class qlot/source/ql:source-ql
-  :initargs (:%version "2020-03-25")
-  :version "ql-2020-03-25"))
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
 ("dissect" .
  (:class qlot/source/ql:source-ql
-  :initargs (:%version "2020-03-25")
-  :version "ql-2020-03-25"))
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
 ("trivial-timeout" .
  (:class qlot/source/ql:source-ql
-  :initargs (:%version "2020-03-25")
-  :version "ql-2020-03-25"))
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
 ("metabang-bind" .
  (:class qlot/source/ql:source-ql
-  :initargs (:%version "2020-03-25")
-  :version "ql-2020-03-25"))
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
 ("herodotus" .
  (:class qlot/source/git:source-git
-  :initargs (:remote-url "https://github.com/HenryS1/herodotus.git" :tag "v1.0.0")
-  :version "git-f580fbac47cdb23128e0531ebec6a1e1ae80ac5b"))
+  :initargs (:remote-url "https://github.com/HenryS1/herodotus.git" :branch "master")
+  :version "git-d077b773a93f0aeb4324356ceaf3ff8137ed0972"))
 ("salmon" .
  (:class qlot/source/git:source-git
-  :initargs (:remote-url "https://github.com/HenryS1/salmon.git" :tag "v1.1.0")
-  :version "git-a542170ca11ec6fe2579a353b3766e80f7e8e783"))
+  :initargs (:remote-url "https://github.com/HenryS1/salmon.git" :branch "master")
+  :version "git-cea1542183752e9b688f4eacfda1bbc860efa5df"))
+("docker-client" .
+ (:class qlot/source/git:source-git
+  :initargs (:remote-url "https://github.com/HenryS1/docker-client" :branch "master")
+  :version "git-b1da007b452f6c1e71a7653932e61d279162e3a9"))
