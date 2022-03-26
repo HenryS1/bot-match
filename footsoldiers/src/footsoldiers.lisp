@@ -253,8 +253,6 @@
       (:assassin (assassin config))
       (:tank (tank config)))))
 
-(defun sqr (x) (* x x))
-
 (defun x (pos) (car pos))
 (defun y (pos) (cdr pos))
 
@@ -441,8 +439,10 @@
                                         :destination destination
                                         :team (player-team player)
                                         :attack-direction :down))
-                       (new-player (duplicate-player player :money (- (player-money player) 
-                                   (soldier-cost soldier-type (game-config new-gm))))))
+                       (new-player (duplicate-player 
+                                    player 
+                                    :money (- (player-money player) 
+                                              (soldier-cost soldier-type (game-config new-gm))))))
                   (setf (gethash start (game-map new-gm)) s)
                   (right (if (equalp team (player-team (game-player1 new-gm)))
                              (duplicate-game new-gm :player1 new-player)

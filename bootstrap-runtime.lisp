@@ -3,6 +3,6 @@
 (cl-project:make-project #p"runtime"
                          :author "Henry and Ed"
                          :license "MIT"
-                         :depends-on '(:arrow-macros :anaphora))
+                         :depends-on '(:anaphora))
 
 

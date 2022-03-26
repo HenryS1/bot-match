@@ -1,13 +1,17 @@
-ql arrow-macros 2020-03-25
-ql anaphora 2020-03-25
-ql cl-ppcre 2020-03-25
-ql local-time 2020-03-25
-ql cl-fad 2020-03-25
-ql unix-opts 2020-03-25
-ql rove 2020-03-25
-ql dissect 2020-03-25
-ql trivial-timeout 2020-03-25
-ql metabang-bind 2020-03-25
+ql introspect-environment 2021-06-30
+ql type-i 2021-06-30
+ql trivia 2021-06-30
+ql trivial-cltl2 2021-06-30
+ql lisp-namespace 2021-06-30
+ql anaphora 2021-06-30
+ql cl-ppcre 2021-06-30
+ql local-time 2021-06-30
+ql cl-fad 2021-06-30
+ql unix-opts 2021-06-30
+ql rove 2021-06-30
+ql dissect 2021-06-30
+ql trivial-timeout 2021-06-30
+ql metabang-bind 2021-06-30
 git herodotus https://github.com/HenryS1/herodotus.git :branch master
 git salmon https://github.com/HenryS1/salmon.git :branch master
 git docker-client https://github.com/HenryS1/docker-client :branch master
