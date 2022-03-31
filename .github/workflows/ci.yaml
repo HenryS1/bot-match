@@ -39,7 +39,7 @@ jobs:
           context: .
           push: true
           load: false
-          tags: bot-match/runner
+          tags: ghcr.io/bot-match/runner
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
 
