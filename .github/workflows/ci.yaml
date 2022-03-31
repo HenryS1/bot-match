@@ -38,8 +38,8 @@ jobs:
         with:
           context: .
           push: true
-          load: true
-          tags: bot-match/lisp-base
+          load: false
+          tags: bot-match/runner
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
 

@@ -1109,7 +1109,7 @@
 
 (defun create-bot (name bot-file bot-directory)
   (let* ((config (make-docker-config 
-                  "bot-match/lisp-base"
+                  "bot-match/runner"
                   :command (split "\\s+" (format nil "ros -Q -s herodotus /bots/~a" bot-file))
                   :entrypoint (list "")
                   :open-stdin t

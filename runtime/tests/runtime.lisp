@@ -17,7 +17,7 @@
   (format nil "~a" (merge-pathnames *test-base-path* filename)))
 
 (defun create-bot (bot-file &key (memory-limit nil))
-  (let* ((config (make-docker-config "bot-match/lisp-base"
+  (let* ((config (make-docker-config "bot-match/runner"
                                      :command (split "\\s+"
                                                      (format nil "ros +Q -- /bots/~a" bot-file))
                                      :entrypoint (list "")
