@@ -47,7 +47,9 @@ RUN /home/footsoldiers/.roswell/bin/qlot install
 USER root
 ADD ./game-runner /home/footsoldiers/bot-match/game-runner
 ADD ./runtime /home/footsoldiers/bot-match/runtime
-ADD ./footsoldiers /home/footsoldiers/bot-match/footsoldiers
+ADD ./footsoldiers/src /home/footsoldiers/bot-match/footsoldiers/src
+ADD ./footsoldiers/footsoldiers.asd /home/footsoldiers/bot-match/footsoldiers/footsoldiers.asd
+ADD ./footsoldiers/build.lisp /home/footsoldiers/bot-match/footsoldiers/build.lisp
 RUN chown -R footsoldiers .
 
 USER footsoldiers
