@@ -20,11 +20,15 @@ module. The footsoldiers module provides an implementation of a game.
 The example-bots directory contains starter implementions of bots in
 various languages for the footsoldiers game.
 
-** Platform
+** Running a game 
 
-The project only runs on *nix systems because it uses os signals to
-manage processes. It also requires the SBCL lisp compiler, because it
-uses SBCL APIs for unix sockets.
+A game can be run by executing the following command in the
+footsoldiers directory of the bot-match repo after pullling the docker
+container for the runner (henrys1/bot-match in Docker Hub).
+
+#+begin_src bash
+docker run --name bot-match-runner --rm -v /var/run/docker.sock:/var/run/docker.sock -u root -v ${PWD}:/footsoldiers -v ${PWD}/../example-bots/java:/bot bot-runner --bot-dir-1 /bot --bot-dir-2 /bot --map-file-path /footsoldiers/game-map --config-file-path /footsoldiers/game-config.json
+#+end_src
 
 ** License
 
