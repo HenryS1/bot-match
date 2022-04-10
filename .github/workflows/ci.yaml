@@ -13,7 +13,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v3
+
+      - name: Checkout rove
+        uses: actions/checkout@v3
+        with:
+          repository: fukamachi/rove
+          path: rove
+          ref: '0.9.6'
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -50,8 +57,6 @@ jobs:
           chmod +x ./install-for-ci.sh
           ./install-for-ci.sh
 
-      - name: Install Rove
-        run: ros install rove
       - name: Install qlot
         run: ros install qlot
 
@@ -71,17 +76,14 @@ jobs:
       - name: Run game runner tests      
         working-directory: ./game-runner
         run: |
-          PATH="~/.roswell/bin:$PATH"
-          rove game-runner.asd
+          ../rove/roswell/rove.ros game-runner.asd
 
       - name: Run runtime tests
         working-directory: ./runtime
         run: |
-          PATH="~/.roswell/bin:$PATH"
-          rove runtime.asd
+          ../rove/roswell/rove.ros runtime.asd
 
       - name: Run footsoldiers tests
         working-directory: ./footsoldiers
         run: |
-          PATH="~/.roswell/bin:$PATH"
-          rove footsoldiers.asd
+          ../rove/roswell/rove.ros footsoldiers.asd
