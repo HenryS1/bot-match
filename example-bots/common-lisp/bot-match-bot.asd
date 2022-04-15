@@ -1,6 +1,6 @@
 (defsystem "bot-match-bot"
   :version "0.1.0"
-  :author "John Doe"
+  :author "Edward Steere"
   :license ""
   :depends-on ("herodotus"
                "cl-ppcre"

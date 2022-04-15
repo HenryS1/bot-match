@@ -91,7 +91,7 @@ object Bot {
       case Right(state) =>
         val (me, enemy) = if state.you == Team.Player1 then (state.player1, state.player2)
           else (state.player2, state.player1)
-        if me.money > 10 then {
+        if me.money >= 10 then {
           val myBaseCoord = me.base
           val enemyBaseCoord = enemy.base
           println(s"Build Scout (${myBaseCoord.x}, ${myBaseCoord.y + 1}) (${enemyBaseCoord.x}, ${enemyBaseCoord.y}) Down")
