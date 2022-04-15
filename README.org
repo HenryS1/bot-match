@@ -102,8 +102,8 @@ docker build . --tag henrys1/bot-match
 
 *** Without docker
 
-The scripts ~install_mac.sh~ and ~install_ubuntu.sh~ have been tested
-for mac and ubuntu linux respectively.
+The scripts ~build_mac.sh~ and ~build_ubuntu.sh~ are for building on
+mac and ubuntu linux respectively.
 
 There is also a script with a suggested approach for how to build on
 Arch linux although it has not been tested so it may fail.
