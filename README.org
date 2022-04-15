@@ -71,9 +71,9 @@ X   X                            X                            X   X
 If you want to skip building from source you can pull the docker
 container for the match runner from docker hub.
 
-The flag `-u root` specifies that the user in the container should be
+The flag ~-u root~ specifies that the user in the container should be
 the root user this gives the container user access to the docker
-socket which is mounted with `-v /var/run/docker.sock:/var/run/docker.sock`.
+socket which is mounted with ~-v /var/run/docker.sock:/var/run/docker.sock~.
 
 #+begin_src sh
 docker pull henrys1/bot-match
