@@ -38,7 +38,8 @@ command in root of this repo.
 
 #+begin_src sh
 ./footsoldiers-runner --bot-dir-1 example-bots/common-lisp \
-   --bot-dir-2 example-bots/common-lisp
+   --bot-dir-2 example-bots/common-lisp \
+   --map-file-path footsoldiers/game-map --config-file-path footsoldiers/game-config.json
 #+end_src
 
 You should see a sequence of game turns printed to the terminal until
@@ -79,8 +80,8 @@ docker pull henrys1/bot-match
 
 docker run --name bot-match-runner --rm \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -u root -v ${PWD}:/footsoldiers \
-  -v ${PWD}/../example-bots/common-lisp:/bot henrys1/bot-match \
+  -u root -v ${PWD}/footsoldiers:/footsoldiers \
+  -v ${PWD}/example-bots/common-lisp:/bot henrys1/bot-match \
   --bot-dir-1 /bot --bot-dir-2 /bot --map-file-path /footsoldiers/game-map \
   --config-file-path /footsoldiers/game-config.json
 #+end_src
