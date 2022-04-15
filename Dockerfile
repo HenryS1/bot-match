@@ -10,28 +10,9 @@ RUN apt-get install -y bzip2
 RUN apt-get install -y make
 RUN dpkg -i roswell_20.01.14.104-1_amd64.deb
 
-RUN apt-get install -y zip
-RUN apt-get install -y unzip
-RUN apt-get install -y curl
-RUN apt-get install -y gnupg
-
-# Add key for Azul java build
-RUN apt-key adv \
-  --keyserver hkp://keyserver.ubuntu.com:80 \
-  --recv-keys 0xB1998361219BD9C9
-
-# Add Azul apt repository
-RUN curl -O https://cdn.azul.com/zulu/bin/zulu-repo_1.0.0-3_all.deb
-RUN apt-get install ./zulu-repo_1.0.0-3_all.deb
-RUN apt-get update
-
-# Install openjre 17
-RUN apt-get install -y zulu17-jre
-
 RUN useradd -ms /bin/bash footsoldiers
 
 USER footsoldiers
-RUN ros install sbcl-bin/2.2.0
 RUN ros install qlot
 RUN ros install rove
 RUN mkdir -p /home/footsoldiers/.config/common-lisp

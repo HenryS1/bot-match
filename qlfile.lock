@@ -2,6 +2,10 @@
  (:class qlot/source/dist:source-dist
   :initargs (:distribution "http://beta.quicklisp.org/dist/quicklisp.txt" :%version :latest)
   :version "2022-02-20"))
+("introspect-environment" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version "2021-06-30")
+  :version "ql-2021-06-30"))
 ("type-i" .
  (:class qlot/source/ql:source-ql
   :initargs (:%version "2021-06-30")

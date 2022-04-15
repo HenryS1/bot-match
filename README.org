@@ -20,11 +20,95 @@ module. The footsoldiers module provides an implementation of a game.
 The example-bots directory contains starter implementions of bots in
 various languages for the footsoldiers game.
 
-** Platform
+** Running a game 
 
-The project only runs on *nix systems because it uses os signals to
-manage processes. It also requires the SBCL lisp compiler, because it
-uses SBCL APIs for unix sockets.
+To run a match you need a bot. The simplest way to get one is to pull
+the lisp example bot from docker hub. 
+
+#+begin_src sh
+docker pull henrys1/bot-match-lisp-bot
+#+end_src
+
+The lisp bot can also be easily built from its docker image in the
+example-bots directory of the repo.
+
+If you have built the runner from source you should have a binary
+called ~footsoldiers-runner~. You can run by executing the following
+command in root of this repo.
+
+#+begin_src sh
+./footsoldiers-runner --bot-dir-1 example-bots/common-lisp \
+   --bot-dir-2 example-bots/common-lisp \
+   --map-file-path footsoldiers/game-map --config-file-path footsoldiers/game-config.json
+#+end_src
+
+You should see a sequence of game turns printed to the terminal until
+the game finishes.
+
+#+begin_src sh
+Running footsoldiers
+Player 1: health 40, money 3
+Player 2: health 40, money 3
+                XXXXX   XXXXXXXXXXXXXXXXXXX   XXXXX                
+X   X                            X                            X   X
+                                 X                                 
+ 1    X                                                     X    2 
+       ]                         X                         [       
+X   X                            X                            X   X
+                XXXXX   XXXXXXXXXXXXXXXXXXX   XXXXX                
+
+Player 1: health 40, money 6
+Player 2: health 40, money 6
+                XXXXX   XXXXXXXXXXXXXXXXXXX   XXXXX                
+X   X                            X                            X   X
+                                 X                                 
+ 1    X     ]                                               X    2 
+                                 X                   [             
+X   X                            X                            X   X
+                XXXXX   XXXXXXXXXXXXXXXXXXX   XXXXX                
+#+end_src
+
+If you want to skip building from source you can pull the docker
+container for the match runner from docker hub.
+
+The flag `-u root` specifies that the user in the container should be
+the root user this gives the container user access to the docker
+socket which is mounted with `-v /var/run/docker.sock:/var/run/docker.sock`.
+
+#+begin_src sh
+docker pull henrys1/bot-match
+
+docker run --name bot-match-runner --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -u root -v ${PWD}/footsoldiers:/footsoldiers \
+  -v ${PWD}/example-bots/common-lisp:/bot henrys1/bot-match \
+  --bot-dir-1 /bot --bot-dir-2 /bot --map-file-path /footsoldiers/game-map \
+  --config-file-path /footsoldiers/game-config.json
+#+end_src
+
+** Building the runner 
+
+If you are using a unix based system then you should be able to build
+it either as a docker container or as a standalone binary. On windows
+you will need to use the docker container with docker desktop.
+
+*** With docker
+
+In the root of this respository execute the following command
+
+#+begin_src sh
+docker build . --tag henrys1/bot-match
+#+end_src
+
+*** Without docker
+
+The scripts ~install_mac.sh~ and ~install_ubuntu.sh~ have been tested
+for mac and ubuntu linux respectively.
+
+There is also a script with a suggested approach for how to build on
+Arch linux although it has not been tested so it may fail.
+
+Installation on other linux systems should be similar. 
 
 ** License
 

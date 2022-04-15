@@ -962,10 +962,8 @@
                    (moves-filepath (or (getf options :move-logs) "./move-logs"))
                    (states-filepath (or (getf options :state-logs) "./state-logs"))
                    (map-filepath (or (getf options :map-file-path) "./game-map"))
-                   (config (if (and config-file-path (probe-file config-file-path))
-                               (with-open-file (f config-file-path)
-                                 (game-config-json:from-json f))
-                               *default-game-config*)))
+                   (config (with-open-file (f config-file-path)
+                             (game-config-json:from-json f))))
               (cleanup-containers)            
               (with-files ((player1-error-stream "./player1-errs" :if-does-not-exist :create
                                                  :if-exists :supersede :direction :output)

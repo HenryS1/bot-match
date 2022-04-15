@@ -36,7 +36,7 @@ public class Bot {
                     enemy = input.player1;
                 }
 
-                if (me.money > 10) {
+                if (me.money >= 10) {
                     Coord myBaseCoord = me.base;
                     Coord enemyBaseCoord = enemy.base;
                     System.out.println(String.format("Build Scout (%d, %d) (%d, %d) Down", 
