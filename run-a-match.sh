@@ -16,4 +16,4 @@ if [ -d "$2" ]; then DIRECTORY_OF_BOT_2=$2/.; fi
 DIRECTORY_OF_BOT_2=$(cd "$(dirname -- "$DIRECTORY_OF_BOT_2")"; printf %s. "$PWD")
 DIRECTORY_OF_BOT_2=${DIRECTORY_OF_BOT_2%?}
 
-docker run -v "$DIRECTORY_OF_BOT_1":"$DIRECTORY_OF_BOT_1" -v "$DIRECTORY_OF_BOT_2":"$DIRECTORY_OF_BOT_2" bot-runner --config-file-path ./footsoldiers/game-config.json --map-file-path ./footsoldiers/game-map --bot-dir-1 "$DIRECTORY_OF_BOT_1" --bot-dir-2 "$DIRECTORY_OF_BOT_2"
+docker run -v /var/run/docker.sock:/var/run/docker.sock -u root -v "$DIRECTORY_OF_BOT_1":"$DIRECTORY_OF_BOT_1" -v "$DIRECTORY_OF_BOT_2":"$DIRECTORY_OF_BOT_2" henrys1/bot-match --config-file-path ./footsoldiers/game-config.json --map-file-path ./footsoldiers/game-map --bot-dir-1 "$DIRECTORY_OF_BOT_1" --bot-dir-2 "$DIRECTORY_OF_BOT_2" 
