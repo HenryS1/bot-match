@@ -803,21 +803,25 @@
     (:name :bot-dir-1
            :description "The directory where the first bot can be found"
            :long "bot-dir-1"
+           :required t
            :arg-parser #'identity
            :meta-var "DIR1")
     (:name :bot-dir-2
            :description "The directory where the second bot can be found"
            :long "bot-dir-2"
+           :required t
            :arg-parser #'identity
            :meta-var "DIR2")
     (:name :config-file-path
            :description "The path of the game runner config file"
            :long "config-file-path"
            :arg-parser #'identity
+           :required t
            :meta-var "CONF-FILE")
     (:name :map-file-path
            :description "The path of the file with the game map"
            :long "map-file-path"
+           :required t
            :arg-parser #'identity
            :meta-var "MAP-FILE"))
 
@@ -949,19 +953,18 @@
                :suffix "Hope you enjoy!"
                :usage-of "footsoldiers-runner"
                :args     "[FREE-ARGS]")
-            (bind ((bot-1-path (or (getf options :bot-dir-1) "~/bot1/"))
+            (bind ((bot-1-path (getf options :bot-dir-1))
                    (bot-1-def (runtime:read-bot-definition (merge-pathnames "definition.json" 
                                                                             (construct-bot-path bot-1-path))))
-                   (bot-2-path (or (getf options :bot-dir-2) "~/bot2/"))
+                   (bot-2-path (getf options :bot-dir-2))
                    (bot-2-def (runtime:read-bot-definition (merge-pathnames "definition.json"
                                                                             (construct-bot-path bot-2-path))))
-                   (config-file-path (normalise-path 
-                                      (or (getf options :config-file-path) "./game-config.json")))
+                   (config-file-path (normalise-path (getf options :config-file-path)))
                    (result-filepath (or (getf options :result-file) "./game-result"))
                    (turns-filepath (or (getf options :turn-logs) "./turn-logs"))
                    (moves-filepath (or (getf options :move-logs) "./move-logs"))
                    (states-filepath (or (getf options :state-logs) "./state-logs"))
-                   (map-filepath (or (getf options :map-file-path) "./game-map"))
+                   (map-filepath (getf options :map-file-path))
                    (config (with-open-file (f config-file-path)
                              (game-config-json:from-json f))))
               (cleanup-containers)            
