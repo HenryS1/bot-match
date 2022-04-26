@@ -26,7 +26,9 @@ to build it at, the soldier's destination and the direction the
 soldier faces, which affects how it chooses a target to attack. To
 build a scout facing up the player must print
 
+#+begin_src shell
 Build Scout (x1, y1) (x2, y2) Up
+#+end_src
 
 where x1 is the x coordinate of the build location, y1 is the y
 coordinate of the build location, x2 is the x coordinate of the
@@ -34,8 +36,10 @@ soldier destination and y2 is the y coordinate of the soldier
 destination. Similarly the commands to build an assassing or a tank
 look as follows (in this case with directions down and left):
 
+#+begin_src shell
 Build Assassin (x1, y1) (x2, y2) Down
 Build Tank (x1, y1) (x2, y2) Left
+#+end_src
 
 A build command fails if the player doesn't have enough money for the
 specified soldier, if the build location is occupied or if the build
@@ -44,7 +48,9 @@ location is too far from the player's base.
 To change the destination of a soldier a player must print the
 following command to stdout:
 
+#+begin_src shell
 Move (x1, y1) to (x2, y2)
+#+end_src
 
 Here x1 and y1 are the x and y coordinates of a friendly soldier while
 x2 and y2 specify the new destination of this soldier.
@@ -55,7 +61,9 @@ or the the soldier at that position belongs to the enemy player.
 The final command changes the direction that a soldier faces,
 affecting how targets are selected. This command looks as follows:
 
+#+begin_src shell
 Change attack direction (4, 10) to Left
+#+end_src
 
 The coordinate ~(4, 10)~ is the position where the soldier currently
 is. The direction (in this case left) is the new direction for the
